@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: coregre-backend
+    ports:
+      - "3011:3011"
+    environment:
+      - NODE_ENV=production
+      - PORT=3011
+      - DATABASE_URL=mysql://root:rootpassword@core-mysql:3306/coregre
+      - JWT_SECRET=${JWT_SECRET:-coregre-secret-key}
+      - FRONTEND_URL=http://localhost:3010
+      - REDIS_HOST=core-redis
+      - REDIS_PORT=6379
+    depends_on:
+      - mysql
+    networks:
+      - core-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    container_name: coregre-frontend
+    ports:
+      - "3010:3010"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3011/api
+    depends_on:
+      - backend
+    networks:
+      - core-network
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: coregre-mysql
+    ports:
+      - "3307:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=coregre
+    volumes:
+      - coregre-mysql-data:/var/lib/mysql
+    networks:
+      - core-network
+    restart: unless-stopped
+
+networks:
+  core-network:
+    external: true
+    name: core-network
+
+volumes:
+  coregre-mysql-data:

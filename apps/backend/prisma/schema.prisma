@@ -1,0 +1,815 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== AUTH ====================
+
+model User {
+  id            Int       @id @default(autoincrement())
+  userName      String    @unique @map("user_name") @db.VarChar(50)
+  nome          String    @db.VarChar(100)
+  password      String    @db.VarChar(255)
+  mail          String?   @db.VarChar(100)
+  adminType     String    @default("operator") @map("admin_type") @db.VarChar(20)
+  themeColor    String    @default("blue") @map("theme_color") @db.VarChar(20)
+  lastLogin     DateTime? @map("last_login")
+  expires       DateTime?
+  rememberToken String?   @map("remember_token") @db.VarChar(255)
+  seriesId      String?   @map("series_id") @db.VarChar(255)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  permissions   Permission?
+  notifications Notification[]
+  activityLogs  ActivityLog[]
+  userWidgets   UserWidget[]
+
+  // Production records created/updated by this user
+  productionRecordsCreated ProductionRecord[] @relation("ProductionCreator")
+  productionRecordsUpdated ProductionRecord[] @relation("ProductionUpdater")
+
+  @@map("auth_users")
+}
+
+model Permission {
+  id       Int  @id @default(autoincrement())
+  userId   Int  @unique @map("id_utente")
+  permessi Json
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("auth_permissions")
+}
+
+// ==================== CORE ====================
+
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int?     @map("user_id")
+  action      String   @db.VarChar(100)
+  description String?  @db.Text
+  ipAddress   String?  @map("ip_address") @db.VarChar(45)
+  userAgent   String?  @map("user_agent") @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("core_log")
+}
+
+model Setting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique @db.VarChar(100)
+  value     String?  @db.Text
+  type      String   @default("string") @db.VarChar(20)
+  group     String   @default("general") @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("core_settings")
+}
+
+model CoreData {
+  id           Int       @id @default(autoincrement())
+  commessa     String?   @db.VarChar(100)
+  modello      String?   @db.VarChar(100)
+  colore       String?   @db.VarChar(100)
+  forma        String?   @db.VarChar(100)
+  cliente      String?   @db.VarChar(200)
+  stagione     String?   @db.VarChar(50)
+  brand        String?   @db.VarChar(100)
+  dataConsegna DateTime? @map("data_consegna")
+  quantita     Int?
+  note         String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("core_dati")
+}
+
+model CoreAnagrafica {
+  id        Int      @id @default(autoincrement())
+  codice    String?  @db.VarChar(50)
+  nome      String?  @db.VarChar(200)
+  tipo      String?  @db.VarChar(50)
+  indirizzo String?  @db.VarChar(255)
+  telefono  String?  @db.VarChar(50)
+  email     String?  @db.VarChar(100)
+  piva      String?  @db.VarChar(20)
+  cf        String?  @db.VarChar(20)
+  note      String?  @db.Text
+  attivo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("core_anag")
+}
+
+// ==================== RIPARAZIONI ====================
+
+model Riparazione {
+  id            Int       @id @default(autoincrement())
+  cartellino    String?   @db.VarChar(50)
+  commessa      String?   @db.VarChar(100)
+  modello       String?   @db.VarChar(100)
+  colore        String?   @db.VarChar(100)
+  taglia        String?   @db.VarChar(20)
+  difetto       String?   @db.Text
+  laboratorioId Int?      @map("laboratorio_id")
+  repartoId     Int?      @map("reparto_id")
+  lineaId       Int?      @map("linea_id")
+  stato         String    @default("aperta") @db.VarChar(20)
+  priorita      Int       @default(0)
+  dataApertura  DateTime  @default(now()) @map("data_apertura")
+  dataChiusura  DateTime? @map("data_chiusura")
+  operatore     String?   @db.VarChar(100)
+  note          String?   @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  laboratorio Laboratorio? @relation(fields: [laboratorioId], references: [id])
+  reparto     Reparto?     @relation(fields: [repartoId], references: [id])
+  linea       Linea?       @relation(fields: [lineaId], references: [id])
+
+  @@map("rip_riparazioni")
+}
+
+model RiparazioneInterna {
+  id                Int       @id @default(autoincrement())
+  cartellino        String?   @db.VarChar(50)
+  commessa          String?   @db.VarChar(100)
+  modello           String?   @db.VarChar(100)
+  colore            String?   @db.VarChar(100)
+  taglia            String?   @db.VarChar(20)
+  quantita          Int       @default(1)
+  difetto           String?   @db.Text
+  causaDifetto      String?   @map("causa_difetto") @db.Text
+  repartoOrigine    String?   @map("reparto_origine") @db.VarChar(100)
+  repartoDestino    String?   @map("reparto_destino") @db.VarChar(100)
+  stato             String    @default("in_attesa") @db.VarChar(30)
+  priorita          Int       @default(0)
+  operatoreApertura String?   @map("operatore_apertura") @db.VarChar(100)
+  operatoreChiusura String?   @map("operatore_chiusura") @db.VarChar(100)
+  dataApertura      DateTime  @default(now()) @map("data_apertura")
+  dataChiusura      DateTime? @map("data_chiusura")
+  note              String?   @db.Text
+  foto              String?   @db.VarChar(255)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@map("rip_interne")
+}
+
+model Reparto {
+  id          Int      @id @default(autoincrement())
+  nome        String   @db.VarChar(100)
+  codice      String?  @db.VarChar(20)
+  descrizione String?  @db.Text
+  attivo      Boolean  @default(true)
+  ordine      Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  riparazioni Riparazione[]
+
+  @@map("rip_reparti")
+}
+
+model Linea {
+  id          Int      @id @default(autoincrement())
+  nome        String   @db.VarChar(100)
+  codice      String?  @db.VarChar(20)
+  descrizione String?  @db.Text
+  attivo      Boolean  @default(true)
+  ordine      Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  riparazioni Riparazione[]
+
+  @@map("rip_linee")
+}
+
+model Laboratorio {
+  id        Int      @id @default(autoincrement())
+  nome      String   @db.VarChar(100)
+  codice    String?  @db.VarChar(20)
+  indirizzo String?  @db.VarChar(255)
+  telefono  String?  @db.VarChar(50)
+  email     String?  @db.VarChar(100)
+  attivo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  riparazioni Riparazione[]
+
+  @@map("rip_laboratori")
+}
+
+// ==================== QUALITY CONTROL ====================
+
+model QualityRecord {
+  id            Int      @id @default(autoincrement())
+  cartellino    String   @db.VarChar(50)
+  commessa      String?  @db.VarChar(100)
+  modello       String?  @db.VarChar(100)
+  colore        String?  @db.VarChar(100)
+  taglia        String?  @db.VarChar(20)
+  quantita      Int      @default(1)
+  esito         String   @db.VarChar(20) // ok, ko, rework
+  departmentId  Int?     @map("department_id")
+  operatorId    Int?     @map("operator_id")
+  defectTypeId  Int?     @map("defect_type_id")
+  note          String?  @db.Text
+  foto          String?  @db.VarChar(255)
+  dataControllo DateTime @default(now()) @map("data_controllo")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  department QualityDepartment? @relation(fields: [departmentId], references: [id])
+  operator   QualityOperator?   @relation(fields: [operatorId], references: [id])
+  defectType QualityDefectType? @relation(fields: [defectTypeId], references: [id])
+
+  @@map("cq_records")
+}
+
+model QualityDepartment {
+  id          Int      @id @default(autoincrement())
+  nome        String   @db.VarChar(100)
+  codice      String?  @db.VarChar(20)
+  descrizione String?  @db.Text
+  attivo      Boolean  @default(true)
+  ordine      Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  records QualityRecord[]
+
+  @@map("cq_departments")
+}
+
+model QualityOperator {
+  id        Int      @id @default(autoincrement())
+  nome      String   @db.VarChar(100)
+  cognome   String?  @db.VarChar(100)
+  matricola String?  @unique @db.VarChar(50)
+  pin       String?  @db.VarChar(10)
+  attivo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  records QualityRecord[]
+
+  @@map("cq_operators")
+}
+
+model QualityDefectType {
+  id          Int      @id @default(autoincrement())
+  nome        String   @db.VarChar(100)
+  codice      String?  @db.VarChar(20)
+  categoria   String?  @db.VarChar(50)
+  gravita     Int      @default(1) // 1-5
+  descrizione String?  @db.Text
+  attivo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  records QualityRecord[]
+
+  @@map("cq_deftypes")
+}
+
+model QualityException {
+  id          Int       @id @default(autoincrement())
+  commessa    String?   @db.VarChar(100)
+  modello     String?   @db.VarChar(100)
+  tipo        String    @db.VarChar(50)
+  descrizione String?   @db.Text
+  attivo      Boolean   @default(true)
+  dataInizio  DateTime? @map("data_inizio")
+  dataFine    DateTime? @map("data_fine")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("cq_exceptions")
+}
+
+// ==================== EXPORT / DDT ====================
+
+model ExportDocument {
+  id            Int      @id @default(autoincrement())
+  progressivo   String   @unique @db.VarChar(50)
+  tipo          String   @default("DDT") @db.VarChar(20)
+  terzistaId    Int?     @map("terzista_id")
+  dataDocumento DateTime @default(now()) @map("data_documento")
+  stato         String   @default("bozza") @db.VarChar(20)
+  note          String?  @db.Text
+  totaleColli   Int?     @map("totale_colli")
+  totalePaia    Int?     @map("totale_paia")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  terzista ExportTerzista?       @relation(fields: [terzistaId], references: [id])
+  articoli ExportArticle[]
+  footer   ExportDocumentFooter?
+
+  @@map("exp_documents")
+}
+
+model ExportArticle {
+  id         Int      @id @default(autoincrement())
+  documentId Int      @map("document_id")
+  commessa   String?  @db.VarChar(100)
+  modello    String?  @db.VarChar(100)
+  colore     String?  @db.VarChar(100)
+  taglia     String?  @db.VarChar(20)
+  quantita   Int      @default(0)
+  colli      Int      @default(0)
+  note       String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  document ExportDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("exp_dati_articoli")
+}
+
+model ExportDocumentFooter {
+  id          Int       @id @default(autoincrement())
+  documentId  Int       @unique @map("document_id")
+  causale     String?   @db.VarChar(100)
+  vettore     String?   @db.VarChar(100)
+  aspettoBeni String?   @map("aspetto_beni") @db.VarChar(100)
+  porto       String?   @db.VarChar(50)
+  dataRitiro  DateTime? @map("data_ritiro")
+  oraRitiro   String?   @map("ora_ritiro") @db.VarChar(10)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  document ExportDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("exp_document_footers")
+}
+
+model ExportTerzista {
+  id        Int      @id @default(autoincrement())
+  codice    String?  @db.VarChar(50)
+  nome      String   @db.VarChar(200)
+  indirizzo String?  @db.VarChar(255)
+  citta     String?  @db.VarChar(100)
+  cap       String?  @db.VarChar(10)
+  provincia String?  @db.VarChar(5)
+  telefono  String?  @db.VarChar(50)
+  email     String?  @db.VarChar(100)
+  piva      String?  @db.VarChar(20)
+  cf        String?  @db.VarChar(20)
+  attivo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  documents ExportDocument[]
+
+  @@map("exp_terzisti")
+}
+
+model ExportMissingData {
+  id        Int      @id @default(autoincrement())
+  commessa  String?  @db.VarChar(100)
+  campo     String   @db.VarChar(50)
+  messaggio String?  @db.Text
+  risolto   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("exp_missing_data")
+}
+
+// ==================== SCM (Subcontractors) ====================
+
+model ScmLaboratory {
+  id         Int      @id @default(autoincrement())
+  codice     String?  @db.VarChar(50)
+  nome       String   @db.VarChar(200)
+  indirizzo  String?  @db.VarChar(255)
+  telefono   String?  @db.VarChar(50)
+  email      String?  @db.VarChar(100)
+  accessCode String?  @map("access_code") @db.VarChar(50)
+  attivo     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  launches ScmLaunch[]
+
+  @@map("scm_laboratories")
+}
+
+model ScmLaunch {
+  id            Int       @id @default(autoincrement())
+  numero        String    @db.VarChar(50)
+  laboratoryId  Int       @map("laboratory_id")
+  dataLancio    DateTime  @default(now()) @map("data_lancio")
+  dataConsegna  DateTime? @map("data_consegna")
+  stato         String    @default("in_corso") @db.VarChar(30)
+  blockedReason String?   @map("blocked_reason") @db.Text
+  note          String?   @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  laboratory ScmLaboratory      @relation(fields: [laboratoryId], references: [id])
+  articles   ScmLaunchArticle[]
+  phases     ScmLaunchPhase[]
+
+  @@map("scm_launches")
+}
+
+model ScmLaunchArticle {
+  id        Int      @id @default(autoincrement())
+  launchId  Int      @map("launch_id")
+  commessa  String?  @db.VarChar(100)
+  modello   String?  @db.VarChar(100)
+  colore    String?  @db.VarChar(100)
+  quantita  Int      @default(0)
+  note      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  launch ScmLaunch @relation(fields: [launchId], references: [id], onDelete: Cascade)
+
+  @@map("scm_launch_articles")
+}
+
+model ScmLaunchPhase {
+  id          Int       @id @default(autoincrement())
+  launchId    Int       @map("launch_id")
+  phaseId     Int?      @map("phase_id")
+  nome        String    @db.VarChar(100)
+  stato       String    @default("pending") @db.VarChar(30)
+  dataInizio  DateTime? @map("data_inizio")
+  dataFine    DateTime? @map("data_fine")
+  percentuale Int       @default(0)
+  note        String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  launch        ScmLaunch             @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  standardPhase ScmStandardPhase?     @relation(fields: [phaseId], references: [id])
+  tracking      ScmProgressTracking[]
+
+  @@map("scm_launch_phases")
+}
+
+model ScmStandardPhase {
+  id          Int      @id @default(autoincrement())
+  nome        String   @db.VarChar(100)
+  codice      String?  @db.VarChar(20)
+  descrizione String?  @db.Text
+  ordine      Int      @default(0)
+  attivo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  phases ScmLaunchPhase[]
+
+  @@map("scm_standard_phases")
+}
+
+model ScmProgressTracking {
+  id        Int      @id @default(autoincrement())
+  phaseId   Int      @map("phase_id")
+  quantita  Int      @default(0)
+  data      DateTime @default(now())
+  note      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  phase ScmLaunchPhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+
+  @@map("scm_progress_tracking")
+}
+
+model ScmSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique @db.VarChar(100)
+  value     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("scm_settings")
+}
+
+// ==================== TRACKING ====================
+
+model TrackLink {
+  id         Int      @id @default(autoincrement())
+  parentId   Int?     @map("parent_id")
+  parentType String?  @map("parent_type") @db.VarChar(50)
+  childId    Int?     @map("child_id")
+  childType  String?  @map("child_type") @db.VarChar(50)
+  relation   String?  @db.VarChar(50)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("trk_links")
+}
+
+model TrackLotInfo {
+  id         Int       @id @default(autoincrement())
+  lotto      String    @db.VarChar(100)
+  commessa   String?   @db.VarChar(100)
+  modello    String?   @db.VarChar(100)
+  colore     String?   @db.VarChar(100)
+  quantita   Int?
+  fornitore  String?   @db.VarChar(200)
+  dataArrivo DateTime? @map("data_arrivo")
+  note       String?   @db.Text
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@map("trk_lot_info")
+}
+
+model TrackOrderInfo {
+  id           Int       @id @default(autoincrement())
+  ordine       String    @db.VarChar(100)
+  cliente      String?   @db.VarChar(200)
+  dataOrdine   DateTime? @map("data_ordine")
+  dataConsegna DateTime? @map("data_consegna")
+  stato        String?   @db.VarChar(50)
+  note         String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("trk_order_info")
+}
+
+model TrackSku {
+  id          Int      @id @default(autoincrement())
+  sku         String   @unique @db.VarChar(100)
+  modello     String?  @db.VarChar(100)
+  colore      String?  @db.VarChar(100)
+  taglia      String?  @db.VarChar(20)
+  descrizione String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("trk_skus")
+}
+
+model TrackType {
+  id          Int      @id @default(autoincrement())
+  nome        String   @db.VarChar(100)
+  codice      String?  @db.VarChar(20)
+  descrizione String?  @db.Text
+  attivo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("trk_types")
+}
+
+// ==================== PRODUCTION ====================
+
+model ProductionRecord {
+  id             Int      @id @default(autoincrement())
+  productionDate DateTime @unique @map("production_date") @db.Date
+
+  // Montaggio (Assembly)
+  manovia1      Int     @default(0)
+  manovia1Notes String? @map("manovia1_notes") @db.Text
+  manovia2      Int     @default(0)
+  manovia2Notes String? @map("manovia2_notes") @db.Text
+
+  // Orlatura (Hemming)
+  orlatura1      Int     @default(0)
+  orlatura1Notes String? @map("orlatura1_notes") @db.Text
+  orlatura2      Int     @default(0)
+  orlatura2Notes String? @map("orlatura2_notes") @db.Text
+  orlatura3      Int     @default(0)
+  orlatura3Notes String? @map("orlatura3_notes") @db.Text
+  orlatura4      Int     @default(0)
+  orlatura4Notes String? @map("orlatura4_notes") @db.Text
+  orlatura5      Int     @default(0)
+  orlatura5Notes String? @map("orlatura5_notes") @db.Text
+
+  // Taglio (Cutting)
+  taglio1      Int     @default(0)
+  taglio1Notes String? @map("taglio1_notes") @db.Text
+  taglio2      Int     @default(0)
+  taglio2Notes String? @map("taglio2_notes") @db.Text
+
+  // Totals (generated columns in DB)
+  totalMontaggio Int? @map("total_montaggio")
+  totalOrlatura  Int? @map("total_orlatura")
+  totalTaglio    Int? @map("total_taglio")
+
+  // Metadata
+  createdBy Int?     @map("created_by")
+  updatedBy Int?     @map("updated_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  creator User? @relation("ProductionCreator", fields: [createdBy], references: [id])
+  updater User? @relation("ProductionUpdater", fields: [updatedBy], references: [id])
+
+  @@map("production_records")
+}
+
+// ==================== MRP ====================
+
+model MrpMaterial {
+  id         Int      @id @default(autoincrement())
+  codice     String   @unique @db.VarChar(100)
+  nome       String   @db.VarChar(200)
+  categoryId Int?     @map("category_id")
+  unita      String   @default("PZ") @db.VarChar(20)
+  scorta     Int      @default(0)
+  giacenza   Int      @default(0)
+  leadTime   Int      @default(0) @map("lead_time")
+  fornitore  String?  @db.VarChar(200)
+  prezzo     Decimal? @db.Decimal(10, 2)
+  note       String?  @db.Text
+  attivo     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  category     MrpCategory?     @relation(fields: [categoryId], references: [id])
+  orders       MrpOrder[]
+  arrivals     MrpArrival[]
+  requirements MrpRequirement[]
+
+  @@map("mrp_materials")
+}
+
+model MrpCategory {
+  id          Int      @id @default(autoincrement())
+  nome        String   @db.VarChar(100)
+  codice      String?  @db.VarChar(20)
+  descrizione String?  @db.Text
+  attivo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  materials MrpMaterial[]
+
+  @@map("mrp_categories")
+}
+
+model MrpOrder {
+  id           Int       @id @default(autoincrement())
+  materialId   Int       @map("material_id")
+  quantita     Int
+  dataOrdine   DateTime  @default(now()) @map("data_ordine")
+  dataConsegna DateTime? @map("data_consegna")
+  stato        String    @default("ordinato") @db.VarChar(30)
+  fornitore    String?   @db.VarChar(200)
+  riferimento  String?   @db.VarChar(100)
+  note         String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  material MrpMaterial @relation(fields: [materialId], references: [id])
+
+  @@map("mrp_orders")
+}
+
+model MrpArrival {
+  id          Int      @id @default(autoincrement())
+  materialId  Int      @map("material_id")
+  quantita    Int
+  dataArrivo  DateTime @default(now()) @map("data_arrivo")
+  riferimento String?  @db.VarChar(100)
+  note        String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  material MrpMaterial @relation(fields: [materialId], references: [id])
+
+  @@map("mrp_arrivals")
+}
+
+model MrpRequirement {
+  id             Int      @id @default(autoincrement())
+  materialId     Int      @map("material_id")
+  commessa       String?  @db.VarChar(100)
+  quantita       Int
+  dataFabbisogno DateTime @map("data_fabbisogno")
+  stato          String   @default("pending") @db.VarChar(30)
+  note           String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  material MrpMaterial @relation(fields: [materialId], references: [id])
+
+  @@map("mrp_requirements")
+}
+
+// ==================== WIDGETS ====================
+
+model AvailableWidget {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(100)
+  title       String   @db.VarChar(100)
+  description String?  @db.Text
+  icon        String?  @db.VarChar(50)
+  category    String?  @db.VarChar(50)
+  minWidth    Int      @default(1) @map("min_width")
+  minHeight   Int      @default(1) @map("min_height")
+  attivo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  userWidgets UserWidget[]
+
+  @@map("widg_available")
+}
+
+model UserWidget {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  widgetId  Int      @map("widget_id")
+  x         Int      @default(0)
+  y         Int      @default(0)
+  width     Int      @default(1)
+  height    Int      @default(1)
+  config    Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  widget AvailableWidget @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+
+  @@map("widg_usermap")
+}
+
+// ==================== NOTIFICATIONS ====================
+
+model Notification {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  type      String    @db.VarChar(50)
+  title     String    @db.VarChar(200)
+  message   String?   @db.Text
+  link      String?   @db.VarChar(255)
+  read      Boolean   @default(false)
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("auth_notifications")
+}
+
+// ==================== CRON ====================
+
+model CronLog {
+  id           Int       @id @default(autoincrement())
+  jobClass     String    @map("job_class") @db.VarChar(100)
+  name         String    @db.VarChar(100)
+  status       String    @db.VarChar(20)
+  startedAt    DateTime  @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+  durationMs   Int?      @map("duration_ms")
+  errorMessage String?   @map("error_message") @db.Text
+  output       String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("cron_logs")
+}
+
+// ==================== INWORK (Mobile Operators) ====================
+
+model InworkOperator {
+  id        Int       @id @default(autoincrement())
+  nome      String    @db.VarChar(100)
+  cognome   String?   @db.VarChar(100)
+  matricola String?   @unique @db.VarChar(50)
+  pin       String?   @db.VarChar(10)
+  password  String?   @db.VarChar(255)
+  email     String?   @db.VarChar(100)
+  reparto   String?   @db.VarChar(100)
+  ruolo     String?   @db.VarChar(50)
+  attivo    Boolean   @default(true)
+  lastLogin DateTime? @map("last_login")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  modulePermissions InworkModulePermission[]
+
+  @@map("inwork_operators")
+}
+
+model InworkModulePermission {
+  id         Int      @id @default(autoincrement())
+  operatorId Int      @map("operator_id")
+  module     String   @db.VarChar(50)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  operator InworkOperator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@unique([operatorId, module])
+  @@map("inwork_module_permissions")
+}

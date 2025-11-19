@@ -1,0 +1,32 @@
+{
+  "name": "coregre-js",
+  "version": "1.0.0",
+  "description": "CoreGRE - ERP System for Manufacturing (Node.js/TypeScript)",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm run dev -w @coregre/backend",
+    "dev:frontend": "npm run dev -w @coregre/frontend",
+    "build": "npm run build -w @coregre/backend && npm run build -w @coregre/frontend",
+    "build:backend": "npm run build -w @coregre/backend",
+    "build:frontend": "npm run build -w @coregre/frontend",
+    "start": "concurrently \"npm run start:prod -w @coregre/backend\" \"npm run start -w @coregre/frontend\"",
+    "start:backend": "npm run start:prod -w @coregre/backend",
+    "start:frontend": "npm run start -w @coregre/frontend",
+    "db:generate": "npm run db:generate -w @coregre/backend",
+    "db:migrate": "npm run db:migrate -w @coregre/backend",
+    "db:seed": "npm run db:seed -w @coregre/backend",
+    "lint": "npm run lint -w @coregre/backend && npm run lint -w @coregre/frontend",
+    "test": "npm run test -w @coregre/backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
