@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore, useHydration } from '@/store/auth';
+import { useAuthStore } from '@/store/auth';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 
@@ -12,30 +12,38 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, darkMode } = useAuthStore();
-  const hasHydrated = useHydration();
+  const { isAuthenticated, darkMode, token } = useAuthStore();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Aspetta che lo store sia hydratato prima di fare il redirect
-    if (hasHydrated && !isAuthenticated) {
-      router.push('/login');
-    }
-  }, [hasHydrated, isAuthenticated, router]);
+    // Aspetta un tick per permettere a Zustand di fare hydration
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
-  // Mostra loading mentre lo store si sta hydratando
-  if (!hasHydrated) {
+  useEffect(() => {
+    // Solo dopo il loading iniziale, controlla l'autenticazione
+    if (!isLoading && !isAuthenticated && !token) {
+      router.replace('/login');
+    }
+  }, [isLoading, isAuthenticated, token, router]);
+
+  // Mostra loading mentre aspettiamo hydration
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-solid border-blue-500 border-t-transparent"></div>
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-solid border-orange-500 border-t-transparent"></div>
       </div>
     );
   }
 
   // Se non autenticato, mostra loading mentre fa il redirect
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !token) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-solid border-blue-500 border-t-transparent"></div>
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-solid border-orange-500 border-t-transparent"></div>
       </div>
     );
   }

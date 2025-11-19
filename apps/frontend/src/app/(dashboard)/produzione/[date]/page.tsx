@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { produzioneApi } from '@/lib/api';
-import { showSuccess, showError } from '@/store/notifications';
+import { showError } from '@/store/notifications';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -22,34 +22,47 @@ const MONTHS = [
   'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
 ];
 
-export default function ProduzioneDetailPage() {
+// Color mapping for phases
+const PHASE_COLORS: Record<string, { border: string; bg: string; text: string; valueBg: string }> = {
+  blue: {
+    border: 'border-blue-200 dark:border-blue-800',
+    bg: 'bg-blue-50 dark:bg-blue-900/20',
+    text: 'text-blue-700 dark:text-blue-300',
+    valueBg: 'text-blue-600 dark:text-blue-400',
+  },
+  green: {
+    border: 'border-green-200 dark:border-green-800',
+    bg: 'bg-green-50 dark:bg-green-900/20',
+    text: 'text-green-700 dark:text-green-300',
+    valueBg: 'text-green-600 dark:text-green-400',
+  },
+  purple: {
+    border: 'border-purple-200 dark:border-purple-800',
+    bg: 'bg-purple-50 dark:bg-purple-900/20',
+    text: 'text-purple-700 dark:text-purple-300',
+    valueBg: 'text-purple-600 dark:text-purple-400',
+  },
+  orange: {
+    border: 'border-orange-200 dark:border-orange-800',
+    bg: 'bg-orange-50 dark:bg-orange-900/20',
+    text: 'text-orange-700 dark:text-orange-300',
+    valueBg: 'text-orange-600 dark:text-orange-400',
+  },
+  red: {
+    border: 'border-red-200 dark:border-red-800',
+    bg: 'bg-red-50 dark:bg-red-900/20',
+    text: 'text-red-700 dark:text-red-300',
+    valueBg: 'text-red-600 dark:text-red-400',
+  },
+};
+
+export default function ProduzioneViewPage() {
   const router = useRouter();
   const params = useParams();
   const date = params.date as string;
 
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [record, setRecord] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    manovia1: 0,
-    manovia1Notes: '',
-    manovia2: 0,
-    manovia2Notes: '',
-    orlatura1: 0,
-    orlatura1Notes: '',
-    orlatura2: 0,
-    orlatura2Notes: '',
-    orlatura3: 0,
-    orlatura3Notes: '',
-    orlatura4: 0,
-    orlatura4Notes: '',
-    orlatura5: 0,
-    orlatura5Notes: '',
-    taglio1: 0,
-    taglio1Notes: '',
-    taglio2: 0,
-    taglio2Notes: '',
-  });
 
   useEffect(() => {
     fetchRecord();
@@ -60,26 +73,12 @@ export default function ProduzioneDetailPage() {
       setLoading(true);
       const data = await produzioneApi.getByDate(date);
       setRecord(data);
-      setFormData({
-        manovia1: data.manovia1 || 0,
-        manovia1Notes: data.manovia1Notes || '',
-        manovia2: data.manovia2 || 0,
-        manovia2Notes: data.manovia2Notes || '',
-        orlatura1: data.orlatura1 || 0,
-        orlatura1Notes: data.orlatura1Notes || '',
-        orlatura2: data.orlatura2 || 0,
-        orlatura2Notes: data.orlatura2Notes || '',
-        orlatura3: data.orlatura3 || 0,
-        orlatura3Notes: data.orlatura3Notes || '',
-        orlatura4: data.orlatura4 || 0,
-        orlatura4Notes: data.orlatura4Notes || '',
-        orlatura5: data.orlatura5 || 0,
-        orlatura5Notes: data.orlatura5Notes || '',
-        taglio1: data.taglio1 || 0,
-        taglio1Notes: data.taglio1Notes || '',
-        taglio2: data.taglio2 || 0,
-        taglio2Notes: data.taglio2Notes || '',
-      });
+
+      // Se non ci sono dati, redirect al form new con la data preselezionata
+      if (data.isNew) {
+        router.replace(`/produzione/new?date=${date}`);
+        return;
+      }
     } catch (error) {
       showError('Errore nel caricamento dei dati');
       router.push('/produzione');
@@ -88,34 +87,10 @@ export default function ProduzioneDetailPage() {
     }
   };
 
-  const handleChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await produzioneApi.saveByDate(date, formData);
-      showSuccess('Dati salvati con successo');
-      await fetchRecord(); // Refresh data
-    } catch (error) {
-      showError('Errore durante il salvataggio');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
   };
-
-  // Calculate totals
-  const totalMontaggio = (formData.manovia1 || 0) + (formData.manovia2 || 0);
-  const totalOrlatura = (formData.orlatura1 || 0) + (formData.orlatura2 || 0) + (formData.orlatura3 || 0) + (formData.orlatura4 || 0) + (formData.orlatura5 || 0);
-  const totalTaglio = (formData.taglio1 || 0) + (formData.taglio2 || 0);
-  const totalProduzione = totalMontaggio + totalOrlatura + totalTaglio;
 
   if (loading) {
     return (
@@ -123,11 +98,49 @@ export default function ProduzioneDetailPage() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="h-12 w-12 rounded-full border-4 border-solid border-yellow-500 border-t-transparent"
+          className="h-12 w-12 rounded-full border-4 border-solid border-orange-500 border-t-transparent"
         />
       </div>
     );
   }
+
+  if (!record || record.isNew) {
+    return null; // Will redirect
+  }
+
+  // Group valori by phase
+  const groupedByPhase = (record.valori || []).reduce((acc: any, v: any) => {
+    const phaseName = v.department?.phase?.nome || 'Altro';
+    const phaseColor = v.department?.phase?.colore || 'blue';
+    const phaseIcon = v.department?.phase?.icona || 'fa-cog';
+    const phaseOrder = v.department?.phase?.ordine || 0;
+
+    if (!acc[phaseName]) {
+      acc[phaseName] = {
+        color: phaseColor,
+        icon: phaseIcon,
+        ordine: phaseOrder,
+        departments: [],
+      };
+    }
+    acc[phaseName].departments.push(v);
+    return acc;
+  }, {});
+
+  // Sort phases by ordine
+  const sortedPhases = Object.entries(groupedByPhase).sort(
+    ([, a]: any, [, b]: any) => a.ordine - b.ordine
+  );
+
+  // Calculate totals
+  const totalsByPhase: Record<string, number> = {};
+  let totalProduzione = 0;
+
+  sortedPhases.forEach(([phaseName, phase]: [string, any]) => {
+    const phaseTotal = phase.departments.reduce((sum: number, v: any) => sum + (v.valore || 0), 0);
+    totalsByPhase[phaseName] = phaseTotal;
+    totalProduzione += phaseTotal;
+  });
 
   return (
     <motion.div initial="hidden" animate="visible" variants={containerVariants}>
@@ -139,10 +152,43 @@ export default function ProduzioneDetailPage() {
               Produzione - {formatDate(date)}
             </h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              {record?.isNew ? 'Inserisci i dati di produzione' : 'Modifica i dati di produzione'}
+              Visualizzazione dati di produzione
             </p>
           </div>
           <div className="mt-4 sm:mt-0 flex items-center space-x-3">
+            <motion.button
+              onClick={async () => {
+                try {
+                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3011/api'}/produzione/pdf/${date}`, {
+                    headers: {
+                      'Authorization': `Bearer ${JSON.parse(localStorage.getItem('coregre-auth') || '{}').state?.token}`,
+                    },
+                  });
+                  if (!response.ok) throw new Error('Errore generazione PDF');
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  window.open(url, '_blank');
+                } catch (error) {
+                  showError('Errore nella generazione del PDF');
+                }
+              }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="inline-flex items-center rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 text-sm font-medium text-white hover:from-red-600 hover:to-red-700 shadow-md"
+            >
+              <i className="fas fa-file-pdf mr-2"></i>
+              PDF
+            </motion.button>
+            <Link href={`/produzione/new?date=${date}`}>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="inline-flex items-center rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2 text-sm font-medium text-white hover:from-orange-600 hover:to-orange-700 shadow-md"
+              >
+                <i className="fas fa-edit mr-2"></i>
+                Modifica
+              </motion.button>
+            </Link>
             <Link href="/produzione">
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -183,220 +229,73 @@ export default function ProduzioneDetailPage() {
       </motion.nav>
 
       {/* Totals Summary */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-          <div className="text-sm font-medium text-blue-600 dark:text-blue-400">Montaggio</div>
-          <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{totalMontaggio}</div>
-        </div>
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-          <div className="text-sm font-medium text-green-600 dark:text-green-400">Orlatura</div>
-          <div className="text-2xl font-bold text-green-700 dark:text-green-300">{totalOrlatura}</div>
-        </div>
-        <div className="rounded-xl border border-purple-200 bg-purple-50 p-4 dark:border-purple-800 dark:bg-purple-900/20">
-          <div className="text-sm font-medium text-purple-600 dark:text-purple-400">Taglio</div>
-          <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">{totalTaglio}</div>
-        </div>
+      <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {sortedPhases.map(([phaseName, phase]: [string, any]) => {
+          const colors = PHASE_COLORS[phase.color] || PHASE_COLORS.blue;
+          return (
+            <div key={phaseName} className={`rounded-xl border ${colors.border} ${colors.bg} p-4`}>
+              <div className={`text-sm font-medium ${colors.text}`}>{phaseName}</div>
+              <div className={`text-2xl font-bold ${colors.text}`}>{totalsByPhase[phaseName]}</div>
+            </div>
+          );
+        })}
         <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-900/20">
           <div className="text-sm font-medium text-orange-600 dark:text-orange-400">Totale</div>
           <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">{totalProduzione}</div>
         </div>
       </motion.div>
 
-      <form onSubmit={handleSubmit}>
-        {/* Montaggio Section */}
-        <motion.div
-          variants={itemVariants}
-          className="mb-6 rounded-2xl border border-blue-200 bg-white shadow-lg dark:border-blue-800 dark:bg-gray-800"
-        >
-          <div className="p-4 border-b border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 rounded-t-2xl">
-            <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-300 flex items-center">
-              <i className="fas fa-industry mr-3"></i>
-              Montaggio
-            </h3>
-          </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Manovia 1 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Manovia 1
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.manovia1}
-                onChange={(e) => handleChange('manovia1', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-              />
-              <textarea
-                value={formData.manovia1Notes}
-                onChange={(e) => handleChange('manovia1Notes', e.target.value)}
-                placeholder="Note..."
-                className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 text-sm"
-                rows={2}
-              />
+      {/* Dynamic Phase Sections */}
+      {sortedPhases.map(([phaseName, phase]: [string, any]) => {
+        const colors = PHASE_COLORS[phase.color] || PHASE_COLORS.blue;
+        return (
+          <motion.div
+            key={phaseName}
+            variants={itemVariants}
+            className={`mb-6 rounded-2xl border ${colors.border} bg-white shadow-lg dark:bg-gray-800`}
+          >
+            <div className={`p-4 border-b ${colors.border} ${colors.bg} rounded-t-2xl`}>
+              <h3 className={`text-lg font-semibold ${colors.text} flex items-center`}>
+                <i className={`fas ${phase.icon} mr-3`}></i>
+                {phaseName}
+              </h3>
             </div>
-            {/* Manovia 2 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Manovia 2
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.manovia2}
-                onChange={(e) => handleChange('manovia2', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-              />
-              <textarea
-                value={formData.manovia2Notes}
-                onChange={(e) => handleChange('manovia2Notes', e.target.value)}
-                placeholder="Note..."
-                className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 text-sm"
-                rows={2}
-              />
+            <div className={`p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-${Math.min(phase.departments.length, 5)} gap-4`}>
+              {phase.departments.map((v: any) => (
+                <div key={v.departmentId} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                      {v.department.nome}
+                    </span>
+                    <span className={`text-xl font-bold ${colors.valueBg}`}>
+                      {v.valore || 0}
+                    </span>
+                  </div>
+                  {v.note && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                      <i className="fas fa-sticky-note mr-1"></i>
+                      {v.note}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        );
+      })}
 
-        {/* Orlatura Section */}
-        <motion.div
-          variants={itemVariants}
-          className="mb-6 rounded-2xl border border-green-200 bg-white shadow-lg dark:border-green-800 dark:bg-gray-800"
-        >
-          <div className="p-4 border-b border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 rounded-t-2xl">
-            <h3 className="text-lg font-semibold text-green-700 dark:text-green-300 flex items-center">
-              <i className="fas fa-cog mr-3"></i>
-              Orlatura
-            </h3>
-          </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-            {[1, 2, 3, 4, 5].map((num) => (
-              <div key={num}>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Orlatura {num}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={(formData as any)[`orlatura${num}`]}
-                  onChange={(e) => handleChange(`orlatura${num}`, parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-green-500"
-                />
-                <textarea
-                  value={(formData as any)[`orlatura${num}Notes`]}
-                  onChange={(e) => handleChange(`orlatura${num}Notes`, e.target.value)}
-                  placeholder="Note..."
-                  className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-green-500 text-sm"
-                  rows={2}
-                />
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Taglio Section */}
-        <motion.div
-          variants={itemVariants}
-          className="mb-6 rounded-2xl border border-purple-200 bg-white shadow-lg dark:border-purple-800 dark:bg-gray-800"
-        >
-          <div className="p-4 border-b border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 rounded-t-2xl">
-            <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300 flex items-center">
-              <i className="fas fa-cut mr-3"></i>
-              Taglio
-            </h3>
-          </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Taglio 1 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Taglio 1
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.taglio1}
-                onChange={(e) => handleChange('taglio1', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-purple-500"
-              />
-              <textarea
-                value={formData.taglio1Notes}
-                onChange={(e) => handleChange('taglio1Notes', e.target.value)}
-                placeholder="Note..."
-                className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-purple-500 text-sm"
-                rows={2}
-              />
-            </div>
-            {/* Taglio 2 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Taglio 2
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.taglio2}
-                onChange={(e) => handleChange('taglio2', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-purple-500"
-              />
-              <textarea
-                value={formData.taglio2Notes}
-                onChange={(e) => handleChange('taglio2Notes', e.target.value)}
-                placeholder="Note..."
-                className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-purple-500 text-sm"
-                rows={2}
-              />
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Actions */}
-        <motion.div variants={itemVariants} className="flex items-center justify-between">
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {record?.creator && (
-              <span>
-                Creato da {record.creator.nome}
-                {record?.updater && record.updater.id !== record.creator.id && (
-                  <>, aggiornato da {record.updater.nome}</>
-                )}
-              </span>
+      {/* Meta Info */}
+      <motion.div variants={itemVariants} className="text-sm text-gray-500 dark:text-gray-400">
+        {record?.creator && (
+          <p>
+            <i className="fas fa-user mr-2"></i>
+            Creato da {record.creator.nome}
+            {record?.updater && record.updater.id !== record.creator.id && (
+              <>, aggiornato da {record.updater.nome}</>
             )}
-          </div>
-          <div className="flex items-center space-x-3">
-            <Link href="/produzione">
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300"
-              >
-                <i className="fas fa-times mr-2"></i>Annulla
-              </motion.button>
-            </Link>
-            <motion.button
-              type="submit"
-              disabled={saving}
-              whileHover={{ scale: saving ? 1 : 1.02, y: saving ? 0 : -2 }}
-              whileTap={{ scale: 0.98 }}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md disabled:opacity-50"
-            >
-              {saving ? (
-                <>
-                  <motion.i
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                    className="fas fa-spinner mr-2"
-                  />
-                  Salvataggio...
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-save mr-2"></i>Salva Produzione
-                </>
-              )}
-            </motion.button>
-          </div>
-        </motion.div>
-      </form>
+          </p>
+        )}
+      </motion.div>
     </motion.div>
   );
 }

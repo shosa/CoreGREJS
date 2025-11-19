@@ -157,6 +157,16 @@ export default function ProduzionePage() {
             </p>
           </div>
           <div className="mt-4 sm:mt-0 flex items-center space-x-3">
+            <Link href="/produzione/new">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="inline-flex items-center rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2 text-sm font-medium text-white hover:from-orange-600 hover:to-orange-700 shadow-md"
+              >
+                <i className="fas fa-plus mr-2"></i>
+                Nuovo
+              </motion.button>
+            </Link>
             <Link href="/produzione/statistics">
               <motion.button
                 whileHover={{ scale: 1.02 }}

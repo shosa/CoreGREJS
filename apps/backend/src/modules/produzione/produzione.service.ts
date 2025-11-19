@@ -1,13 +1,126 @@
-import { Injectable, BadRequestException } from "@nestjs/common";
+import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import * as PDFDocument from 'pdfkit';
 
 @Injectable()
 export class ProduzioneService {
   constructor(private prisma: PrismaService) {}
 
+  // ==================== PHASES ====================
+
+  async getAllPhases() {
+    return this.prisma.productionPhase.findMany({
+      where: { attivo: true },
+      include: {
+        reparti: {
+          where: { attivo: true },
+          orderBy: { ordine: 'asc' },
+        },
+      },
+      orderBy: { ordine: 'asc' },
+    });
+  }
+
+  async getPhaseById(id: number) {
+    return this.prisma.productionPhase.findUnique({
+      where: { id },
+      include: {
+        reparti: {
+          orderBy: { ordine: 'asc' },
+        },
+      },
+    });
+  }
+
+  async createPhase(data: any) {
+    return this.prisma.productionPhase.create({
+      data: {
+        nome: data.nome,
+        codice: data.codice,
+        colore: data.colore,
+        icona: data.icona,
+        descrizione: data.descrizione,
+        ordine: data.ordine || 0,
+      },
+    });
+  }
+
+  async updatePhase(id: number, data: any) {
+    return this.prisma.productionPhase.update({
+      where: { id },
+      data: {
+        nome: data.nome,
+        codice: data.codice,
+        colore: data.colore,
+        icona: data.icona,
+        descrizione: data.descrizione,
+        attivo: data.attivo,
+        ordine: data.ordine,
+      },
+    });
+  }
+
+  async deletePhase(id: number) {
+    return this.prisma.productionPhase.delete({
+      where: { id },
+    });
+  }
+
+  // ==================== DEPARTMENTS ====================
+
+  async getAllDepartments() {
+    return this.prisma.productionDepartment.findMany({
+      where: { attivo: true },
+      include: {
+        phase: true,
+      },
+      orderBy: [{ phase: { ordine: 'asc' } }, { ordine: 'asc' }],
+    });
+  }
+
+  async getDepartmentById(id: number) {
+    return this.prisma.productionDepartment.findUnique({
+      where: { id },
+      include: { phase: true },
+    });
+  }
+
+  async createDepartment(data: any) {
+    return this.prisma.productionDepartment.create({
+      data: {
+        phaseId: data.phaseId,
+        nome: data.nome,
+        codice: data.codice,
+        descrizione: data.descrizione,
+        ordine: data.ordine || 0,
+      },
+    });
+  }
+
+  async updateDepartment(id: number, data: any) {
+    return this.prisma.productionDepartment.update({
+      where: { id },
+      data: {
+        phaseId: data.phaseId,
+        nome: data.nome,
+        codice: data.codice,
+        descrizione: data.descrizione,
+        attivo: data.attivo,
+        ordine: data.ordine,
+      },
+    });
+  }
+
+  async deleteDepartment(id: number) {
+    return this.prisma.productionDepartment.delete({
+      where: { id },
+    });
+  }
+
+  // ==================== PRODUCTION DATA ====================
+
   // Get calendar data for a month
   async getCalendarData(month: number, year: number) {
-    // Use UTC dates to avoid timezone issues
     const startDate = new Date(Date.UTC(year, month - 1, 1));
     const endDate = new Date(Date.UTC(year, month, 0));
 
@@ -18,21 +131,14 @@ export class ProduzioneService {
           lte: endDate,
         },
       },
-      select: {
-        id: true,
-        productionDate: true,
-        totalMontaggio: true,
-        totalOrlatura: true,
-        totalTaglio: true,
-        manovia1: true,
-        manovia2: true,
-        orlatura1: true,
-        orlatura2: true,
-        orlatura3: true,
-        orlatura4: true,
-        orlatura5: true,
-        taglio1: true,
-        taglio2: true,
+      include: {
+        valori: {
+          include: {
+            department: {
+              include: { phase: true },
+            },
+          },
+        },
       },
       orderBy: { productionDate: "asc" },
     });
@@ -40,19 +146,8 @@ export class ProduzioneService {
     // Create a map of days with data
     const daysWithData = new Map();
     records.forEach((record) => {
-      // Use UTC date to get the correct day
       const day = record.productionDate.getUTCDate();
-
-      // Always calculate from individual fields (DB totals may be incorrect/outdated)
-      const montaggio = (record.manovia1 || 0) + (record.manovia2 || 0);
-      const orlatura =
-        (record.orlatura1 || 0) +
-        (record.orlatura2 || 0) +
-        (record.orlatura3 || 0) +
-        (record.orlatura4 || 0) +
-        (record.orlatura5 || 0);
-      const taglio = (record.taglio1 || 0) + (record.taglio2 || 0);
-      const total = montaggio + orlatura + taglio;
+      const total = record.valori.reduce((sum, v) => sum + v.valore, 0);
 
       if (total > 0) {
         daysWithData.set(day, {
@@ -67,176 +162,273 @@ export class ProduzioneService {
       month,
       year,
       daysInMonth: endDate.getUTCDate(),
-      firstDayOfWeek: startDate.getUTCDay(), // 0 = Sunday
+      firstDayOfWeek: startDate.getUTCDay(),
       daysWithData: Object.fromEntries(daysWithData),
     };
   }
 
   // Get or create record by date
   async getByDate(date: string) {
-    const productionDate = new Date(date);
+    const [year, month, day] = date.split('-').map(Number);
 
-    // Validate date
-    if (isNaN(productionDate.getTime())) {
+    if (!year || !month || !day || isNaN(year) || isNaN(month) || isNaN(day)) {
       throw new BadRequestException("Invalid date format. Expected YYYY-MM-DD");
     }
 
-    // Force time to midnight for MySQL DATE compatibility
-    productionDate.setHours(0, 0, 0, 0);
+    const productionDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
 
     let record = await this.prisma.productionRecord.findUnique({
       where: { productionDate },
       include: {
+        valori: {
+          include: {
+            department: {
+              include: { phase: true },
+            },
+          },
+        },
         creator: { select: { id: true, nome: true, userName: true } },
         updater: { select: { id: true, nome: true, userName: true } },
       },
     });
 
+    // Get all active departments for the form
+    const departments = await this.prisma.productionDepartment.findMany({
+      where: { attivo: true },
+      include: { phase: true },
+      orderBy: [{ phase: { ordine: 'asc' } }, { ordine: 'asc' }],
+    });
+
     if (!record) {
-      // Return empty template for new record
+      // Return empty template
       return {
         id: null,
         productionDate,
-        manovia1: 0,
-        manovia1Notes: null,
-        manovia2: 0,
-        manovia2Notes: null,
-        orlatura1: 0,
-        orlatura1Notes: null,
-        orlatura2: 0,
-        orlatura2Notes: null,
-        orlatura3: 0,
-        orlatura3Notes: null,
-        orlatura4: 0,
-        orlatura4Notes: null,
-        orlatura5: 0,
-        orlatura5Notes: null,
-        taglio1: 0,
-        taglio1Notes: null,
-        taglio2: 0,
-        taglio2Notes: null,
-        totalMontaggio: 0,
-        totalOrlatura: 0,
-        totalTaglio: 0,
+        valori: departments.map(dept => ({
+          departmentId: dept.id,
+          department: dept,
+          valore: 0,
+          note: null,
+        })),
         creator: null,
         updater: null,
         isNew: true,
       };
     }
 
-    return { ...record, isNew: false };
+    // Ensure all departments are represented
+    const existingDeptIds = record.valori.map(v => v.departmentId);
+    const missingDepts = departments.filter(d => !existingDeptIds.includes(d.id));
+
+    const allValori = [
+      ...record.valori,
+      ...missingDepts.map(dept => ({
+        id: null,
+        departmentId: dept.id,
+        department: dept,
+        valore: 0,
+        note: null,
+      })),
+    ].sort((a, b) => {
+      const phaseOrder = (a.department.phase?.ordine || 0) - (b.department.phase?.ordine || 0);
+      if (phaseOrder !== 0) return phaseOrder;
+      return (a.department.ordine || 0) - (b.department.ordine || 0);
+    });
+
+    return { ...record, valori: allValori, isNew: false };
   }
 
   // Create or update record
   async upsert(date: string, data: any, userId: number) {
-    const productionDate = new Date(date);
+    const [year, month, day] = date.split('-').map(Number);
+    const productionDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
 
-    const recordData = {
-      manovia1: data.manovia1 || 0,
-      manovia1Notes: data.manovia1Notes || null,
-      manovia2: data.manovia2 || 0,
-      manovia2Notes: data.manovia2Notes || null,
-      orlatura1: data.orlatura1 || 0,
-      orlatura1Notes: data.orlatura1Notes || null,
-      orlatura2: data.orlatura2 || 0,
-      orlatura2Notes: data.orlatura2Notes || null,
-      orlatura3: data.orlatura3 || 0,
-      orlatura3Notes: data.orlatura3Notes || null,
-      orlatura4: data.orlatura4 || 0,
-      orlatura4Notes: data.orlatura4Notes || null,
-      orlatura5: data.orlatura5 || 0,
-      orlatura5Notes: data.orlatura5Notes || null,
-      taglio1: data.taglio1 || 0,
-      taglio1Notes: data.taglio1Notes || null,
-      taglio2: data.taglio2 || 0,
-      taglio2Notes: data.taglio2Notes || null,
-      updatedBy: userId,
-    };
-
-    return this.prisma.productionRecord.upsert({
+    // Upsert the record
+    const record = await this.prisma.productionRecord.upsert({
       where: { productionDate },
       create: {
         productionDate,
-        ...recordData,
         createdBy: userId,
+        updatedBy: userId,
       },
-      update: recordData,
-      include: {
-        creator: { select: { id: true, nome: true, userName: true } },
-        updater: { select: { id: true, nome: true, userName: true } },
+      update: {
+        updatedBy: userId,
       },
     });
+
+    // Upsert values for each department
+    if (data.valori && Array.isArray(data.valori)) {
+      for (const valore of data.valori) {
+        if (valore.departmentId) {
+          await this.prisma.productionValue.upsert({
+            where: {
+              recordId_departmentId: {
+                recordId: record.id,
+                departmentId: valore.departmentId,
+              },
+            },
+            create: {
+              recordId: record.id,
+              departmentId: valore.departmentId,
+              valore: valore.valore || 0,
+              note: valore.note || null,
+            },
+            update: {
+              valore: valore.valore || 0,
+              note: valore.note || null,
+            },
+          });
+        }
+      }
+    }
+
+    return this.getByDate(date);
   }
 
-  // Get statistics for a period
-  async getStatistics(startDate: string, endDate: string) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+  // ==================== STATISTICS ====================
 
-    const records = await this.prisma.productionRecord.findMany({
-      where: {
-        productionDate: {
-          gte: start,
-          lte: end,
+  // Helper to calculate totals from values
+  private calculateTotalsFromValues(valori: any[]) {
+    const byPhase: Record<string, number> = {};
+    let total = 0;
+
+    valori.forEach(v => {
+      const phaseName = v.department?.phase?.nome || 'Altro';
+      byPhase[phaseName] = (byPhase[phaseName] || 0) + v.valore;
+      total += v.valore;
+    });
+
+    return { byPhase, total };
+  }
+
+  async getTodayStats() {
+    const today = new Date();
+    const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+
+    const record = await this.prisma.productionRecord.findUnique({
+      where: { productionDate: todayUTC },
+      include: {
+        valori: {
+          include: {
+            department: { include: { phase: true } },
+          },
         },
       },
     });
 
-    const totalMontaggio = records.reduce(
-      (sum, r) => sum + (r.totalMontaggio || 0),
-      0
-    );
-    const totalOrlatura = records.reduce(
-      (sum, r) => sum + (r.totalOrlatura || 0),
-      0
-    );
-    const totalTaglio = records.reduce(
-      (sum, r) => sum + (r.totalTaglio || 0),
-      0
-    );
-    const totalProduzione = totalMontaggio + totalOrlatura + totalTaglio;
-    const daysWithData = records.filter(
-      (r) =>
-        (r.totalMontaggio || 0) +
-          (r.totalOrlatura || 0) +
-          (r.totalTaglio || 0) >
-        0
-    ).length;
+    if (!record) {
+      return { total: 0, byPhase: {} };
+    }
 
-    return {
-      totalDays: records.length,
-      daysWithData,
-      totalMontaggio,
-      totalOrlatura,
-      totalTaglio,
-      totalProduzione,
-      avgMontaggio:
-        daysWithData > 0 ? Math.round(totalMontaggio / daysWithData) : 0,
-      avgOrlatura:
-        daysWithData > 0 ? Math.round(totalOrlatura / daysWithData) : 0,
-      avgTaglio: daysWithData > 0 ? Math.round(totalTaglio / daysWithData) : 0,
-      avgProduzione:
-        daysWithData > 0 ? Math.round(totalProduzione / daysWithData) : 0,
-    };
+    return this.calculateTotalsFromValues(record.valori);
   }
 
-  // Get trend data for charts
-  async getTrendData(days: number = 30) {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days + 1);
+  async getWeekStats() {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const mondayLocal = new Date(today);
+    mondayLocal.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+
+    const monday = new Date(Date.UTC(mondayLocal.getFullYear(), mondayLocal.getMonth(), mondayLocal.getDate()));
+    const saturday = new Date(Date.UTC(mondayLocal.getFullYear(), mondayLocal.getMonth(), mondayLocal.getDate() + 5, 23, 59, 59, 999));
 
     const records = await this.prisma.productionRecord.findMany({
       where: {
-        productionDate: {
-          gte: startDate,
-          lte: endDate,
+        productionDate: { gte: monday, lte: saturday },
+      },
+      include: {
+        valori: {
+          include: {
+            department: { include: { phase: true } },
+          },
+        },
+      },
+    });
+
+    const byPhase: Record<string, number> = {};
+    let total = 0;
+
+    records.forEach(record => {
+      record.valori.forEach(v => {
+        const phaseName = v.department?.phase?.nome || 'Altro';
+        byPhase[phaseName] = (byPhase[phaseName] || 0) + v.valore;
+        total += v.valore;
+      });
+    });
+
+    return {
+      total,
+      byPhase,
+      weekStart: monday.toISOString().split("T")[0],
+      weekEnd: saturday.toISOString().split("T")[0],
+    };
+  }
+
+  async getMonthStats(month?: number, year?: number) {
+    const now = new Date();
+    const targetMonth = month || now.getMonth() + 1;
+    const targetYear = year || now.getFullYear();
+
+    const startDate = new Date(Date.UTC(targetYear, targetMonth - 1, 1));
+    const endDate = new Date(Date.UTC(targetYear, targetMonth, 0, 23, 59, 59, 999));
+
+    const records = await this.prisma.productionRecord.findMany({
+      where: {
+        productionDate: { gte: startDate, lte: endDate },
+      },
+      include: {
+        valori: {
+          include: {
+            department: { include: { phase: true } },
+          },
+        },
+      },
+    });
+
+    const byPhase: Record<string, number> = {};
+    let total = 0;
+    let daysWithData = 0;
+
+    records.forEach(record => {
+      let dayTotal = 0;
+      record.valori.forEach(v => {
+        const phaseName = v.department?.phase?.nome || 'Altro';
+        byPhase[phaseName] = (byPhase[phaseName] || 0) + v.valore;
+        total += v.valore;
+        dayTotal += v.valore;
+      });
+      if (dayTotal > 0) daysWithData++;
+    });
+
+    return {
+      total,
+      byPhase,
+      daysWithData,
+      average: daysWithData > 0 ? Math.round(total / daysWithData) : 0,
+      month: targetMonth,
+      year: targetYear,
+    };
+  }
+
+  async getTrendData(days: number = 30) {
+    const now = new Date();
+    const endDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999));
+    const startDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() - days + 1));
+
+    const records = await this.prisma.productionRecord.findMany({
+      where: {
+        productionDate: { gte: startDate, lte: endDate },
+      },
+      include: {
+        valori: {
+          include: {
+            department: { include: { phase: true } },
+          },
         },
       },
       orderBy: { productionDate: "asc" },
     });
 
-    // Fill in missing days with zeros
     const data = [];
     const currentDate = new Date(startDate);
 
@@ -246,16 +438,19 @@ export class ProduzioneService {
         (r) => r.productionDate.toISOString().split("T")[0] === dateStr
       );
 
-      data.push({
-        date: dateStr,
-        montaggio: record?.totalMontaggio || 0,
-        orlatura: record?.totalOrlatura || 0,
-        taglio: record?.totalTaglio || 0,
-        totale:
-          (record?.totalMontaggio || 0) +
-          (record?.totalOrlatura || 0) +
-          (record?.totalTaglio || 0),
-      });
+      if (record) {
+        const totals = this.calculateTotalsFromValues(record.valori);
+        data.push({
+          date: dateStr,
+          totale: totals.total,
+          ...totals.byPhase,
+        });
+      } else {
+        data.push({
+          date: dateStr,
+          totale: 0,
+        });
+      }
 
       currentDate.setDate(currentDate.getDate() + 1);
     }
@@ -263,82 +458,25 @@ export class ProduzioneService {
     return data;
   }
 
-  // Get machine/station performance
-  async getMachinePerformance(startDate: string, endDate: string) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    const records = await this.prisma.productionRecord.findMany({
-      where: {
-        productionDate: {
-          gte: start,
-          lte: end,
-        },
-      },
-    });
-
-    const performance = {
-      montaggio: {
-        manovia1: records.reduce((sum, r) => sum + (r.manovia1 || 0), 0),
-        manovia2: records.reduce((sum, r) => sum + (r.manovia2 || 0), 0),
-      },
-      orlatura: {
-        orlatura1: records.reduce((sum, r) => sum + (r.orlatura1 || 0), 0),
-        orlatura2: records.reduce((sum, r) => sum + (r.orlatura2 || 0), 0),
-        orlatura3: records.reduce((sum, r) => sum + (r.orlatura3 || 0), 0),
-        orlatura4: records.reduce((sum, r) => sum + (r.orlatura4 || 0), 0),
-        orlatura5: records.reduce((sum, r) => sum + (r.orlatura5 || 0), 0),
-      },
-      taglio: {
-        taglio1: records.reduce((sum, r) => sum + (r.taglio1 || 0), 0),
-        taglio2: records.reduce((sum, r) => sum + (r.taglio2 || 0), 0),
-      },
-    };
-
-    return performance;
-  }
-
-  // Compare two months
-  async getComparison(
-    month1: number,
-    year1: number,
-    month2: number,
-    year2: number
-  ) {
+  async getComparison(month1: number, year1: number, month2: number, year2: number) {
     const getMonthStats = async (month: number, year: number) => {
-      const startDate = new Date(year, month - 1, 1);
-      const endDate = new Date(year, month, 0);
+      const startDate = new Date(Date.UTC(year, month - 1, 1));
+      const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
       const records = await this.prisma.productionRecord.findMany({
         where: {
-          productionDate: {
-            gte: startDate,
-            lte: endDate,
-          },
+          productionDate: { gte: startDate, lte: endDate },
+        },
+        include: {
+          valori: true,
         },
       });
 
-      const totalMontaggio = records.reduce(
-        (sum, r) => sum + (r.totalMontaggio || 0),
-        0
-      );
-      const totalOrlatura = records.reduce(
-        (sum, r) => sum + (r.totalOrlatura || 0),
-        0
-      );
-      const totalTaglio = records.reduce(
-        (sum, r) => sum + (r.totalTaglio || 0),
-        0
+      const total = records.reduce((sum, r) =>
+        sum + r.valori.reduce((s, v) => s + v.valore, 0), 0
       );
 
-      return {
-        month,
-        year,
-        totalMontaggio,
-        totalOrlatura,
-        totalTaglio,
-        total: totalMontaggio + totalOrlatura + totalTaglio,
-      };
+      return { month, year, total };
     };
 
     const [stats1, stats2] = await Promise.all([
@@ -346,10 +484,9 @@ export class ProduzioneService {
       getMonthStats(month2, year2),
     ]);
 
-    const percentChange =
-      stats1.total > 0
-        ? Math.round(((stats2.total - stats1.total) / stats1.total) * 100)
-        : 0;
+    const percentChange = stats1.total > 0
+      ? Math.round(((stats2.total - stats1.total) / stats1.total) * 100)
+      : 0;
 
     return {
       current: stats2,
@@ -358,121 +495,455 @@ export class ProduzioneService {
     };
   }
 
-  // Get today's stats for dashboard
-  async getTodayStats() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  async getMachinePerformance(startDate?: string, endDate?: string) {
+    const now = new Date();
+    const start = startDate
+      ? new Date(startDate)
+      : new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+    const end = endDate
+      ? new Date(endDate)
+      : new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0));
 
-    const record = await this.prisma.productionRecord.findUnique({
-      where: { productionDate: today },
+    const values = await this.prisma.productionValue.findMany({
+      where: {
+        record: {
+          productionDate: { gte: start, lte: end },
+        },
+      },
+      include: {
+        department: {
+          include: { phase: true },
+        },
+      },
     });
 
-    if (!record) {
-      return { total: 0, montaggio: 0, orlatura: 0, taglio: 0 };
-    }
+    // Group by phase
+    const byPhase: Record<string, Record<string, number>> = {};
 
-    return {
-      total:
-        (record.totalMontaggio || 0) +
-        (record.totalOrlatura || 0) +
-        (record.totalTaglio || 0),
-      montaggio: record.totalMontaggio || 0,
-      orlatura: record.totalOrlatura || 0,
-      taglio: record.totalTaglio || 0,
-    };
+    values.forEach(v => {
+      const phaseName = v.department.phase?.nome || 'Altro';
+      const deptName = v.department.nome;
+
+      if (!byPhase[phaseName]) {
+        byPhase[phaseName] = {};
+      }
+      byPhase[phaseName][deptName] = (byPhase[phaseName][deptName] || 0) + v.valore;
+    });
+
+    return byPhase;
   }
 
-  // Get this week's stats (Mon-Sat)
-  async getWeekStats() {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    monday.setHours(0, 0, 0, 0);
+  // ==================== PDF GENERATION ====================
 
+  private readonly MONTH_NAMES = [
+    'GENNAIO', 'FEBBRAIO', 'MARZO', 'APRILE', 'MAGGIO', 'GIUGNO',
+    'LUGLIO', 'AGOSTO', 'SETTEMBRE', 'OTTOBRE', 'NOVEMBRE', 'DICEMBRE'
+  ];
+
+  private readonly DAY_NAMES = [
+    'DOMENICA', 'LUNEDÌ', 'MARTEDÌ', 'MERCOLEDÌ', 'GIOVEDÌ', 'VENERDÌ', 'SABATO'
+  ];
+
+  async generatePdf(date: string): Promise<Buffer> {
+    const [year, month, day] = date.split('-').map(Number);
+    const productionDate = new Date(Date.UTC(year, month - 1, day));
+
+    // Get record with all values
+    const record = await this.prisma.productionRecord.findUnique({
+      where: { productionDate },
+      include: {
+        valori: {
+          include: {
+            department: {
+              include: { phase: true },
+            },
+          },
+        },
+      },
+    });
+
+    // Get all phases and departments for structure
+    const phases = await this.getAllPhases();
+
+    // Create PDF
+    const doc = new PDFDocument({
+      size: 'A4',
+      margins: { top: 20, bottom: 20, left: 20, right: 20 },
+    });
+
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+
+    // Format date info
+    const dayName = this.DAY_NAMES[productionDate.getUTCDay()];
+    const monthName = this.MONTH_NAMES[month - 1];
+    const weekNumber = this.getWeekNumber(productionDate);
+
+    // Header
+    doc.fontSize(20).font('Helvetica-Bold')
+      .text(`PRODUZIONE ${dayName} ${day} ${monthName} ${year}`, { align: 'center' });
+    doc.moveDown();
+
+    // Daily Data Section
+    doc.fontSize(14).font('Helvetica-Bold')
+      .fillColor('white')
+      .rect(20, doc.y, 150, 20).fill('black')
+      .fillColor('white')
+      .text('DATI GIORNALIERI', 25, doc.y - 15);
+
+    doc.fillColor('black');
+    doc.moveDown(1.5);
+
+    // Organize values by phase and department
+    const valuesByDept = new Map<number, { valore: number; note: string }>();
+    if (record) {
+      record.valori.forEach(v => {
+        valuesByDept.set(v.departmentId, { valore: v.valore, note: v.note || '' });
+      });
+    }
+
+    // Daily data table
+    const startY = doc.y;
+    let currentY = startY;
+    const col1X = 30;
+    const col2X = 130;
+    const col3X = 200;
+    const col4X = 280;
+    const rowHeight = 18;
+
+    // Draw alternating backgrounds
+    let rowIndex = 0;
+    phases.forEach(phase => {
+      phase.reparti.forEach(() => {
+        if (rowIndex % 2 === 0) {
+          doc.rect(20, currentY - 2, 555, rowHeight).fill('#f0f0f0');
+        }
+        currentY += rowHeight;
+        rowIndex++;
+      });
+    });
+
+    // Reset position and draw data
+    currentY = startY;
+    doc.fillColor('black');
+
+    phases.forEach(phase => {
+      phase.reparti.forEach(dept => {
+        const value = valuesByDept.get(dept.id);
+
+        doc.fontSize(9).font('Helvetica-Bold')
+          .text(`${dept.nome}:`, col1X, currentY, { continued: false });
+
+        doc.fontSize(11).font('Helvetica')
+          .text(value?.valore?.toString() || '0', col2X, currentY);
+
+        doc.fontSize(9).font('Helvetica-Bold')
+          .text('NOTE:', col3X, currentY);
+
+        doc.fontSize(7).font('Helvetica')
+          .text(value?.note || '', col4X, currentY + 2, { width: 250 });
+
+        currentY += rowHeight;
+      });
+    });
+
+    doc.y = currentY + 10;
+
+    // Weekly Summary Section
+    await this.generateWeeklySummary(doc, productionDate, weekNumber, phases);
+
+    // Monthly Summary Section
+    await this.generateMonthlySummary(doc, productionDate, monthName, phases);
+
+    // Final Totals
+    await this.generateFinalTotals(doc, record, phases);
+
+    // Footer
+    doc.fontSize(8).font('Helvetica-Bold')
+      .text('CALZATURIFICIO EMMEGIEMME SHOES SRL', 20, doc.page.height - 40, { align: 'right' });
+
+    doc.end();
+
+    return new Promise((resolve) => {
+      doc.on('end', () => {
+        resolve(Buffer.concat(chunks));
+      });
+    });
+  }
+
+  private getWeekNumber(date: Date): number {
+    const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  }
+
+  private async generateWeeklySummary(doc: any, productionDate: Date, weekNumber: number, phases: any[]) {
+    // Calculate week range
+    const dayOfWeek = productionDate.getUTCDay() || 7;
+    const monday = new Date(productionDate);
+    monday.setUTCDate(productionDate.getUTCDate() - dayOfWeek + 1);
     const saturday = new Date(monday);
-    saturday.setDate(monday.getDate() + 5);
+    saturday.setUTCDate(monday.getUTCDate() + 5);
 
-    const records = await this.prisma.productionRecord.findMany({
+    // Get weekly records
+    const weeklyRecords = await this.prisma.productionRecord.findMany({
       where: {
         productionDate: {
           gte: monday,
           lte: saturday,
         },
       },
-    });
-
-    const totalMontaggio = records.reduce(
-      (sum, r) => sum + (r.totalMontaggio || 0),
-      0
-    );
-    const totalOrlatura = records.reduce(
-      (sum, r) => sum + (r.totalOrlatura || 0),
-      0
-    );
-    const totalTaglio = records.reduce(
-      (sum, r) => sum + (r.totalTaglio || 0),
-      0
-    );
-
-    return {
-      total: totalMontaggio + totalOrlatura + totalTaglio,
-      montaggio: totalMontaggio,
-      orlatura: totalOrlatura,
-      taglio: totalTaglio,
-      weekStart: monday.toISOString().split("T")[0],
-      weekEnd: saturday.toISOString().split("T")[0],
-    };
-  }
-
-  // Get this month's stats
-  async getMonthStats(month?: number, year?: number) {
-    const now = new Date();
-    const targetMonth = month || now.getMonth() + 1;
-    const targetYear = year || now.getFullYear();
-
-    const startDate = new Date(targetYear, targetMonth - 1, 1);
-    const endDate = new Date(targetYear, targetMonth, 0);
-
-    const records = await this.prisma.productionRecord.findMany({
-      where: {
-        productionDate: {
-          gte: startDate,
-          lte: endDate,
+      include: {
+        valori: {
+          include: {
+            department: { include: { phase: true } },
+          },
         },
       },
+      orderBy: { productionDate: 'asc' },
     });
 
-    const totalMontaggio = records.reduce(
-      (sum, r) => sum + (r.totalMontaggio || 0),
-      0
-    );
-    const totalOrlatura = records.reduce(
-      (sum, r) => sum + (r.totalOrlatura || 0),
-      0
-    );
-    const totalTaglio = records.reduce(
-      (sum, r) => sum + (r.totalTaglio || 0),
-      0
-    );
-    const total = totalMontaggio + totalOrlatura + totalTaglio;
-    const daysWithData = records.filter(
-      (r) =>
-        (r.totalMontaggio || 0) +
-          (r.totalOrlatura || 0) +
-          (r.totalTaglio || 0) >
-        0
-    ).length;
+    // Section header
+    doc.addPage();
+    doc.fontSize(14).font('Helvetica-Bold')
+      .rect(20, 20, 180, 20).fill('black')
+      .fillColor('white')
+      .text('RIEPILOGO SETTIMANA', 25, 25);
 
-    return {
-      total,
-      montaggio: totalMontaggio,
-      orlatura: totalOrlatura,
-      taglio: totalTaglio,
-      daysWithData,
-      average: daysWithData > 0 ? Math.round(total / daysWithData) : 0,
-      month: targetMonth,
-      year: targetYear,
-    };
+    doc.fillColor('black')
+      .text(`SETTIMANA ${weekNumber}`, 450, 25);
+
+    doc.moveDown(2);
+
+    // Build table header
+    const headers = ['DATA', 'GIORNO'];
+    const deptColumns: { phaseId: number; deptId: number; name: string }[] = [];
+
+    phases.forEach(phase => {
+      phase.reparti.forEach(dept => {
+        const shortName = dept.nome.length > 8 ? dept.nome.substring(0, 8) : dept.nome;
+        headers.push(shortName);
+        deptColumns.push({ phaseId: phase.id, deptId: dept.id, name: dept.nome });
+      });
+    });
+
+    // Draw header
+    const tableY = doc.y;
+    const colWidth = (555 - 40 - 50) / deptColumns.length;
+
+    doc.fontSize(7).font('Helvetica-Bold');
+    doc.rect(20, tableY, 555, 15).fill('#c0c0c0');
+    doc.fillColor('black');
+
+    doc.text('DATA', 25, tableY + 4, { width: 35 });
+    doc.text('GIORNO', 60, tableY + 4, { width: 45 });
+
+    deptColumns.forEach((col, i) => {
+      const x = 110 + (i * colWidth);
+      doc.text(col.name.substring(0, 6), x, tableY + 4, { width: colWidth - 2, align: 'center' });
+    });
+
+    // Draw data rows
+    let rowY = tableY + 15;
+    const weeklyTotals: Record<number, number> = {};
+    deptColumns.forEach(col => weeklyTotals[col.deptId] = 0);
+
+    weeklyRecords.forEach((record, idx) => {
+      const recDate = record.productionDate;
+      const dayNum = recDate.getUTCDate();
+      const dayName = this.DAY_NAMES[recDate.getUTCDay()];
+
+      // Alternating row background
+      if (idx % 2 === 0) {
+        doc.rect(20, rowY, 555, 15).fill('#f5f5f5');
+      }
+      doc.fillColor('black');
+
+      doc.fontSize(8).font('Helvetica')
+        .text(dayNum.toString(), 25, rowY + 4, { width: 35 })
+        .text(dayName, 60, rowY + 4, { width: 45 });
+
+      const valueMap = new Map<number, number>();
+      record.valori.forEach(v => {
+        valueMap.set(v.departmentId, v.valore);
+        weeklyTotals[v.departmentId] = (weeklyTotals[v.departmentId] || 0) + v.valore;
+      });
+
+      deptColumns.forEach((col, i) => {
+        const x = 110 + (i * colWidth);
+        const val = valueMap.get(col.deptId) || 0;
+        doc.text(val.toString(), x, rowY + 4, { width: colWidth - 2, align: 'center' });
+      });
+
+      rowY += 15;
+    });
+
+    // Totals row
+    doc.rect(20, rowY, 555, 15).fill('#c0c0c0');
+    doc.fillColor('black');
+    doc.fontSize(7).font('Helvetica-Bold')
+      .text('TOTALI SETTIMANA', 25, rowY + 4, { width: 80 });
+
+    deptColumns.forEach((col, i) => {
+      const x = 110 + (i * colWidth);
+      doc.text(weeklyTotals[col.deptId].toString(), x, rowY + 4, { width: colWidth - 2, align: 'center' });
+    });
+
+    doc.y = rowY + 25;
+  }
+
+  private async generateMonthlySummary(doc: any, productionDate: Date, monthName: string, phases: any[]) {
+    const year = productionDate.getUTCFullYear();
+    const month = productionDate.getUTCMonth();
+
+    const startOfMonth = new Date(Date.UTC(year, month, 1));
+    const endOfMonth = new Date(Date.UTC(year, month + 1, 0));
+
+    // Get all records for the month
+    const monthlyRecords = await this.prisma.productionRecord.findMany({
+      where: {
+        productionDate: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+      },
+      include: {
+        valori: true,
+      },
+      orderBy: { productionDate: 'asc' },
+    });
+
+    // Group by week
+    const weeklyData = new Map<number, Map<number, number>>();
+    const deptColumns: { deptId: number; name: string }[] = [];
+
+    phases.forEach(phase => {
+      phase.reparti.forEach(dept => {
+        deptColumns.push({ deptId: dept.id, name: dept.nome });
+      });
+    });
+
+    monthlyRecords.forEach(record => {
+      const weekNum = this.getWeekNumber(record.productionDate);
+      if (!weeklyData.has(weekNum)) {
+        weeklyData.set(weekNum, new Map());
+        deptColumns.forEach(col => weeklyData.get(weekNum)!.set(col.deptId, 0));
+      }
+
+      record.valori.forEach(v => {
+        const current = weeklyData.get(weekNum)!.get(v.departmentId) || 0;
+        weeklyData.get(weekNum)!.set(v.departmentId, current + v.valore);
+      });
+    });
+
+    // Section header
+    doc.moveDown(1);
+    doc.fontSize(14).font('Helvetica-Bold')
+      .rect(20, doc.y, 150, 20).fill('black')
+      .fillColor('white')
+      .text('RIEPILOGO MESE', 25, doc.y + 5);
+
+    doc.fillColor('black')
+      .text(monthName, 450, doc.y - 15);
+
+    doc.moveDown(2);
+
+    // Table header
+    const tableY = doc.y;
+    const colWidth = (555 - 60) / deptColumns.length;
+
+    doc.fontSize(7).font('Helvetica-Bold');
+    doc.rect(20, tableY, 555, 15).fill('#c0c0c0');
+    doc.fillColor('black');
+
+    doc.text('SETTIMANA', 25, tableY + 4, { width: 55 });
+
+    deptColumns.forEach((col, i) => {
+      const x = 80 + (i * colWidth);
+      doc.text(col.name.substring(0, 6), x, tableY + 4, { width: colWidth - 2, align: 'center' });
+    });
+
+    // Data rows
+    let rowY = tableY + 15;
+    const monthlyTotals: Record<number, number> = {};
+    deptColumns.forEach(col => monthlyTotals[col.deptId] = 0);
+
+    const sortedWeeks = Array.from(weeklyData.keys()).sort((a, b) => a - b);
+
+    sortedWeeks.forEach((weekNum, idx) => {
+      const weekTotals = weeklyData.get(weekNum)!;
+
+      if (idx % 2 === 0) {
+        doc.rect(20, rowY, 555, 15).fill('#f5f5f5');
+      }
+      doc.fillColor('black');
+
+      doc.fontSize(8).font('Helvetica')
+        .text(`Settimana ${weekNum}`, 25, rowY + 4, { width: 55 });
+
+      deptColumns.forEach((col, i) => {
+        const x = 80 + (i * colWidth);
+        const val = weekTotals.get(col.deptId) || 0;
+        monthlyTotals[col.deptId] += val;
+        doc.text(val.toString(), x, rowY + 4, { width: colWidth - 2, align: 'center' });
+      });
+
+      rowY += 15;
+    });
+
+    // Totals row
+    doc.rect(20, rowY, 555, 15).fill('#c0c0c0');
+    doc.fillColor('black');
+    doc.fontSize(7).font('Helvetica-Bold')
+      .text('TOTALI', 25, rowY + 4, { width: 55 });
+
+    deptColumns.forEach((col, i) => {
+      const x = 80 + (i * colWidth);
+      doc.text(monthlyTotals[col.deptId].toString(), x, rowY + 4, { width: colWidth - 2, align: 'center' });
+    });
+
+    doc.y = rowY + 25;
+  }
+
+  private async generateFinalTotals(doc: any, record: any, phases: any[]) {
+    // Calculate totals by phase
+    const phaseTotals: Record<string, number> = {};
+
+    if (record) {
+      record.valori.forEach(v => {
+        const phaseName = v.department.phase?.nome || 'Altro';
+        phaseTotals[phaseName] = (phaseTotals[phaseName] || 0) + v.valore;
+      });
+    }
+
+    doc.moveDown(2);
+
+    // Draw totals boxes
+    const boxWidth = 170;
+    const boxHeight = 30;
+    let boxX = (595 - (boxWidth * phases.length + 10 * (phases.length - 1))) / 2;
+
+    phases.forEach(phase => {
+      const total = phaseTotals[phase.nome] || 0;
+
+      // Label box
+      doc.rect(boxX, doc.y, boxWidth * 0.6, boxHeight).fill('black');
+      doc.fillColor('white')
+        .fontSize(10).font('Helvetica-Bold')
+        .text(`TOT. ${phase.nome.toUpperCase()}:`, boxX + 5, doc.y + 10, { width: boxWidth * 0.6 - 10 });
+
+      // Value box
+      doc.rect(boxX + boxWidth * 0.6, doc.y - boxHeight, boxWidth * 0.4, boxHeight).stroke();
+      doc.fillColor('black')
+        .fontSize(14).font('Helvetica')
+        .text(total.toString(), boxX + boxWidth * 0.6 + 5, doc.y - boxHeight + 8, {
+          width: boxWidth * 0.4 - 10,
+          align: 'center'
+        });
+
+      boxX += boxWidth + 10;
+    });
   }
 }

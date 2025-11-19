@@ -68,8 +68,9 @@ const menuItems: MenuItem[] = [
     permission: 'produzione',
     children: [
       { name: 'Nuova', href: '/produzione/new', icon: 'fa-plus' },
-      { name: 'Calendario', href: '/produzione/calendar', icon: 'fa-calendar' },
+      { name: 'Calendario', href: '/produzione', icon: 'fa-calendar' },
       { name: 'Statistiche', href: '/produzione/statistics', icon: 'fa-chart-simple' },
+      { name: 'Configurazione', href: '/produzione/config', icon: 'fa-cog' },
     ]
   },
   {

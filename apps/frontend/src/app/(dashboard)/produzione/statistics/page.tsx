@@ -16,13 +16,48 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-const MONTHS = [
-  'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu',
-  'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'
-];
+// Color mapping for phases
+const PHASE_COLORS: Record<string, { border: string; bg: string; text: string; icon: string; barColor: string }> = {
+  blue: {
+    border: 'border-blue-200 dark:border-blue-800',
+    bg: 'bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20',
+    text: 'text-blue-700 dark:text-blue-300',
+    icon: 'bg-blue-500',
+    barColor: 'bg-blue-500',
+  },
+  green: {
+    border: 'border-green-200 dark:border-green-800',
+    bg: 'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20',
+    text: 'text-green-700 dark:text-green-300',
+    icon: 'bg-green-500',
+    barColor: 'bg-green-500',
+  },
+  purple: {
+    border: 'border-purple-200 dark:border-purple-800',
+    bg: 'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20',
+    text: 'text-purple-700 dark:text-purple-300',
+    icon: 'bg-purple-500',
+    barColor: 'bg-purple-500',
+  },
+  orange: {
+    border: 'border-orange-200 dark:border-orange-800',
+    bg: 'bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20',
+    text: 'text-orange-700 dark:text-orange-300',
+    icon: 'bg-orange-500',
+    barColor: 'bg-orange-500',
+  },
+  red: {
+    border: 'border-red-200 dark:border-red-800',
+    bg: 'bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20',
+    text: 'text-red-700 dark:text-red-300',
+    icon: 'bg-red-500',
+    barColor: 'bg-red-500',
+  },
+};
 
 export default function ProduzioneStatisticsPage() {
   const [loading, setLoading] = useState(true);
+  const [phases, setPhases] = useState<any[]>([]);
   const [todayStats, setTodayStats] = useState<any>(null);
   const [weekStats, setWeekStats] = useState<any>(null);
   const [monthStats, setMonthStats] = useState<any>(null);
@@ -42,7 +77,8 @@ export default function ProduzioneStatisticsPage() {
   const fetchAllStats = async () => {
     try {
       setLoading(true);
-      const [today, week, month, comp, machine] = await Promise.all([
+      const [phasesData, today, week, month, comp, machine] = await Promise.all([
+        produzioneApi.getPhases(),
         produzioneApi.getToday(),
         produzioneApi.getWeek(),
         produzioneApi.getMonth(),
@@ -50,6 +86,7 @@ export default function ProduzioneStatisticsPage() {
         produzioneApi.getMachinePerformance(),
       ]);
 
+      setPhases(phasesData);
       setTodayStats(today);
       setWeekStats(week);
       setMonthStats(month);
@@ -73,6 +110,14 @@ export default function ProduzioneStatisticsPage() {
 
   // Calculate max value for chart scaling
   const maxTrendValue = Math.max(...trendData.map((d) => d.totale), 1);
+
+  // Helper to format phase breakdown
+  const formatPhaseBreakdown = (byPhase: Record<string, number> | undefined) => {
+    if (!byPhase) return '';
+    return Object.entries(byPhase)
+      .map(([name, value]) => `${name.substring(0, 1)}: ${value}`)
+      .join(' | ');
+  };
 
   if (loading) {
     return (
@@ -165,7 +210,7 @@ export default function ProduzioneStatisticsPage() {
             </div>
           </div>
           <div className="mt-4 text-xs text-orange-600 dark:text-orange-400">
-            M: {todayStats?.montaggio || 0} | O: {todayStats?.orlatura || 0} | T: {todayStats?.taglio || 0}
+            {formatPhaseBreakdown(todayStats?.byPhase)}
           </div>
         </motion.div>
 
@@ -184,7 +229,7 @@ export default function ProduzioneStatisticsPage() {
             </div>
           </div>
           <div className="mt-4 text-xs text-blue-600 dark:text-blue-400">
-            M: {weekStats?.montaggio || 0} | O: {weekStats?.orlatura || 0} | T: {weekStats?.taglio || 0}
+            {formatPhaseBreakdown(weekStats?.byPhase)}
           </div>
         </motion.div>
 
@@ -272,130 +317,95 @@ export default function ProduzioneStatisticsPage() {
 
         {/* Simple bar chart */}
         <div className="h-64 flex items-end space-x-1">
-          {trendData.map((day, index) => (
-            <div
-              key={index}
-              className="flex-1 flex flex-col items-center group"
-            >
-              <div className="relative w-full">
-                <motion.div
-                  initial={{ height: 0 }}
-                  animate={{ height: `${(day.totale / maxTrendValue) * 100}%` }}
-                  transition={{ duration: 0.5, delay: index * 0.02 }}
-                  className="w-full bg-gradient-to-t from-purple-500 to-purple-400 rounded-t-sm min-h-[2px] hover:from-purple-600 hover:to-purple-500 cursor-pointer"
-                  style={{ height: `${(day.totale / maxTrendValue) * 200}px` }}
-                />
-                {/* Tooltip */}
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                  <div className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
-                    {new Date(day.date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
-                    <br />
-                    Totale: {day.totale}
+          {trendData.map((day, index) => {
+            const barHeight = maxTrendValue > 0 ? (day.totale / maxTrendValue) * 100 : 0;
+            return (
+              <div
+                key={index}
+                className="flex-1 flex flex-col items-center justify-end group h-full"
+              >
+                <div className="relative w-full h-full flex items-end">
+                  <motion.div
+                    initial={{ height: 0 }}
+                    animate={{ height: `${barHeight}%` }}
+                    transition={{ duration: 0.5, delay: index * 0.02 }}
+                    className="w-full bg-gradient-to-t from-purple-500 to-purple-400 rounded-t-sm hover:from-purple-600 hover:to-purple-500 cursor-pointer"
+                    style={{ minHeight: day.totale > 0 ? '4px' : '0px' }}
+                  />
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                    <div className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
+                      {new Date(day.date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                      <br />
+                      Totale: {day.totale}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </motion.div>
 
-      {/* Machine Performance */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Montaggio Performance */}
-        <motion.div
-          variants={itemVariants}
-          className="rounded-2xl border border-blue-200 bg-white p-6 shadow-lg dark:border-blue-800 dark:bg-gray-800"
-        >
-          <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-300 flex items-center mb-4">
-            <i className="fas fa-industry mr-3"></i>
-            Montaggio
-          </h3>
-          <div className="space-y-4">
-            {machinePerformance?.montaggio && Object.entries(machinePerformance.montaggio).map(([key, value]: [string, any]) => {
-              const maxVal = Math.max(...Object.values(machinePerformance.montaggio as Record<string, number>), 1);
-              return (
-                <div key={key}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600 dark:text-gray-400 capitalize">{key}</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{value}</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full dark:bg-gray-700">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(value / maxVal) * 100}%` }}
-                      transition={{ duration: 0.5 }}
-                      className="h-full bg-blue-500 rounded-full"
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
+      {/* Machine Performance - Dynamic by Phase */}
+      <div className={`grid grid-cols-1 lg:grid-cols-${Math.min(Object.keys(machinePerformance || {}).length, 3)} gap-6`}>
+        {machinePerformance && Object.entries(machinePerformance).map(([phaseName, departments]: [string, any]) => {
+          // Find phase info from phases array
+          const phase = phases.find(p => p.nome === phaseName);
+          const colors = PHASE_COLORS[phase?.colore || 'blue'] || PHASE_COLORS.blue;
+          const icon = phase?.icona || 'fa-cog';
 
-        {/* Orlatura Performance */}
-        <motion.div
-          variants={itemVariants}
-          className="rounded-2xl border border-green-200 bg-white p-6 shadow-lg dark:border-green-800 dark:bg-gray-800"
-        >
-          <h3 className="text-lg font-semibold text-green-700 dark:text-green-300 flex items-center mb-4">
-            <i className="fas fa-cog mr-3"></i>
-            Orlatura
-          </h3>
-          <div className="space-y-4">
-            {machinePerformance?.orlatura && Object.entries(machinePerformance.orlatura).map(([key, value]: [string, any]) => {
-              const maxVal = Math.max(...Object.values(machinePerformance.orlatura as Record<string, number>), 1);
-              return (
-                <div key={key}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600 dark:text-gray-400 capitalize">{key}</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{value}</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full dark:bg-gray-700">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(value / maxVal) * 100}%` }}
-                      transition={{ duration: 0.5 }}
-                      className="h-full bg-green-500 rounded-full"
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
+          return (
+            <motion.div
+              key={phaseName}
+              variants={itemVariants}
+              className={`rounded-2xl border ${colors.border} bg-white p-6 shadow-lg dark:bg-gray-800`}
+            >
+              <h3 className={`text-lg font-semibold ${colors.text} flex items-center mb-4`}>
+                <i className={`fas ${icon} mr-3`}></i>
+                {phaseName}
+              </h3>
+              <div className="space-y-4">
+                {Object.entries(departments).map(([deptName, value]: [string, any]) => {
+                  const maxVal = Math.max(...Object.values(departments as Record<string, number>), 1);
+                  return (
+                    <div key={deptName}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-gray-600 dark:text-gray-400">{deptName}</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{value}</span>
+                      </div>
+                      <div className="h-2 bg-gray-200 rounded-full dark:bg-gray-700">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(value / maxVal) * 100}%` }}
+                          transition={{ duration: 0.5 }}
+                          className={`h-full ${colors.barColor} rounded-full`}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+                {Object.keys(departments).length === 0 && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                    Nessun dato disponibile
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
 
-        {/* Taglio Performance */}
-        <motion.div
-          variants={itemVariants}
-          className="rounded-2xl border border-purple-200 bg-white p-6 shadow-lg dark:border-purple-800 dark:bg-gray-800"
-        >
-          <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300 flex items-center mb-4">
-            <i className="fas fa-cut mr-3"></i>
-            Taglio
-          </h3>
-          <div className="space-y-4">
-            {machinePerformance?.taglio && Object.entries(machinePerformance.taglio).map(([key, value]: [string, any]) => {
-              const maxVal = Math.max(...Object.values(machinePerformance.taglio as Record<string, number>), 1);
-              return (
-                <div key={key}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600 dark:text-gray-400 capitalize">{key}</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{value}</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full dark:bg-gray-700">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(value / maxVal) * 100}%` }}
-                      transition={{ duration: 0.5 }}
-                      className="h-full bg-purple-500 rounded-full"
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
+        {(!machinePerformance || Object.keys(machinePerformance).length === 0) && (
+          <motion.div
+            variants={itemVariants}
+            className="col-span-full rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+          >
+            <p className="text-center text-gray-500 dark:text-gray-400">
+              <i className="fas fa-info-circle mr-2"></i>
+              Nessun dato di performance disponibile per il periodo selezionato
+            </p>
+          </motion.div>
+        )}
       </div>
     </motion.div>
   );

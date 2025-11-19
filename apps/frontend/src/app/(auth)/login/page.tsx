@@ -21,7 +21,7 @@ export default function LoginPage() {
     try {
       const data = await authApi.login(username, password);
       setAuth(data.user, data.access_token);
-      router.push('/');
+      router.replace('/');
     } catch (error: any) {
       showError(error.response?.data?.message || 'Credenziali non valide');
     } finally {

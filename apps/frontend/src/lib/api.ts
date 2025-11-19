@@ -12,9 +12,18 @@ export const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Il token è salvato dentro lo store Zustand
+    const authStorage = localStorage.getItem('coregre-auth');
+    if (authStorage) {
+      try {
+        const authState = JSON.parse(authStorage);
+        const token = authState.state?.token;
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (e) {
+        // Ignora errori di parsing
+      }
     }
     return config;
   },
@@ -28,9 +37,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Pulisci lo store Zustand
+      localStorage.removeItem('coregre-auth');
+      // Usa replace per evitare loop nella history
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        window.location.replace('/login');
+      }
     }
     return Promise.reject(error);
   }
@@ -118,6 +130,51 @@ export const usersApi = {
 
 // Produzione API
 export const produzioneApi = {
+  // Phases
+  getPhases: async () => {
+    const response = await api.get('/produzione/phases');
+    return response.data;
+  },
+  getPhaseById: async (id: number) => {
+    const response = await api.get(`/produzione/phases/${id}`);
+    return response.data;
+  },
+  createPhase: async (data: any) => {
+    const response = await api.post('/produzione/phases', data);
+    return response.data;
+  },
+  updatePhase: async (id: number, data: any) => {
+    const response = await api.put(`/produzione/phases/${id}`, data);
+    return response.data;
+  },
+  deletePhase: async (id: number) => {
+    const response = await api.delete(`/produzione/phases/${id}`);
+    return response.data;
+  },
+
+  // Departments
+  getDepartments: async () => {
+    const response = await api.get('/produzione/departments');
+    return response.data;
+  },
+  getDepartmentById: async (id: number) => {
+    const response = await api.get(`/produzione/departments/${id}`);
+    return response.data;
+  },
+  createDepartment: async (data: any) => {
+    const response = await api.post('/produzione/departments', data);
+    return response.data;
+  },
+  updateDepartment: async (id: number, data: any) => {
+    const response = await api.put(`/produzione/departments/${id}`, data);
+    return response.data;
+  },
+  deleteDepartment: async (id: number) => {
+    const response = await api.delete(`/produzione/departments/${id}`);
+    return response.data;
+  },
+
+  // Calendar & Data
   getCalendar: async (month?: number, year?: number) => {
     const params = new URLSearchParams();
     if (month) params.append('month', month.toString());

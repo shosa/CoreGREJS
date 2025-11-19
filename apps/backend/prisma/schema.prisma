@@ -572,38 +572,46 @@ model TrackType {
 
 // ==================== PRODUCTION ====================
 
+// Fase di produzione (Montaggio, Orlatura, Taglio, etc.)
+model ProductionPhase {
+  id          Int      @id @default(autoincrement())
+  nome        String   @db.VarChar(100)
+  codice      String?  @unique @db.VarChar(20)
+  colore      String?  @db.VarChar(20) // Colore per UI (blue, green, purple, etc.)
+  icona       String?  @db.VarChar(50) // Icona FontAwesome
+  descrizione String?  @db.Text
+  attivo      Boolean  @default(true)
+  ordine      Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  reparti ProductionDepartment[]
+
+  @@map("prod_phases")
+}
+
+// Reparto di produzione (Manovia 1, Orlatura 1, etc.)
+model ProductionDepartment {
+  id          Int      @id @default(autoincrement())
+  phaseId     Int      @map("phase_id")
+  nome        String   @db.VarChar(100)
+  codice      String?  @db.VarChar(20)
+  descrizione String?  @db.Text
+  attivo      Boolean  @default(true)
+  ordine      Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  phase  ProductionPhase   @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  valori ProductionValue[]
+
+  @@map("prod_departments")
+}
+
+// Record giornaliero di produzione (una riga per data)
 model ProductionRecord {
   id             Int      @id @default(autoincrement())
   productionDate DateTime @unique @map("production_date") @db.Date
-
-  // Montaggio (Assembly)
-  manovia1      Int     @default(0)
-  manovia1Notes String? @map("manovia1_notes") @db.Text
-  manovia2      Int     @default(0)
-  manovia2Notes String? @map("manovia2_notes") @db.Text
-
-  // Orlatura (Hemming)
-  orlatura1      Int     @default(0)
-  orlatura1Notes String? @map("orlatura1_notes") @db.Text
-  orlatura2      Int     @default(0)
-  orlatura2Notes String? @map("orlatura2_notes") @db.Text
-  orlatura3      Int     @default(0)
-  orlatura3Notes String? @map("orlatura3_notes") @db.Text
-  orlatura4      Int     @default(0)
-  orlatura4Notes String? @map("orlatura4_notes") @db.Text
-  orlatura5      Int     @default(0)
-  orlatura5Notes String? @map("orlatura5_notes") @db.Text
-
-  // Taglio (Cutting)
-  taglio1      Int     @default(0)
-  taglio1Notes String? @map("taglio1_notes") @db.Text
-  taglio2      Int     @default(0)
-  taglio2Notes String? @map("taglio2_notes") @db.Text
-
-  // Totals (generated columns in DB)
-  totalMontaggio Int? @map("total_montaggio")
-  totalOrlatura  Int? @map("total_orlatura")
-  totalTaglio    Int? @map("total_taglio")
 
   // Metadata
   createdBy Int?     @map("created_by")
@@ -613,8 +621,26 @@ model ProductionRecord {
 
   creator User? @relation("ProductionCreator", fields: [createdBy], references: [id])
   updater User? @relation("ProductionUpdater", fields: [updatedBy], references: [id])
+  valori  ProductionValue[]
 
-  @@map("production_records")
+  @@map("prod_records")
+}
+
+// Valori di produzione per reparto
+model ProductionValue {
+  id           Int      @id @default(autoincrement())
+  recordId     Int      @map("record_id")
+  departmentId Int      @map("department_id")
+  valore       Int      @default(0)
+  note         String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  record     ProductionRecord     @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  department ProductionDepartment @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([recordId, departmentId])
+  @@map("prod_values")
 }
 
 // ==================== MRP ====================
