@@ -565,7 +565,7 @@ export class ProduzioneService {
     // Get all phases and departments for structure
     const phases = await this.getAllPhases();
 
-    // Create PDF
+    // Create PDF - A4 = 595x842 punti
     const doc = new PDFDocument({
       size: 'A4',
       margins: { top: 20, bottom: 20, left: 20, right: 20 },
@@ -574,27 +574,37 @@ export class ProduzioneService {
     const chunks: Buffer[] = [];
     doc.on('data', (chunk) => chunks.push(chunk));
 
+    // Dimensioni pagina utilizzabili
+    const pageWidth = 595 - 40; // 555 punti
+    const pageHeight = 842 - 40; // 802 punti
+
     // Format date info
     const dayName = this.DAY_NAMES[productionDate.getUTCDay()];
     const monthName = this.MONTH_NAMES[month - 1];
     const weekNumber = this.getWeekNumber(productionDate);
 
-    // Header
-    doc.fontSize(20).font('Helvetica-Bold')
+    // Header principale
+    doc.fontSize(24).font('Helvetica-Bold')
       .text(`PRODUZIONE ${dayName} ${day} ${monthName} ${year}`, { align: 'center' });
-    doc.moveDown();
 
-    // Daily Data Section
-    doc.fontSize(14).font('Helvetica-Bold')
-      .fillColor('white')
-      .rect(20, doc.y, 150, 20).fill('black')
-      .fillColor('white')
-      .text('DATI GIORNALIERI', 25, doc.y - 15);
+    doc.moveDown(0.3);
+
+    // ============ SEZIONE DATI GIORNALIERI ============
+    const dailyBoxY = doc.y;
+    const dailyBoxHeight = 200;
+    doc.lineWidth(1);
+    doc.rect(20, dailyBoxY, pageWidth, dailyBoxHeight).stroke();
+
+    // Intestazione nera
+    const headerHeight = 25;
+    doc.rect(20, dailyBoxY, 180, headerHeight).fill('black');
+    doc.fillColor('white').fontSize(14).font('Helvetica-Bold')
+      .text('DATI GIORNALIERI', 30, dailyBoxY + 6);
 
     doc.fillColor('black');
-    doc.moveDown(1.5);
+    doc.lineWidth(0.5);
 
-    // Organize values by phase and department
+    // Organize values by department
     const valuesByDept = new Map<number, { valore: number; note: string }>();
     if (record) {
       record.valori.forEach(v => {
@@ -602,65 +612,57 @@ export class ProduzioneService {
       });
     }
 
-    // Daily data table
-    const startY = doc.y;
-    let currentY = startY;
-    const col1X = 30;
-    const col2X = 130;
-    const col3X = 200;
-    const col4X = 280;
+    // Strisce alternate grigio/bianco
+    const numRows = phases.reduce((sum, p) => sum + p.reparti.length, 0);
     const rowHeight = 18;
+    for (let i = 0; i < numRows; i++) {
+      const isGray = i % 2 === 0;
+      if (isGray) {
+        doc.rect(25, dailyBoxY + headerHeight + 5 + (i * rowHeight), pageWidth - 10, rowHeight).fill('#f0f0f0');
+      }
+    }
 
-    // Draw alternating backgrounds
-    let rowIndex = 0;
-    phases.forEach(phase => {
-      phase.reparti.forEach(() => {
-        if (rowIndex % 2 === 0) {
-          doc.rect(20, currentY - 2, 555, rowHeight).fill('#f0f0f0');
-        }
-        currentY += rowHeight;
-        rowIndex++;
-      });
-    });
-
-    // Reset position and draw data
-    currentY = startY;
     doc.fillColor('black');
+
+    // Dati giornalieri - layout a 4 colonne
+    let rowY = dailyBoxY + headerHeight + 8;
+    const leftMargin = 30;
+    const col1Width = 100;  // Nome reparto
+    const col2Width = 60;   // Valore
+    const col3Width = 50;   // "NOTE:"
+    const col4Width = pageWidth - col1Width - col2Width - col3Width - 30; // Note text
 
     phases.forEach(phase => {
       phase.reparti.forEach(dept => {
         const value = valuesByDept.get(dept.id);
 
-        doc.fontSize(9).font('Helvetica-Bold')
-          .text(`${dept.nome}:`, col1X, currentY, { continued: false });
+        doc.fontSize(11).font('Helvetica-Bold')
+          .text(`${dept.nome}:`, leftMargin, rowY, { width: col1Width, continued: false });
 
-        doc.fontSize(11).font('Helvetica')
-          .text(value?.valore?.toString() || '0', col2X, currentY);
+        doc.fontSize(12).font('Helvetica')
+          .text(value?.valore?.toString() || '0', leftMargin + col1Width, rowY, { width: col2Width });
 
-        doc.fontSize(9).font('Helvetica-Bold')
-          .text('NOTE:', col3X, currentY);
+        doc.fontSize(11).font('Helvetica-Bold')
+          .text('NOTE:', leftMargin + col1Width + col2Width, rowY, { width: col3Width });
 
-        doc.fontSize(7).font('Helvetica')
-          .text(value?.note || '', col4X, currentY + 2, { width: 250 });
+        doc.fontSize(10).font('Helvetica')
+          .text(value?.note || '', leftMargin + col1Width + col2Width + col3Width, rowY, { width: col4Width });
 
-        currentY += rowHeight;
+        rowY += rowHeight;
       });
     });
 
-    doc.y = currentY + 10;
-
-    // Weekly Summary Section
-    await this.generateWeeklySummary(doc, productionDate, weekNumber, phases);
-
-    // Monthly Summary Section
-    await this.generateMonthlySummary(doc, productionDate, monthName, phases);
-
-    // Final Totals
+    // ============ TOTALI GIORNALIERI (SUBITO DOPO DATI) ============
+    doc.y = dailyBoxY + dailyBoxHeight + 10;
     await this.generateFinalTotals(doc, record, phases);
 
-    // Footer
-    doc.fontSize(8).font('Helvetica-Bold')
-      .text('CALZATURIFICIO EMMEGIEMME SHOES SRL', 20, doc.page.height - 40, { align: 'right' });
+    doc.y += 20;
+
+    // ============ SEZIONE RIEPILOGO SETTIMANA (STESSA PAGINA) ============
+    await this.generateWeeklySummary(doc, productionDate, weekNumber, phases, false);
+
+    // ============ SEZIONE RIEPILOGO MESE (STESSA PAGINA) ============
+    await this.generateMonthlySummary(doc, productionDate, monthName, phases, false);
 
     doc.end();
 
@@ -679,15 +681,23 @@ export class ProduzioneService {
     return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   }
 
-  private async generateWeeklySummary(doc: any, productionDate: Date, weekNumber: number, phases: any[]) {
-    // Calculate week range
+  private async generateWeeklySummary(doc: any, productionDate: Date, weekNumber: number, phases: any[], addPage: boolean) {
+    // Calculate week range (Monday to Saturday)
     const dayOfWeek = productionDate.getUTCDay() || 7;
     const monday = new Date(productionDate);
-    monday.setUTCDate(productionDate.getUTCDate() - dayOfWeek + 1);
+    monday.setUTCDate(productionDate.getUTCDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
     const saturday = new Date(monday);
     saturday.setUTCDate(monday.getUTCDate() + 5);
 
-    // Get weekly records
+    // SEMPRE mostra tutti i giorni Lun-Sab, anche senza dati
+    const allDaysOfWeek: Date[] = [];
+    for (let i = 0; i < 6; i++) {
+      const day = new Date(monday);
+      day.setUTCDate(monday.getUTCDate() + i);
+      allDaysOfWeek.push(day);
+    }
+
+    // Get weekly records (se esistono)
     const weeklyRecords = await this.prisma.productionRecord.findMany({
       where: {
         productionDate: {
@@ -705,96 +715,117 @@ export class ProduzioneService {
       orderBy: { productionDate: 'asc' },
     });
 
-    // Section header
-    doc.addPage();
-    doc.fontSize(14).font('Helvetica-Bold')
-      .rect(20, 20, 180, 20).fill('black')
-      .fillColor('white')
-      .text('RIEPILOGO SETTIMANA', 25, 25);
+    // Map records by date
+    const recordsByDate = new Map();
+    weeklyRecords.forEach(rec => {
+      const dateKey = rec.productionDate.toISOString().split('T')[0];
+      recordsByDate.set(dateKey, rec);
+    });
 
-    doc.fillColor('black')
-      .text(`SETTIMANA ${weekNumber}`, 450, 25);
+    const pageWidth = 595 - 40; // 555 punti
 
-    doc.moveDown(2);
+    // Section header - STESSA PAGINA se addPage = false
+    const weekBoxY = doc.y;
+    const weekBoxHeight = 240;
+    doc.lineWidth(1);
+    doc.rect(20, weekBoxY, pageWidth, weekBoxHeight).stroke();
 
-    // Build table header
-    const headers = ['DATA', 'GIORNO'];
-    const deptColumns: { phaseId: number; deptId: number; name: string }[] = [];
+    // Intestazione nera
+    const headerHeight = 25;
+    doc.rect(20, weekBoxY, 220, headerHeight).fill('black');
+    doc.fillColor('white').fontSize(14).font('Helvetica-Bold')
+      .text('RIEPILOGO SETTIMANA', 30, weekBoxY + 6, { width: 200 });
 
+    doc.fillColor('black').fontSize(12).font('Helvetica-Bold')
+      .text(`SETTIMANA ${weekNumber}`, 470, weekBoxY + 8, { align: 'left', width: 100 });
+
+    // Build table header con CODICI
+    const deptColumns: { deptId: number; code: string }[] = [];
     phases.forEach(phase => {
       phase.reparti.forEach(dept => {
-        const shortName = dept.nome.length > 8 ? dept.nome.substring(0, 8) : dept.nome;
-        headers.push(shortName);
-        deptColumns.push({ phaseId: phase.id, deptId: dept.id, name: dept.nome });
+        deptColumns.push({ deptId: dept.id, code: dept.codice || dept.nome.substring(0, 6).toUpperCase() });
       });
     });
 
     // Draw header
-    const tableY = doc.y;
-    const colWidth = (555 - 40 - 50) / deptColumns.length;
+    const leftMargin = 25;
+    const tableY = weekBoxY + headerHeight + 5;
+    const dateColWidth = 40;
+    const dayColWidth = 80;
+    const dataColsWidth = pageWidth - dateColWidth - dayColWidth - 10;
+    const colWidth = dataColsWidth / deptColumns.length;
 
-    doc.fontSize(7).font('Helvetica-Bold');
-    doc.rect(20, tableY, 555, 15).fill('#c0c0c0');
+    // Draw header con codici reparti
+    const headerRowHeight = 20;
+    doc.fontSize(10).font('Helvetica-Bold');
+    doc.rect(leftMargin, tableY, pageWidth - 10, headerRowHeight).fill('#c0c0c0');
     doc.fillColor('black');
 
-    doc.text('DATA', 25, tableY + 4, { width: 35 });
-    doc.text('GIORNO', 60, tableY + 4, { width: 45 });
+    doc.text('DATA', leftMargin + 5, tableY + 5, { width: dateColWidth - 5 });
+    doc.text('GIORNO', leftMargin + dateColWidth + 5, tableY + 5, { width: dayColWidth - 5 });
 
     deptColumns.forEach((col, i) => {
-      const x = 110 + (i * colWidth);
-      doc.text(col.name.substring(0, 6), x, tableY + 4, { width: colWidth - 2, align: 'center' });
+      const x = leftMargin + dateColWidth + dayColWidth + (i * colWidth);
+      doc.text(col.code, x, tableY + 5, { width: colWidth - 2, align: 'center' });
     });
 
-    // Draw data rows
-    let rowY = tableY + 15;
+    // Draw data rows - SEMPRE 6 giorni (Lun-Sab)
+    let rowY = tableY + headerRowHeight;
+    const dataRowHeight = 25;
     const weeklyTotals: Record<number, number> = {};
     deptColumns.forEach(col => weeklyTotals[col.deptId] = 0);
 
-    weeklyRecords.forEach((record, idx) => {
-      const recDate = record.productionDate;
-      const dayNum = recDate.getUTCDate();
-      const dayName = this.DAY_NAMES[recDate.getUTCDay()];
+    allDaysOfWeek.forEach((dayDate, idx) => {
+      const dateKey = dayDate.toISOString().split('T')[0];
+      const record = recordsByDate.get(dateKey);
+
+      const dayNum = dayDate.getUTCDate();
+      const dayName = this.DAY_NAMES[dayDate.getUTCDay()];
 
       // Alternating row background
       if (idx % 2 === 0) {
-        doc.rect(20, rowY, 555, 15).fill('#f5f5f5');
+        doc.rect(leftMargin, rowY, pageWidth - 10, dataRowHeight).fill('#f5f5f5');
       }
       doc.fillColor('black');
 
-      doc.fontSize(8).font('Helvetica')
-        .text(dayNum.toString(), 25, rowY + 4, { width: 35 })
-        .text(dayName, 60, rowY + 4, { width: 45 });
+      doc.fontSize(11).font('Helvetica')
+        .text(dayNum.toString(), leftMargin + 5, rowY + 7, { width: dateColWidth - 5, align: 'center' })
+        .text(dayName.toUpperCase(), leftMargin + dateColWidth + 5, rowY + 7, { width: dayColWidth - 5, align: 'left' });
 
+      // Get values from record if exists
       const valueMap = new Map<number, number>();
-      record.valori.forEach(v => {
-        valueMap.set(v.departmentId, v.valore);
-        weeklyTotals[v.departmentId] = (weeklyTotals[v.departmentId] || 0) + v.valore;
-      });
+      if (record) {
+        record.valori.forEach(v => {
+          valueMap.set(v.departmentId, v.valore);
+          weeklyTotals[v.departmentId] = (weeklyTotals[v.departmentId] || 0) + v.valore;
+        });
+      }
 
       deptColumns.forEach((col, i) => {
-        const x = 110 + (i * colWidth);
+        const x = leftMargin + dateColWidth + dayColWidth + (i * colWidth);
         const val = valueMap.get(col.deptId) || 0;
-        doc.text(val.toString(), x, rowY + 4, { width: colWidth - 2, align: 'center' });
+        doc.text(val.toString(), x, rowY + 7, { width: colWidth - 2, align: 'center' });
       });
 
-      rowY += 15;
+      rowY += dataRowHeight;
     });
 
     // Totals row
-    doc.rect(20, rowY, 555, 15).fill('#c0c0c0');
+    const totalRowHeight = 20;
+    doc.rect(leftMargin, rowY, pageWidth - 10, totalRowHeight).fill('#c0c0c0');
     doc.fillColor('black');
-    doc.fontSize(7).font('Helvetica-Bold')
-      .text('TOTALI SETTIMANA', 25, rowY + 4, { width: 80 });
+    doc.fontSize(11).font('Helvetica-Bold')
+      .text('TOTALI SETTIMANA', leftMargin + 5, rowY + 5, { width: dateColWidth + dayColWidth - 5, align: 'center' });
 
     deptColumns.forEach((col, i) => {
-      const x = 110 + (i * colWidth);
-      doc.text(weeklyTotals[col.deptId].toString(), x, rowY + 4, { width: colWidth - 2, align: 'center' });
+      const x = leftMargin + dateColWidth + dayColWidth + (i * colWidth);
+      doc.text(weeklyTotals[col.deptId].toString(), x, rowY + 5, { width: colWidth - 2, align: 'center' });
     });
 
-    doc.y = rowY + 25;
+    doc.y = weekBoxY + weekBoxHeight + 10;
   }
 
-  private async generateMonthlySummary(doc: any, productionDate: Date, monthName: string, phases: any[]) {
+  private async generateMonthlySummary(doc: any, productionDate: Date, monthName: string, phases: any[], addPage: boolean) {
     const year = productionDate.getUTCFullYear();
     const month = productionDate.getUTCMonth();
 
@@ -815,22 +846,33 @@ export class ProduzioneService {
       orderBy: { productionDate: 'asc' },
     });
 
+    // Calcola TUTTE le settimane del mese
+    const allWeeksInMonth = new Set<number>();
+    const currentDate = new Date(startOfMonth);
+    while (currentDate <= endOfMonth) {
+      allWeeksInMonth.add(this.getWeekNumber(currentDate));
+      currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+    }
+
     // Group by week
     const weeklyData = new Map<number, Map<number, number>>();
-    const deptColumns: { deptId: number; name: string }[] = [];
+    const deptColumns: { deptId: number; code: string }[] = [];
 
     phases.forEach(phase => {
       phase.reparti.forEach(dept => {
-        deptColumns.push({ deptId: dept.id, name: dept.nome });
+        deptColumns.push({ deptId: dept.id, code: dept.codice || dept.nome.substring(0, 6).toUpperCase() });
       });
     });
 
+    // Inizializza TUTTE le settimane con 0
+    allWeeksInMonth.forEach(weekNum => {
+      weeklyData.set(weekNum, new Map());
+      deptColumns.forEach(col => weeklyData.get(weekNum)!.set(col.deptId, 0));
+    });
+
+    // Aggiungi i dati effettivi
     monthlyRecords.forEach(record => {
       const weekNum = this.getWeekNumber(record.productionDate);
-      if (!weeklyData.has(weekNum)) {
-        weeklyData.set(weekNum, new Map());
-        deptColumns.forEach(col => weeklyData.get(weekNum)!.set(col.deptId, 0));
-      }
 
       record.valori.forEach(v => {
         const current = weeklyData.get(weekNum)!.get(v.departmentId) || 0;
@@ -838,35 +880,47 @@ export class ProduzioneService {
       });
     });
 
-    // Section header
-    doc.moveDown(1);
-    doc.fontSize(14).font('Helvetica-Bold')
-      .rect(20, doc.y, 150, 20).fill('black')
-      .fillColor('white')
-      .text('RIEPILOGO MESE', 25, doc.y + 5);
+    const pageWidth = 595 - 40; // 555 punti
 
-    doc.fillColor('black')
-      .text(monthName, 450, doc.y - 15);
+    // Section header - STESSA PAGINA
+    const monthBoxY = doc.y;
+    const numWeeks = allWeeksInMonth.size;
+    const monthBoxHeight = 50 + (numWeeks * 25) + 25; // header + rows + totals
 
-    doc.moveDown(2);
+    doc.lineWidth(1);
+    doc.rect(20, monthBoxY, pageWidth, monthBoxHeight).stroke();
 
-    // Table header
-    const tableY = doc.y;
-    const colWidth = (555 - 60) / deptColumns.length;
+    // Intestazione nera
+    const headerHeight = 25;
+    doc.rect(20, monthBoxY, 180, headerHeight).fill('black');
+    doc.fillColor('white').fontSize(14).font('Helvetica-Bold')
+      .text('RIEPILOGO MESE', 30, monthBoxY + 6, { width: 150 });
 
-    doc.fontSize(7).font('Helvetica-Bold');
-    doc.rect(20, tableY, 555, 15).fill('#c0c0c0');
+    doc.fillColor('black').fontSize(12).font('Helvetica-Bold')
+      .text(monthName, 470, monthBoxY + 8, { align: 'left', width: 100 });
+
+    // Table header con codici
+    const leftMargin = 25;
+    const tableY = monthBoxY + headerHeight + 5;
+    const weekColWidth = 120;
+    const dataColsWidth = pageWidth - weekColWidth - 10;
+    const colWidth = dataColsWidth / deptColumns.length;
+
+    const headerRowHeight = 20;
+    doc.fontSize(10).font('Helvetica-Bold');
+    doc.rect(leftMargin, tableY, pageWidth - 10, headerRowHeight).fill('#c0c0c0');
     doc.fillColor('black');
 
-    doc.text('SETTIMANA', 25, tableY + 4, { width: 55 });
+    doc.text('SETTIMANA', leftMargin + 5, tableY + 5, { width: weekColWidth - 5, align: 'center' });
 
     deptColumns.forEach((col, i) => {
-      const x = 80 + (i * colWidth);
-      doc.text(col.name.substring(0, 6), x, tableY + 4, { width: colWidth - 2, align: 'center' });
+      const x = leftMargin + weekColWidth + (i * colWidth);
+      doc.text(col.code, x, tableY + 5, { width: colWidth - 2, align: 'center' });
     });
 
     // Data rows
-    let rowY = tableY + 15;
+    let rowY = tableY + headerRowHeight;
+    const dataRowHeight = 25;
     const monthlyTotals: Record<number, number> = {};
     deptColumns.forEach(col => monthlyTotals[col.deptId] = 0);
 
@@ -876,35 +930,36 @@ export class ProduzioneService {
       const weekTotals = weeklyData.get(weekNum)!;
 
       if (idx % 2 === 0) {
-        doc.rect(20, rowY, 555, 15).fill('#f5f5f5');
+        doc.rect(leftMargin, rowY, pageWidth - 10, dataRowHeight).fill('#f5f5f5');
       }
       doc.fillColor('black');
 
-      doc.fontSize(8).font('Helvetica')
-        .text(`Settimana ${weekNum}`, 25, rowY + 4, { width: 55 });
+      doc.fontSize(11).font('Helvetica')
+        .text(`Settimana ${weekNum}`, leftMargin + 5, rowY + 7, { width: weekColWidth - 5, align: 'center' });
 
       deptColumns.forEach((col, i) => {
-        const x = 80 + (i * colWidth);
+        const x = leftMargin + weekColWidth + (i * colWidth);
         const val = weekTotals.get(col.deptId) || 0;
         monthlyTotals[col.deptId] += val;
-        doc.text(val.toString(), x, rowY + 4, { width: colWidth - 2, align: 'center' });
+        doc.text(val.toString(), x, rowY + 7, { width: colWidth - 2, align: 'center' });
       });
 
-      rowY += 15;
+      rowY += dataRowHeight;
     });
 
     // Totals row
-    doc.rect(20, rowY, 555, 15).fill('#c0c0c0');
+    const totalRowHeight = 20;
+    doc.rect(leftMargin, rowY, pageWidth - 10, totalRowHeight).fill('#c0c0c0');
     doc.fillColor('black');
-    doc.fontSize(7).font('Helvetica-Bold')
-      .text('TOTALI', 25, rowY + 4, { width: 55 });
+    doc.fontSize(11).font('Helvetica-Bold')
+      .text('TOTALI', leftMargin + 5, rowY + 5, { width: weekColWidth - 5, align: 'center' });
 
     deptColumns.forEach((col, i) => {
-      const x = 80 + (i * colWidth);
-      doc.text(monthlyTotals[col.deptId].toString(), x, rowY + 4, { width: colWidth - 2, align: 'center' });
+      const x = leftMargin + weekColWidth + (i * colWidth);
+      doc.text(monthlyTotals[col.deptId].toString(), x, rowY + 5, { width: colWidth - 2, align: 'center' });
     });
 
-    doc.y = rowY + 25;
+    doc.y = monthBoxY + monthBoxHeight + 10;
   }
 
   private async generateFinalTotals(doc: any, record: any, phases: any[]) {
@@ -918,32 +973,49 @@ export class ProduzioneService {
       });
     }
 
-    doc.moveDown(2);
+    const pageWidth = 595 - 40; // 555 punti
 
-    // Draw totals boxes
-    const boxWidth = 170;
-    const boxHeight = 30;
-    let boxX = (595 - (boxWidth * phases.length + 10 * (phases.length - 1))) / 2;
+    // Draw totals boxes - horizontal layout con stile moderno
+    const numPhases = phases.length;
+    const spacing = 20;
+    const totalBoxesWidth = pageWidth - 20;
+    const boxWidth = (totalBoxesWidth - (spacing * (numPhases - 1))) / numPhases;
+    const boxHeight = 50;
+
+    let boxX = 30;
+    const startY = doc.y;
 
     phases.forEach(phase => {
       const total = phaseTotals[phase.nome] || 0;
 
-      // Label box
-      doc.rect(boxX, doc.y, boxWidth * 0.6, boxHeight).fill('black');
-      doc.fillColor('white')
-        .fontSize(10).font('Helvetica-Bold')
-        .text(`TOT. ${phase.nome.toUpperCase()}:`, boxX + 5, doc.y + 10, { width: boxWidth * 0.6 - 10 });
+      // Box principale con sfondo grigio chiaro e bordo
+      doc.save();
+      doc.roundedRect(boxX, startY, boxWidth, boxHeight, 4);
+      doc.lineWidth(1.5);
+      doc.fillAndStroke('#f8f8f8', '#cccccc');
+      doc.restore();
 
-      // Value box
-      doc.rect(boxX + boxWidth * 0.6, doc.y - boxHeight, boxWidth * 0.4, boxHeight).stroke();
-      doc.fillColor('black')
-        .fontSize(14).font('Helvetica')
-        .text(total.toString(), boxX + boxWidth * 0.6 + 5, doc.y - boxHeight + 8, {
-          width: boxWidth * 0.4 - 10,
-          align: 'center'
-        });
+      // Label sopra
+      doc.fillColor('#666666')
+        .fontSize(9).font('Helvetica-Bold');
+      doc.text(`TOTALE ${phase.nome.toUpperCase()}`, boxX, startY + 10, {
+        width: boxWidth,
+        align: 'center',
+        lineBreak: false
+      });
 
-      boxX += boxWidth + 10;
+      // Valore grande sotto
+      doc.fillColor('#000000')
+        .fontSize(22).font('Helvetica-Bold');
+      doc.text(total.toString(), boxX, startY + 26, {
+        width: boxWidth,
+        align: 'center',
+        lineBreak: false
+      });
+
+      boxX += boxWidth + spacing;
     });
+
+    doc.y = startY + boxHeight;
   }
 }

@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { produzioneApi } from '@/lib/api';
 import { showError } from '@/store/notifications';
+import PageHeader from '@/components/layout/PageHeader';
+import Breadcrumb from '@/components/layout/Breadcrumb';
 
 const MONTHS = [
   'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
@@ -146,17 +148,11 @@ export default function ProduzionePage() {
   return (
     <motion.div initial="hidden" animate="visible" variants={containerVariants}>
       {/* Header */}
-      <motion.div variants={itemVariants} className="mb-8">
-        <div className="sm:flex sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Produzione
-            </h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Calendario della produzione giornaliera
-            </p>
-          </div>
-          <div className="mt-4 sm:mt-0 flex items-center space-x-3">
+      <PageHeader
+        title="Produzione"
+        subtitle="Calendario della produzione giornaliera"
+        actions={
+          <>
             <Link href="/produzione/new">
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -186,26 +182,17 @@ export default function ProduzionePage() {
               <i className="fas fa-calendar-day mr-2"></i>
               Oggi
             </motion.button>
-          </div>
-        </div>
-      </motion.div>
+          </>
+        }
+      />
 
       {/* Breadcrumb */}
-      <motion.nav variants={itemVariants} className="flex mb-8">
-        <ol className="inline-flex items-center space-x-1 md:space-x-3">
-          <li>
-            <Link href="/" className="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400">
-              <i className="fas fa-home mr-2"></i>Dashboard
-            </Link>
-          </li>
-          <li>
-            <div className="flex items-center">
-              <i className="fas fa-chevron-right text-gray-400 mx-2"></i>
-              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Produzione</span>
-            </div>
-          </li>
-        </ol>
-      </motion.nav>
+      <Breadcrumb
+        items={[
+          { label: 'Dashboard', href: '/', icon: 'fa-home' },
+          { label: 'Produzione' },
+        ]}
+      />
 
       {/* Calendar Navigation */}
       <motion.div

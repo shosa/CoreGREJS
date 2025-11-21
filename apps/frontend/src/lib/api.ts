@@ -234,4 +234,169 @@ export const produzioneApi = {
   },
 };
 
+// Tracking API
+export const trackingApi = {
+  // ==================== STATS (Dashboard) ====================
+  getStats: async () => {
+    const response = await api.get('/tracking/stats');
+    return response.data;
+  },
+
+  // ==================== TYPES ====================
+  getTypes: async () => {
+    const response = await api.get('/tracking/types');
+    return response.data;
+  },
+  createType: async (name: string, note?: string) => {
+    const response = await api.post('/tracking/types', { name, note });
+    return response.data;
+  },
+
+  // ==================== SEARCH DATA (Multisearch) ====================
+  searchData: async (filters: {
+    cartellino?: string;
+    commessa?: string;
+    articolo?: string;
+    descrizione?: string;
+    linea?: string;
+    ragioneSociale?: string;
+    ordine?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const response = await api.post('/tracking/search-data', filters);
+    return response.data;
+  },
+
+  // ==================== CHECK CARTEL (Ordersearch) ====================
+  checkCartel: async (cartellino: string) => {
+    const response = await api.post('/tracking/check-cartel', { cartellino });
+    return response.data;
+  },
+
+  // ==================== SAVE LINKS (ProcessLinks) ====================
+  saveLinks: async (data: { typeId: number; lots: string[]; cartelli: number[] }) => {
+    const response = await api.post('/tracking/save-links', data);
+    return response.data;
+  },
+
+  // ==================== TREE DATA (TreeView) ====================
+  getTreeData: async (search?: string, page = 1, limit = 100) => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    params.append('page', String(page));
+    params.append('limit', String(limit));
+    const response = await api.get(`/tracking/tree-data?${params}`);
+    return response.data;
+  },
+  updateLot: async (id: number, lot: string) => {
+    const response = await api.put(`/tracking/update-lot/${id}`, { lot });
+    return response.data;
+  },
+  deleteLink: async (id: number) => {
+    const response = await api.delete(`/tracking/delete-lot/${id}`);
+    return response.data;
+  },
+
+  // ==================== LOT DETAIL (3 tabs) ====================
+  getLotsWithoutDdt: async (page = 1, limit = 50) => {
+    const response = await api.get(`/tracking/lots-without-ddt?page=${page}&limit=${limit}`);
+    return response.data;
+  },
+  getOrdersWithoutDate: async (page = 1, limit = 50) => {
+    const response = await api.get(`/tracking/orders-without-date?page=${page}&limit=${limit}`);
+    return response.data;
+  },
+  getOrdersWithDate: async (page = 1, limit = 50) => {
+    const response = await api.get(`/tracking/orders-with-date?page=${page}&limit=${limit}`);
+    return response.data;
+  },
+  getArticlesWithoutSku: async (page = 1, limit = 50) => {
+    const response = await api.get(`/tracking/articles-without-sku?page=${page}&limit=${limit}`);
+    return response.data;
+  },
+  getArticlesWithSku: async (page = 1, limit = 50) => {
+    const response = await api.get(`/tracking/articles-with-sku?page=${page}&limit=${limit}`);
+    return response.data;
+  },
+  updateLotInfo: async (lot: string, data: { doc?: string; date?: string; note?: string }) => {
+    const response = await api.post('/tracking/update-lot-info', { lot, ...data });
+    return response.data;
+  },
+  updateOrderInfo: async (ordine: string, date?: string) => {
+    const response = await api.post('/tracking/update-order-info', { ordine, date });
+    return response.data;
+  },
+  updateSku: async (art: string, sku: string) => {
+    const response = await api.post('/tracking/update-sku', { art, sku });
+    return response.data;
+  },
+
+  // ==================== SEARCH DETAILS ====================
+  searchLotDetails: async (lot: string) => {
+    const response = await api.get(`/tracking/search-lot-details?lot=${encodeURIComponent(lot)}`);
+    return response.data;
+  },
+  searchOrderDetails: async (ordine: string) => {
+    const response = await api.get(`/tracking/search-order-details?ordine=${encodeURIComponent(ordine)}`);
+    return response.data;
+  },
+  searchArticoloDetails: async (art: string) => {
+    const response = await api.get(`/tracking/search-articolo-details?art=${encodeURIComponent(art)}`);
+    return response.data;
+  },
+
+  // ==================== LOAD SUMMARY (Reports) ====================
+  loadSummary: async (cartelli: number[]) => {
+    const response = await api.post('/tracking/load-summary', { cartelli });
+    return response.data;
+  },
+
+  // ==================== REPORTS ====================
+  reportLotPdf: async (lots: string[]) => {
+    const response = await api.post('/tracking/report-lot-pdf', { lots }, { responseType: 'blob' });
+    return response.data;
+  },
+  reportCartelPdf: async (cartelli: number[]) => {
+    const response = await api.post('/tracking/report-cartel-pdf', { cartelli }, { responseType: 'blob' });
+    return response.data;
+  },
+  reportLotExcel: async (lots: string[]) => {
+    const response = await api.post('/tracking/report-lot-excel', { lots }, { responseType: 'blob' });
+    return response.data;
+  },
+  reportCartelExcel: async (cartelli: number[]) => {
+    const response = await api.post('/tracking/report-cartel-excel', { cartelli }, { responseType: 'blob' });
+    return response.data;
+  },
+  reportFichesPdf: async (cartelli: number[]) => {
+    const response = await api.post('/tracking/report-fiches-pdf', { cartelli }, { responseType: 'blob' });
+    return response.data;
+  },
+};
+
+// Settings API
+export const settingsApi = {
+  analyzeExcel: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/settings/analyze-excel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+  executeImport: async () => {
+    const response = await api.post('/settings/execute-import');
+    return response.data;
+  },
+  cancelImport: async () => {
+    const response = await api.delete('/settings/cancel-import');
+    return response.data;
+  },
+  getImportProgress: async () => {
+    const response = await api.get('/settings/import-progress');
+    return response.data;
+  },
+};
+
 export default api;

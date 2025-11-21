@@ -12,7 +12,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, darkMode, token } = useAuthStore();
+  const { isAuthenticated, darkMode, token, sidebarCollapsed } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -49,12 +49,15 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className={`flex h-screen overflow-hidden ${darkMode ? 'dark' : ''}`}>
+    <div className={`h-screen overflow-hidden ${darkMode ? 'dark' : ''}`}>
       {/* Sidebar */}
       <Sidebar />
 
       {/* Content Area */}
-      <div className="relative flex flex-col flex-1 overflow-x-hidden overflow-y-auto">
+      <div
+        className="relative flex flex-col h-full overflow-x-hidden overflow-y-auto transition-all duration-300"
+        style={{ marginLeft: sidebarCollapsed ? '72px' : '260px' }}
+      >
         {/* Header */}
         <Header />
 

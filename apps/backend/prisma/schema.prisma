@@ -74,21 +74,47 @@ model Setting {
   @@map("core_settings")
 }
 
+// Tabella principale dati produzione - struttura LEGACY
 model CoreData {
-  id           Int       @id @default(autoincrement())
-  commessa     String?   @db.VarChar(100)
-  modello      String?   @db.VarChar(100)
-  colore       String?   @db.VarChar(100)
-  forma        String?   @db.VarChar(100)
-  cliente      String?   @db.VarChar(200)
-  stagione     String?   @db.VarChar(50)
-  brand        String?   @db.VarChar(100)
-  dataConsegna DateTime? @map("data_consegna")
-  quantita     Int?
-  note         String?   @db.Text
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id                   Int     @id @default(autoincrement())
+  st                   String? @map("St") @db.VarChar(3)
+  ordine               Int?    @map("Ordine")
+  rg                   Int?    @map("Rg")
+  cCli                 Int?    @map("CCli")
+  ragioneSociale       String? @map("Ragione Sociale") @db.VarChar(35)
+  cartel               Int?    @unique @map("Cartel")
+  commessaCli          String? @map("Commessa Cli") @db.VarChar(20)
+  po                   String? @map("PO") @db.VarChar(255)
+  articolo             String  @map("Articolo") @db.VarChar(255)
+  descrizioneArticolo  String  @map("Descrizione Articolo") @db.VarChar(255)
+  nu                   String? @map("Nu") @db.VarChar(2)
+  marcaEtich           String? @map("Marca Etich") @db.VarChar(13)
+  ln                   String? @map("Ln") @db.VarChar(2)
+  p01                  Int?    @map("P01")
+  p02                  Int?    @map("P02")
+  p03                  Int?    @map("P03")
+  p04                  Int?    @map("P04")
+  p05                  Int?    @map("P05")
+  p06                  Int?    @map("P06")
+  p07                  Int?    @map("P07")
+  p08                  Int?    @map("P08")
+  p09                  Int?    @map("P09")
+  p10                  Int?    @map("P10")
+  p11                  Int?    @map("P11")
+  p12                  Int?    @map("P12")
+  p13                  Int?    @map("P13")
+  p14                  Int?    @map("P14")
+  p15                  Int?    @map("P15")
+  p16                  Int?    @map("P16")
+  p17                  Int?    @map("P17")
+  p18                  Int?    @map("P18")
+  p19                  Int?    @map("P19")
+  p20                  Int?    @map("P20")
+  tot                  Int?    @map("Tot")
 
+  @@index([ordine])
+  @@index([commessaCli])
+  @@index([articolo])
   @@map("core_dati")
 }
 
@@ -501,73 +527,62 @@ model ScmSetting {
   @@map("scm_settings")
 }
 
-// ==================== TRACKING ====================
+// ==================== TRACKING (Aligned to Legacy) ====================
 
+// Collegamenti cartellini-lotti (tabella principale)
 model TrackLink {
-  id         Int      @id @default(autoincrement())
-  parentId   Int?     @map("parent_id")
-  parentType String?  @map("parent_type") @db.VarChar(50)
-  childId    Int?     @map("child_id")
-  childType  String?  @map("child_type") @db.VarChar(50)
-  relation   String?  @db.VarChar(50)
-  createdAt  DateTime @default(now()) @map("created_at")
+  id        Int      @id @default(autoincrement())
+  cartel    Int      // FK a CoreData.Cartel
+  typeId    Int      @map("type_id")
+  lot       String   @db.VarChar(255)
+  note      String?  @db.VarChar(255)
+  timestamp DateTime @default(now())
 
-  @@map("trk_links")
+  type TrackType @relation(fields: [typeId], references: [id])
+
+  @@index([cartel])
+  @@index([lot])
+  @@index([typeId])
+  @@map("track_links")
 }
 
-model TrackLotInfo {
-  id         Int       @id @default(autoincrement())
-  lotto      String    @db.VarChar(100)
-  commessa   String?   @db.VarChar(100)
-  modello    String?   @db.VarChar(100)
-  colore     String?   @db.VarChar(100)
-  quantita   Int?
-  fornitore  String?   @db.VarChar(200)
-  dataArrivo DateTime? @map("data_arrivo")
-  note       String?   @db.Text
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
-
-  @@map("trk_lot_info")
-}
-
-model TrackOrderInfo {
-  id           Int       @id @default(autoincrement())
-  ordine       String    @db.VarChar(100)
-  cliente      String?   @db.VarChar(200)
-  dataOrdine   DateTime? @map("data_ordine")
-  dataConsegna DateTime? @map("data_consegna")
-  stato        String?   @db.VarChar(50)
-  note         String?   @db.Text
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-
-  @@map("trk_order_info")
-}
-
-model TrackSku {
-  id          Int      @id @default(autoincrement())
-  sku         String   @unique @db.VarChar(100)
-  modello     String?  @db.VarChar(100)
-  colore      String?  @db.VarChar(100)
-  taglia      String?  @db.VarChar(20)
-  descrizione String?  @db.Text
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  @@map("trk_skus")
-}
-
+// Tipi di tracking (TOMAIA 1, FODERA 1, etc.)
 model TrackType {
-  id          Int      @id @default(autoincrement())
-  nome        String   @db.VarChar(100)
-  codice      String?  @db.VarChar(20)
-  descrizione String?  @db.Text
-  attivo      Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id    Int     @id @default(autoincrement())
+  name  String  @db.VarChar(255)
+  note  String? @db.VarChar(255)
 
-  @@map("trk_types")
+  links TrackLink[]
+
+  @@map("track_types")
+}
+
+// Metadati lotti (DDT, data, note)
+model TrackLotInfo {
+  lot  String  @id @db.VarChar(255) // PK stringa
+  doc  String? @db.VarChar(255) // Numero DDT
+  date DateTime? @db.Date
+  note String? @db.VarChar(255)
+
+  @@map("track_lots_info")
+}
+
+// Metadati ordini (date)
+model TrackOrderInfo {
+  id     Int       @id @default(autoincrement())
+  ordine String    @db.VarChar(255)
+  date   DateTime? @db.Date
+
+  @@unique([ordine])
+  @@map("track_order_info")
+}
+
+// Codici SKU articoli
+model TrackSku {
+  art String  @id @db.VarChar(255) // PK stringa (codice articolo)
+  sku String? @db.VarChar(255)
+
+  @@map("track_sku")
 }
 
 // ==================== PRODUCTION ====================

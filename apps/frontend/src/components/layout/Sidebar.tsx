@@ -122,8 +122,9 @@ const menuItems: MenuItem[] = [
     permission: 'tracking',
     children: [
       { name: 'Menu', href: '/tracking', icon: 'fa-home' },
-      { name: 'Ricerca Multipla', href: '/tracking/multiSearch', icon: 'fa-search-plus' },
-      { name: 'Albero Dettagli', href: '/tracking/treeView', icon: 'fa-sitemap' },
+      { name: 'Ricerca Multipla', href: '/tracking/multi-search', icon: 'fa-search-plus' },
+      { name: 'Inserimento Manuale', href: '/tracking/order-search', icon: 'fa-keyboard' },
+      { name: 'Albero Dettagli', href: '/tracking/tree-view', icon: 'fa-sitemap' },
     ]
   },
 ];
@@ -339,7 +340,7 @@ export default function Sidebar() {
         initial={false}
         animate={{ width: sidebarCollapsed ? 72 : 260 }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
-        className="fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-visible bg-white border-r border-gray-200 dark:border-gray-700 dark:bg-gray-800 lg:relative lg:z-auto"
+        className="fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-visible bg-white border-r border-gray-200 dark:border-gray-700 dark:bg-gray-800"
       >
         {/* Header */}
         <div className={`flex items-center border-b border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-r from-blue-50 dark:from-gray-800 dark:to-gray-900 py-4 px-3 ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
@@ -447,39 +448,6 @@ export default function Sidebar() {
               <ul className="space-y-1.5">{toolItems.map((item, i) => renderMenuItem(item, i + menuItems.length + adminItems.length))}</ul>
             </div>
           </nav>
-        </div>
-
-        {/* User */}
-        <div className="border-t border-gray-200 p-3 dark:border-gray-700">
-          {sidebarCollapsed ? (
-            <motion.div
-              className="flex justify-center"
-              whileHover={{ scale: 1.1 }}
-            >
-              <div className="h-9 w-9 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-bold shadow-md">
-                {user?.nome?.charAt(0) || 'U'}
-              </div>
-            </motion.div>
-          ) : (
-            user && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2.5"
-              >
-                <motion.div
-                  className="h-9 w-9 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-bold shadow-md flex-shrink-0"
-                  whileHover={{ scale: 1.1 }}
-                >
-                  {user.nome?.charAt(0) || 'U'}
-                </motion.div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user.nome}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.userName}</p>
-                </div>
-              </motion.div>
-            )
-          )}
         </div>
       </motion.aside>
     </>

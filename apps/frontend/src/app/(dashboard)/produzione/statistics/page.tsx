@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { produzioneApi } from '@/lib/api';
 import { showError } from '@/store/notifications';
+import PageHeader from '@/components/layout/PageHeader';
+import Breadcrumb from '@/components/layout/Breadcrumb';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -134,17 +136,11 @@ export default function ProduzioneStatisticsPage() {
   return (
     <motion.div initial="hidden" animate="visible" variants={containerVariants}>
       {/* Header */}
-      <motion.div variants={itemVariants} className="mb-8">
-        <div className="sm:flex sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Statistiche Produzione
-            </h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Analisi e report della produzione
-            </p>
-          </div>
-          <div className="mt-4 sm:mt-0 flex items-center space-x-3">
+      <PageHeader
+        title="Statistiche Produzione"
+        subtitle="Analisi e report della produzione"
+        actions={
+          <>
             <motion.button
               onClick={fetchAllStats}
               whileHover={{ scale: 1.02 }}
@@ -164,34 +160,18 @@ export default function ProduzioneStatisticsPage() {
                 Calendario
               </motion.button>
             </Link>
-          </div>
-        </div>
-      </motion.div>
+          </>
+        }
+      />
 
       {/* Breadcrumb */}
-      <motion.nav variants={itemVariants} className="flex mb-8">
-        <ol className="inline-flex items-center space-x-1 md:space-x-3">
-          <li>
-            <Link href="/" className="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400">
-              <i className="fas fa-home mr-2"></i>Dashboard
-            </Link>
-          </li>
-          <li>
-            <div className="flex items-center">
-              <i className="fas fa-chevron-right text-gray-400 mx-2"></i>
-              <Link href="/produzione" className="text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400">
-                Produzione
-              </Link>
-            </div>
-          </li>
-          <li>
-            <div className="flex items-center">
-              <i className="fas fa-chevron-right text-gray-400 mx-2"></i>
-              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Statistiche</span>
-            </div>
-          </li>
-        </ol>
-      </motion.nav>
+      <Breadcrumb
+        items={[
+          { label: 'Dashboard', href: '/', icon: 'fa-home' },
+          { label: 'Produzione', href: '/produzione' },
+          { label: 'Statistiche' },
+        ]}
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
