@@ -4,6 +4,7 @@ import { Queue, Worker, JobsOptions, Job } from 'bullmq';
 import { JobsService } from './jobs.service';
 import { TrackingService } from '../tracking/tracking.service';
 import { ProduzioneService } from '../produzione/produzione.service';
+import { ExportService } from '../export/export.service';
 import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import * as path from 'path';
@@ -29,6 +30,7 @@ export class JobsQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly jobsService: JobsService,
     private readonly trackingService: TrackingService,
     private readonly produzioneService: ProduzioneService,
+    private readonly exportService: ExportService,
   ) {}
 
   onModuleInit() {
@@ -84,6 +86,7 @@ export class JobsQueueService implements OnModuleInit, OnModuleDestroy {
       const helpers: JobHandlerHelpers = {
         trackingService: this.trackingService,
         produzioneService: this.produzioneService,
+        exportService: this.exportService,
         ensureOutputPath: this.ensureOutputPath,
         waitForPdf: this.waitForPdf,
       };

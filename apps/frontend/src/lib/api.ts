@@ -443,4 +443,251 @@ export const jobsApi = {
   },
 };
 
+// Export / DDT API
+export const exportApi = {
+  // ==================== ARTICLES MASTER ====================
+  getArticlesMaster: async (search?: string) => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    const response = await api.get(`/export/articles-master?${params}`);
+    return response.data;
+  },
+  getArticleMasterById: async (id: number) => {
+    const response = await api.get(`/export/articles-master/${id}`);
+    return response.data;
+  },
+  getArticleMasterByCode: async (code: string) => {
+    const response = await api.get(`/export/articles-master/by-code/${code}`);
+    return response.data;
+  },
+  createArticleMaster: async (data: {
+    codiceArticolo: string;
+    descrizione?: string;
+    voceDoganale?: string;
+    um?: string;
+    prezzoUnitario?: number;
+  }) => {
+    const response = await api.post('/export/articles-master', data);
+    return response.data;
+  },
+  updateArticleMaster: async (id: number, data: Partial<{
+    codiceArticolo: string;
+    descrizione: string;
+    voceDoganale: string;
+    um: string;
+    prezzoUnitario: number;
+  }>) => {
+    const response = await api.put(`/export/articles-master/${id}`, data);
+    return response.data;
+  },
+  deleteArticleMaster: async (id: number) => {
+    const response = await api.delete(`/export/articles-master/${id}`);
+    return response.data;
+  },
+
+  // ==================== TERZISTI ====================
+  getTerzisti: async (onlyActive = true) => {
+    const response = await api.get(`/export/terzisti?onlyActive=${onlyActive}`);
+    return response.data;
+  },
+  getTerzistaById: async (id: number) => {
+    const response = await api.get(`/export/terzisti/${id}`);
+    return response.data;
+  },
+  createTerzista: async (data: {
+    ragioneSociale: string;
+    indirizzo1?: string;
+    indirizzo2?: string;
+    indirizzo3?: string;
+    nazione?: string;
+    consegna?: string;
+    autorizzazione?: string;
+  }) => {
+    const response = await api.post('/export/terzisti', data);
+    return response.data;
+  },
+  updateTerzista: async (id: number, data: Partial<{
+    ragioneSociale: string;
+    indirizzo1: string;
+    indirizzo2: string;
+    indirizzo3: string;
+    nazione: string;
+    consegna: string;
+    autorizzazione: string;
+    attivo: boolean;
+  }>) => {
+    const response = await api.put(`/export/terzisti/${id}`, data);
+    return response.data;
+  },
+  deleteTerzista: async (id: number) => {
+    const response = await api.delete(`/export/terzisti/${id}`);
+    return response.data;
+  },
+
+  // ==================== DOCUMENTS ====================
+  getDocuments: async (filters?: {
+    stato?: string;
+    terzistaId?: number;
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.stato) params.append('stato', filters.stato);
+    if (filters?.terzistaId) params.append('terzistaId', String(filters.terzistaId));
+    if (filters?.dateFrom) params.append('dateFrom', filters.dateFrom);
+    if (filters?.dateTo) params.append('dateTo', filters.dateTo);
+    if (filters?.search) params.append('search', filters.search);
+    const response = await api.get(`/export/documents?${params}`);
+    return response.data;
+  },
+  getNextProgressivo: async () => {
+    const response = await api.get('/export/documents/next-progressivo');
+    return response.data;
+  },
+  getDocumentByProgressivo: async (progressivo: string) => {
+    const response = await api.get(`/export/documents/${progressivo}`);
+    return response.data;
+  },
+  createDocument: async (data: {
+    progressivo: string;
+    terzistaId: number;
+    data: string;
+    autorizzazione?: string;
+    commento?: string;
+  }) => {
+    const response = await api.post('/export/documents', data);
+    return response.data;
+  },
+  updateDocument: async (progressivo: string, data: Partial<{
+    terzistaId: number;
+    data: string;
+    stato: string;
+    autorizzazione: string;
+    commento: string;
+    firstBoot: boolean;
+  }>) => {
+    const response = await api.put(`/export/documents/${progressivo}`, data);
+    return response.data;
+  },
+  deleteDocument: async (progressivo: string) => {
+    const response = await api.delete(`/export/documents/${progressivo}`);
+    return response.data;
+  },
+  closeDocument: async (progressivo: string) => {
+    const response = await api.post(`/export/documents/${progressivo}/close`);
+    return response.data;
+  },
+  reopenDocument: async (progressivo: string) => {
+    const response = await api.post(`/export/documents/${progressivo}/reopen`);
+    return response.data;
+  },
+
+  // ==================== DOCUMENT ITEMS ====================
+  addDocumentItem: async (data: {
+    documentoId: number;
+    articleId?: number;
+    qtaOriginale: number;
+    qtaReale?: number;
+    codiceLibero?: string;
+    descrizioneLibera?: string;
+    voceLibera?: string;
+    umLibera?: string;
+    prezzoLibero?: number;
+  }) => {
+    const response = await api.post('/export/document-items', data);
+    return response.data;
+  },
+  updateDocumentItem: async (id: number, data: {
+    qtaOriginale?: number;
+    qtaReale?: number;
+    codiceLibero?: string;
+    descrizioneLibera?: string;
+    voceLibera?: string;
+    umLibera?: string;
+    prezzoLibero?: number;
+  }) => {
+    const response = await api.put(`/export/document-items/${id}`, data);
+    return response.data;
+  },
+  deleteDocumentItem: async (id: number) => {
+    const response = await api.delete(`/export/document-items/${id}`);
+    return response.data;
+  },
+
+  // ==================== DOCUMENT FOOTER ====================
+  upsertDocumentFooter: async (data: {
+    documentoId: number;
+    aspettoColli?: string;
+    nColli?: number;
+    totPesoLordo?: number;
+    totPesoNetto?: number;
+    trasportatore?: string;
+    consegnatoPer?: string;
+    vociDoganali?: Array<{ voce: string; peso: number }>;
+  }) => {
+    const response = await api.post('/export/document-footer', data);
+    return response.data;
+  },
+  getDocumentFooter: async (documentoId: number) => {
+    const response = await api.get(`/export/document-footer/${documentoId}`);
+    return response.data;
+  },
+
+  // ==================== MISSING DATA ====================
+  addMissingData: async (data: {
+    documentoId: number;
+    codiceArticolo: string;
+    qtaMancante: number;
+    descrizione?: string;
+  }) => {
+    const response = await api.post('/export/missing-data', data);
+    return response.data;
+  },
+  getMissingDataForDocument: async (documentoId: number) => {
+    const response = await api.get(`/export/missing-data/${documentoId}`);
+    return response.data;
+  },
+  deleteMissingData: async (id: number) => {
+    const response = await api.delete(`/export/missing-data/${id}`);
+    return response.data;
+  },
+
+  // ==================== LAUNCH DATA ====================
+  addLaunchData: async (data: {
+    documentoId: number;
+    lancio: string;
+    articolo: string;
+    paia: number;
+    note?: string;
+  }) => {
+    const response = await api.post('/export/launch-data', data);
+    return response.data;
+  },
+  getLaunchDataForDocument: async (documentoId: number) => {
+    const response = await api.get(`/export/launch-data/${documentoId}`);
+    return response.data;
+  },
+  deleteLaunchData: async (id: number) => {
+    const response = await api.delete(`/export/launch-data/${id}`);
+    return response.data;
+  },
+
+  // ==================== REPORTS ====================
+  requestSegnacolliPdf: async (progressivo: string) => {
+    const response = await api.post('/jobs', {
+      type: 'export.segnacolli-pdf',
+      payload: { progressivo }
+    });
+    return response.data;
+  },
+  requestGrigliaMaterialiPdf: async (progressivo: string) => {
+    const response = await api.post('/jobs', {
+      type: 'export.griglia-materiali-pdf',
+      payload: { progressivo }
+    });
+    return response.data;
+  },
+};
+
 export default api;

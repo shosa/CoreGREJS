@@ -81,10 +81,12 @@ const menuItems: MenuItem[] = [
     hoverGradient: 'hover:from-indigo-50 hover:to-purple-100 dark:hover:from-indigo-900/20 dark:hover:to-purple-800/20',
     permission: 'export',
     children: [
-      { name: 'Dashboard', href: '/export/dashboard', icon: 'fa-home' },
-      { name: 'Nuovo DDT', href: '/export/create', icon: 'fa-plus' },
-      { name: 'Lista Documenti', href: '/export', icon: 'fa-list' },
-      { name: 'Terzisti', href: '/export/terzisti', icon: 'fa-building' },
+      { name: 'Menu', href: '/export', icon: 'fa-home' },
+      { name: 'DDT Aperti', href: '/export/continue', icon: 'fa-edit' },
+      { name: 'Nuovo DDT', href: '/export/create', icon: 'fa-plus-circle' },
+      { name: 'Archivio DDT', href: '/export/archive', icon: 'fa-archive' },
+      { name: 'Terzisti', href: '/export/terzisti', icon: 'fa-truck' },
+      { name: 'Articoli', href: '/export/articles', icon: 'fa-box' },
     ]
   },
   {

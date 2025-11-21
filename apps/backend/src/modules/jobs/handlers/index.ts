@@ -4,6 +4,8 @@ import trackReportLotExcel from './track.report-lot-excel';
 import trackReportCartelExcel from './track.report-cartel-excel';
 import trackReportFichesPdf from './track.report-fiches-pdf';
 import prodReportPdf from './prod.report-pdf';
+import exportSegnacolliPdf from './export.segnacolli-pdf';
+import exportGrigliaMaterialiPdf from './export.griglia-materiali-pdf';
 import { JobHandler } from '../types';
 
 export const jobHandlers: Record<string, JobHandler> = {
@@ -13,4 +15,6 @@ export const jobHandlers: Record<string, JobHandler> = {
   'track.report-cartel-excel': trackReportCartelExcel,
   'track.report-fiches-pdf': trackReportFichesPdf,
   'prod.report-pdf': prodReportPdf,
+  'export.segnacolli-pdf': exportSegnacolliPdf,
+  'export.griglia-materiali-pdf': exportGrigliaMaterialiPdf,
 };

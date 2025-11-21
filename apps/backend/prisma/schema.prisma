@@ -328,92 +328,148 @@ model QualityException {
 
 // ==================== EXPORT / DDT ====================
 
-model ExportDocument {
-  id            Int      @id @default(autoincrement())
-  progressivo   String   @unique @db.VarChar(50)
-  tipo          String   @default("DDT") @db.VarChar(20)
-  terzistaId    Int?     @map("terzista_id")
-  dataDocumento DateTime @default(now()) @map("data_documento")
-  stato         String   @default("bozza") @db.VarChar(20)
-  note          String?  @db.Text
-  totaleColli   Int?     @map("totale_colli")
-  totalePaia    Int?     @map("totale_paia")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+// ==================== EXPORT/DDT (Modernizzato) ====================
 
-  terzista ExportTerzista?       @relation(fields: [terzistaId], references: [id])
-  articoli ExportArticle[]
-  footer   ExportDocumentFooter?
+// Tabella master articoli (normalizzata, no duplicati)
+model ExportArticleMaster {
+  id              Int      @id @default(autoincrement())
+  codiceArticolo  String   @unique @map("codice_articolo") @db.VarChar(255)
+  descrizione     String?  @db.VarChar(255)
+  voceDoganale    String?  @map("voce_doganale") @db.VarChar(50)
+  um              String?  @db.VarChar(10)
+  prezzoUnitario  Decimal? @map("prezzo_unitario") @db.Decimal(10, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  @@map("exp_documents")
+  righe ExportDocumentItem[]
+
+  @@index([codiceArticolo])
+  @@map("exp_articoli_master")
 }
 
-model ExportArticle {
-  id         Int      @id @default(autoincrement())
-  documentId Int      @map("document_id")
-  commessa   String?  @db.VarChar(100)
-  modello    String?  @db.VarChar(100)
-  colore     String?  @db.VarChar(100)
-  taglia     String?  @db.VarChar(20)
-  quantita   Int      @default(0)
-  colli      Int      @default(0)
-  note       String?  @db.Text
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  document ExportDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-
-  @@map("exp_dati_articoli")
-}
-
-model ExportDocumentFooter {
-  id          Int       @id @default(autoincrement())
-  documentId  Int       @unique @map("document_id")
-  causale     String?   @db.VarChar(100)
-  vettore     String?   @db.VarChar(100)
-  aspettoBeni String?   @map("aspetto_beni") @db.VarChar(100)
-  porto       String?   @db.VarChar(50)
-  dataRitiro  DateTime? @map("data_ritiro")
-  oraRitiro   String?   @map("ora_ritiro") @db.VarChar(10)
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-
-  document ExportDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-
-  @@map("exp_document_footers")
-}
-
+// Terzisti (fornitori/subfornitori)
 model ExportTerzista {
-  id        Int      @id @default(autoincrement())
-  codice    String?  @db.VarChar(50)
-  nome      String   @db.VarChar(200)
-  indirizzo String?  @db.VarChar(255)
-  citta     String?  @db.VarChar(100)
-  cap       String?  @db.VarChar(10)
-  provincia String?  @db.VarChar(5)
-  telefono  String?  @db.VarChar(50)
-  email     String?  @db.VarChar(100)
-  piva      String?  @db.VarChar(20)
-  cf        String?  @db.VarChar(20)
-  attivo    Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id              Int      @id @default(autoincrement())
+  ragioneSociale  String   @map("ragione_sociale") @db.VarChar(255)
+  indirizzo1      String?  @map("indirizzo_1") @db.VarChar(255)
+  indirizzo2      String?  @map("indirizzo_2") @db.VarChar(255)
+  indirizzo3      String?  @map("indirizzo_3") @db.VarChar(255)
+  nazione         String?  @db.VarChar(100)
+  consegna        String?  @db.Text
+  autorizzazione  String?  @db.VarChar(255)
+  attivo          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  documents ExportDocument[]
+  documenti ExportDocument[]
 
+  @@index([ragioneSociale])
   @@map("exp_terzisti")
 }
 
-model ExportMissingData {
-  id        Int      @id @default(autoincrement())
-  commessa  String?  @db.VarChar(100)
-  campo     String   @db.VarChar(50)
-  messaggio String?  @db.Text
-  risolto   Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+// Documenti DDT
+model ExportDocument {
+  id              Int       @id @default(autoincrement())
+  progressivo     String    @unique @db.VarChar(50)
+  terzistaId      Int       @map("terzista_id")
+  data            DateTime  @db.Date
+  stato           String    @default("Aperto") @db.VarChar(20) // Aperto, Chiuso
+  firstBoot       Boolean   @default(true) @map("first_boot")
+  autorizzazione  String?   @db.VarChar(255)
+  commento        String?   @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  @@map("exp_missing_data")
+  terzista ExportTerzista           @relation(fields: [terzistaId], references: [id], onDelete: Restrict)
+  righe    ExportDocumentItem[]
+  piede    ExportDocumentFooter?
+  mancanti ExportMissingData[]
+  lanci    ExportLaunchData[]
+
+  @@index([terzistaId])
+  @@index([stato])
+  @@index([createdAt])
+  @@index([stato, createdAt])
+  @@map("exp_documenti")
+}
+
+// Righe documento (referenziano articoli master)
+model ExportDocumentItem {
+  id              Int      @id @default(autoincrement())
+  documentoId     Int      @map("documento_id")
+  articleId       Int?     @map("article_id") // FK a master, NULL se riga libera
+  qtaOriginale    Int      @default(0) @map("qta_originale")
+  qtaReale        Int      @default(0) @map("qta_reale")
+  isMancante      Boolean  @default(false) @map("is_mancante")
+  rifMancante     String?  @map("rif_mancante") @db.VarChar(50)
+  tipoRiga        String   @default("articolo") @map("tipo_riga") @db.VarChar(20) // articolo, libera
+  // Campi per righe libere (senza FK article)
+  codiceLibero    String?  @map("codice_libero") @db.VarChar(255)
+  descrizioneLibera String? @map("descrizione_libera") @db.VarChar(255)
+  voceLibera      String?  @map("voce_libera") @db.VarChar(50)
+  umLibera        String?  @map("um_libera") @db.VarChar(10)
+  prezzoLibero    Decimal? @map("prezzo_libero") @db.Decimal(10, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  documento ExportDocument        @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  article   ExportArticleMaster?  @relation(fields: [articleId], references: [id], onDelete: SetNull)
+
+  @@index([documentoId])
+  @@index([articleId])
+  @@map("exp_righe_documento")
+}
+
+// Piede documento (footer) - con JSON array per voci doganali
+model ExportDocumentFooter {
+  id             Int      @id @default(autoincrement())
+  documentoId    Int      @unique @map("documento_id")
+  aspettoColli   String?  @map("aspetto_colli") @db.VarChar(255)
+  nColli         Int?     @map("n_colli")
+  totPesoLordo   Decimal? @map("tot_peso_lordo") @db.Decimal(10, 2)
+  totPesoNetto   Decimal? @map("tot_peso_netto") @db.Decimal(10, 2)
+  trasportatore  String?  @db.VarChar(255)
+  consegnatoPer  String?  @map("consegnato_per") @db.Text
+  // Array JSON: [{ voce: "56031480", peso: 123.45 }, ...]
+  vociDoganali   Json?    @map("voci_doganali")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  documento ExportDocument @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+
+  @@map("exp_piede_documenti")
+}
+
+// Dati mancanti da altri DDT (per tracciare merce non ancora spedita)
+model ExportMissingData {
+  id             Int      @id @default(autoincrement())
+  documentoId    Int      @map("documento_id")
+  codiceArticolo String   @map("codice_articolo") @db.VarChar(255)
+  qtaMancante    Int      @map("qta_mancante")
+  descrizione    String?  @db.VarChar(255)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  documento ExportDocument @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+
+  @@index([documentoId])
+  @@index([codiceArticolo])
+  @@map("exp_dati_mancanti")
+}
+
+// Lanci di produzione associati al DDT
+model ExportLaunchData {
+  id          Int      @id @default(autoincrement())
+  documentoId Int      @map("documento_id")
+  lancio      String   @db.VarChar(50)
+  articolo    String   @db.VarChar(255)
+  paia        Int
+  note        String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  documento ExportDocument @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+
+  @@index([documentoId])
+  @@map("exp_dati_lanci_ddt")
 }
 
 // ==================== SCM (Subcontractors) ====================
