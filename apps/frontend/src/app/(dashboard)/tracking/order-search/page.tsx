@@ -1,137 +1,130 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { trackingApi } from '@/lib/api';
-import { showError, showSuccess } from '@/store/notifications';
+import { showError } from '@/store/notifications';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
+import Footer from '@/components/layout/Footer';
 
-interface InputState {
-  value: string;
-  status: 'empty' | 'loading' | 'valid' | 'invalid';
-  data?: any;
+interface CartelloResult {
+  id: number;
+  cartellino: string;
+  valid: boolean;
+  commessa?: string;
+  modello?: string;
+  descrizione?: string;
+  cliente?: string;
+  paia?: number;
 }
-
-const GRID_SIZE = 30;
 
 export default function OrderSearchPage() {
   const router = useRouter();
-  const [inputs, setInputs] = useState<InputState[]>(
-    Array(GRID_SIZE).fill(null).map(() => ({ value: '', status: 'empty' }))
-  );
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [inputValue, setInputValue] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<CartelloResult[]>([]);
 
-  const checkCartel = useCallback(async (index: number, value: string) => {
-    if (!value.trim()) {
-      setInputs(prev => {
-        const updated = [...prev];
-        updated[index] = { value: '', status: 'empty' };
-        return updated;
-      });
+  // Keep focus on input after loading completes
+  useEffect(() => {
+    if (!loading) {
+      inputRef.current?.focus();
+    }
+  }, [loading]);
+
+  const handleVerify = async () => {
+    const cartel = inputValue.trim();
+
+    if (!cartel || !/^\d+$/.test(cartel)) {
+      showError('Inserisci un numero cartellino valido');
       return;
     }
 
-    setInputs(prev => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], status: 'loading' };
-      return updated;
-    });
+    // Check if already exists
+    if (results.some(r => r.cartellino === cartel)) {
+      showError('Cartellino già inserito');
+      setInputValue('');
+      return;
+    }
+
+    setLoading(true);
 
     try {
-      const result = await trackingApi.checkCartel(value.trim());
-      setInputs(prev => {
-        const updated = [...prev];
-        updated[index] = {
-          value: value.trim(),
-          status: result.valid ? 'valid' : 'invalid',
-          data: result.data,
-        };
-        return updated;
-      });
+      const result = await trackingApi.checkCartel(cartel);
+      const newResult: CartelloResult = result.valid && result.data
+        ? {
+            id: result.data.id || parseInt(cartel),
+            cartellino: cartel,
+            valid: true,
+            commessa: result.data.commessa,
+            modello: result.data.modello,
+            descrizione: result.data.descrizione,
+            cliente: result.data.cliente,
+            paia: result.data.paia || result.data.tot,
+          }
+        : {
+            id: parseInt(cartel),
+            cartellino: cartel,
+            valid: false,
+          };
+
+      setResults(prev => [...prev, newResult]);
+      setInputValue('');
     } catch {
-      setInputs(prev => {
-        const updated = [...prev];
-        updated[index] = { value: value.trim(), status: 'invalid' };
-        return updated;
-      });
-    }
-  }, []);
-
-  const handleInputChange = (index: number, value: string) => {
-    setInputs(prev => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], value };
-      return updated;
-    });
-  };
-
-  const handleInputBlur = (index: number) => {
-    const value = inputs[index].value;
-    if (value.trim()) {
-      checkCartel(index, value);
+      setResults(prev => [...prev, {
+        id: parseInt(cartel),
+        cartellino: cartel,
+        valid: false,
+      }]);
+      setInputValue('');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === 'Tab') {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
       e.preventDefault();
-      checkCartel(index, inputs[index].value);
-      // Move to next input
-      const nextIndex = index + 1;
-      if (nextIndex < GRID_SIZE) {
-        inputRefs.current[nextIndex]?.focus();
-      }
+      handleVerify();
     }
   };
 
-  const getValidCartelli = () => {
-    return inputs
-      .filter(input => input.status === 'valid' && input.data?.id)
-      .map(input => input.data.id);
+  const removeResult = (cartellino: string) => {
+    setResults(prev => prev.filter(r => r.cartellino !== cartellino));
   };
+
+  const validResults = useMemo(() => results.filter(r => r.valid), [results]);
+  const invalidResults = useMemo(() => results.filter(r => !r.valid), [results]);
+
+  const totalPaia = useMemo(() => {
+    return validResults.reduce((sum, r) => sum + (r.paia || 0), 0);
+  }, [validResults]);
 
   const handleProceed = () => {
-    const validCartelli = getValidCartelli();
-    if (validCartelli.length === 0) {
-      showError('Nessun cartellino valido selezionato');
+    if (validResults.length === 0) {
+      showError('Nessun cartellino valido');
       return;
     }
-    // Store in sessionStorage and redirect
-    sessionStorage.setItem('selectedCartelli', JSON.stringify(validCartelli));
+    sessionStorage.setItem('selectedCartelli', JSON.stringify(validResults.map(r => r.id)));
     router.push('/tracking/process-links');
   };
 
   const handleClear = () => {
-    setInputs(Array(GRID_SIZE).fill(null).map(() => ({ value: '', status: 'empty' })));
-  };
-
-  const validCount = inputs.filter(i => i.status === 'valid').length;
-  const invalidCount = inputs.filter(i => i.status === 'invalid').length;
-
-  const getInputClass = (status: string) => {
-    switch (status) {
-      case 'valid':
-        return 'border-green-500 bg-green-50 dark:bg-green-900/20';
-      case 'invalid':
-        return 'border-red-500 bg-red-50 dark:bg-red-900/20';
-      case 'loading':
-        return 'border-blue-500 bg-blue-50 dark:bg-blue-900/20';
-      default:
-        return 'border-gray-300 dark:border-gray-600';
-    }
+    setResults([]);
+    setInputValue('');
   };
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="space-y-6"
+      className="space-y-6 pb-20"
     >
       <PageHeader
         title="Inserimento Manuale Cartellini"
-        subtitle="Inserisci fino a 30 cartellini con verifica real-time"
+        subtitle="Inserisci i cartellini separati da invio, virgola o spazio"
       />
 
       <Breadcrumb
@@ -142,101 +135,141 @@ export default function OrderSearchPage() {
         ]}
       />
 
-      {/* Status Bar */}
-      <div className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow">
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-green-500"></span>
-          <span className="text-sm text-gray-600 dark:text-gray-400">Validi: {validCount}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-red-500"></span>
-          <span className="text-sm text-gray-600 dark:text-gray-400">Non validi: {invalidCount}</span>
-        </div>
-        <div className="flex-1"></div>
-        <button
-          onClick={handleClear}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-        >
-          <i className="fas fa-eraser mr-2"></i>
-          Pulisci Tutto
-        </button>
-        <button
-          onClick={handleProceed}
-          disabled={validCount === 0}
-          className="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <i className="fas fa-arrow-right mr-2"></i>
-          Procedi ({validCount})
-        </button>
-      </div>
-
-      {/* Input Grid */}
+      {/* Input Area */}
       <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow p-6">
-        <div className="grid grid-cols-5 md:grid-cols-6 lg:grid-cols-10 gap-3">
-          {inputs.map((input, index) => (
-            <div key={index} className="relative">
-              <input
-                ref={el => { inputRefs.current[index] = el; }}
-                type="text"
-                value={input.value}
-                onChange={e => handleInputChange(index, e.target.value)}
-                onBlur={() => handleInputBlur(index)}
-                onKeyDown={e => handleKeyDown(index, e)}
-                placeholder={`${index + 1}`}
-                className={`w-full px-3 py-2 text-sm text-center border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition ${getInputClass(input.status)}`}
-              />
-              {input.status === 'loading' && (
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                  <i className="fas fa-spinner fa-spin text-blue-500 text-xs"></i>
-                </div>
-              )}
-              {input.status === 'valid' && (
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                  <i className="fas fa-check text-green-500 text-xs"></i>
-                </div>
-              )}
-              {input.status === 'invalid' && (
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                  <i className="fas fa-times text-red-500 text-xs"></i>
-                </div>
-              )}
-            </div>
-          ))}
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Inserisci cartellino e premi Invio
+        </label>
+        <div className="flex items-center gap-3">
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="12345678"
+            disabled={loading}
+            autoFocus
+            className="flex-1 px-4 py-3 text-lg border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono"
+          />
+          {loading && <i className="fas fa-spinner fa-spin text-blue-500 text-xl"></i>}
+          {results.length > 0 && (
+            <button
+              onClick={handleClear}
+              className="px-4 py-3 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+            >
+              <i className="fas fa-eraser mr-2"></i>Pulisci
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Preview of valid cartellini */}
-      {validCount > 0 && (
+      {/* Valid Results */}
+      {validResults.length > 0 && (
         <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow p-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-            Cartellini Validi ({validCount})
+          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+            <i className="fas fa-check-circle text-green-500"></i>
+            Cartellini Validi ({validResults.length})
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {inputs
-              .filter(i => i.status === 'valid' && i.data)
-              .map((input, idx) => (
-                <div
-                  key={idx}
-                  className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {validResults.map(item => (
+              <div
+                key={item.cartellino}
+                className="relative p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+              >
+                <button
+                  onClick={() => removeResult(item.cartellino)}
+                  className="absolute top-2 right-2 p-1 text-green-600 hover:text-red-500 transition"
                 >
-                  <div className="font-bold text-green-800 dark:text-green-300">
-                    {input.value}
-                  </div>
-                  {input.data?.commessa && (
-                    <div className="text-xs text-green-600 dark:text-green-400">
-                      {input.data.commessa}
-                    </div>
-                  )}
-                  {input.data?.modello && (
-                    <div className="text-xs text-green-600 dark:text-green-400">
-                      {input.data.modello}
-                    </div>
-                  )}
+                  <i className="fas fa-times text-xs"></i>
+                </button>
+                <div className="font-bold text-lg text-green-800 dark:text-green-300">
+                  {item.cartellino}
                 </div>
-              ))}
+                {item.commessa && (
+                  <div className="text-sm text-green-700 dark:text-green-400 mt-1">
+                    <span className="text-green-600 dark:text-green-500">Commessa:</span> {item.commessa}
+                  </div>
+                )}
+                {item.modello && (
+                  <div className="text-sm text-green-700 dark:text-green-400">
+                    <span className="text-green-600 dark:text-green-500">Articolo:</span> {item.modello}
+                  </div>
+                )}
+                {item.cliente && (
+                  <div className="text-sm text-green-700 dark:text-green-400">
+                    <span className="text-green-600 dark:text-green-500">Cliente:</span> {item.cliente}
+                  </div>
+                )}
+                {item.paia !== undefined && (
+                  <div className="text-sm font-medium text-green-800 dark:text-green-300 mt-1">
+                    <span className="text-green-600 dark:text-green-500">Paia:</span> {item.paia}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
+
+      {/* Invalid Results */}
+      {invalidResults.length > 0 && (
+        <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow p-6">
+          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+            <i className="fas fa-times-circle text-red-500"></i>
+            Cartellini Non Validi ({invalidResults.length})
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+            {invalidResults.map(item => (
+              <div
+                key={item.cartellino}
+                className="relative p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-center"
+              >
+                <button
+                  onClick={() => removeResult(item.cartellino)}
+                  className="absolute top-1 right-1 p-1 text-red-400 hover:text-red-600 transition"
+                >
+                  <i className="fas fa-times text-xs"></i>
+                </button>
+                <div className="font-bold text-red-800 dark:text-red-300">
+                  {item.cartellino}
+                </div>
+                <div className="text-xs text-red-600 dark:text-red-400 mt-1">
+                  Non trovato
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <Footer show={results.length > 0}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <div className="text-sm">
+              <span className="text-gray-500 dark:text-gray-400">Validi:</span>{' '}
+              <span className="font-semibold text-green-600 dark:text-green-400">{validResults.length}</span>
+            </div>
+            <div className="text-sm">
+              <span className="text-gray-500 dark:text-gray-400">Non validi:</span>{' '}
+              <span className="font-semibold text-red-600 dark:text-red-400">{invalidResults.length}</span>
+            </div>
+            <div className="text-sm">
+              <span className="text-gray-500 dark:text-gray-400">Totale paia:</span>{' '}
+              <span className="font-semibold text-blue-600 dark:text-blue-400">{totalPaia}</span>
+            </div>
+          </div>
+          <button
+            onClick={handleProceed}
+            disabled={validResults.length === 0}
+            className="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i className="fas fa-arrow-right mr-2"></i>
+            Procedi ({validResults.length})
+          </button>
+        </div>
+      </Footer>
     </motion.div>
   );
 }

@@ -9,20 +9,44 @@
 
 ### PAGINE FRONTEND IMPLEMENTATE:
 1. **/tracking** - Dashboard con 4 stats + 5 navigation cards
-2. **/tracking/multi-search** - Ricerca avanzata (7 filtri) - risultati raggruppati per modello
-3. **/tracking/order-search** - Griglia 30 input per inserimento manuale con verifica real-time
+2. **/tracking/multi-search** - Ricerca avanzata (7 filtri) - risultati raggruppati per modello con paia, Footer con totali selezionati
+3. **/tracking/order-search** - Input singolo con verifica ad ogni invio, cards valide/non valide, Footer con riepilogo
 4. **/tracking/process-links** - Step finale: selezione Tipo + inserimento Lotti (textarea)
 5. **/tracking/tree-view** - Albero gerarchico Cartellino > Tipo > Lotti con edit/delete inline
-6. **/tracking/lot-detail** - 3 TAB (Lotti senza DDT, Ordini senza date, Articoli senza SKU)
+6. **/tracking/lot-detail** - 3 TAB (Lotti senza DDT, Ordini senza date, Articoli senza SKU) + Offcanvas per completati
 7. **/tracking/reports** - Report PDF/Excel per lotti e cartellini + Fiches
+
+### COMPONENTI UI RIUTILIZZABILI:
+```
+apps/frontend/src/components/
+├── layout/
+│   ├── PageHeader.tsx     - Header pagina con titolo e sottotitolo
+│   ├── Breadcrumb.tsx     - Navigazione breadcrumb
+│   ├── Footer.tsx         - Footer fisso con prop `show` per animazione entrata/uscita
+│   └── Topbar.tsx         - Barra superiore applicazione
+├── ui/
+│   ├── Offcanvas.tsx      - Pannello laterale riutilizzabile con:
+│   │   - Props: open, onClose, title, icon, iconColor, headerBg
+│   │   - Props: children, footer, width (sm|md|lg|xl|2xl), position (left|right)
+│   │   - Props: searchValue, onSearchChange, searchPlaceholder, loading
+│   │   - Z-index: backdrop z-[1000], panel z-[1001]
+│   └── ...
+```
+
+### PATTERN UI COMUNI:
+- **Footer con riepilogo**: Usa `<Footer show={condition}>` per mostrare conteggi e azioni
+- **Offcanvas con ricerca**: Usa `<Offcanvas searchValue={...} onSearchChange={...}>` per filtri integrati
+- **Cards valide/non valide**: Verde (bg-green-50) per validi, Rosso (bg-red-50) per non validi
+- **Totale paia**: Sempre in blu (text-blue-600) con font-semibold
+- **Focus automatico**: useEffect su loading per riportare focus dopo operazioni async
 
 ### BACKEND ENDPOINTS IMPLEMENTATI:
 ```
 GET  /tracking/stats - Dashboard stats (4 contatori)
 GET  /tracking/types - Lista tipi tracking
 POST /tracking/types - Crea nuovo tipo
-POST /tracking/search-data - Ricerca cartellini con 7 filtri
-POST /tracking/check-cartel - Verifica cartellino (ordersearch)
+POST /tracking/search-data - Ricerca cartellini con 7 filtri (ritorna anche `paia`)
+POST /tracking/check-cartel - Verifica cartellino (ritorna anche `paia`)
 POST /tracking/save-links - Salva collegamenti {typeId, lots[], cartelli[]}
 GET  /tracking/tree-data - Carica albero (search, page, limit)
 PUT  /tracking/update-lot/:id - Modifica lotto
@@ -86,3 +110,4 @@ P01-P20 (taglie), Tot
 - Frontend: apps/frontend/src/app/(dashboard)/tracking/ e settings/
 - Prisma: apps/backend/prisma/schema.prisma
 - API Client: apps/frontend/src/lib/api.ts
+- Componenti UI: apps/frontend/src/components/ui/ e layout/

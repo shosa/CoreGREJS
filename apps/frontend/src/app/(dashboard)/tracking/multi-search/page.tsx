@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { trackingApi } from '@/lib/api';
 import { showSuccess, showError } from '@/store/notifications';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
+import Footer from '@/components/layout/Footer';
 
 interface SearchFilters {
   cartellino: string;
@@ -27,6 +28,7 @@ interface SearchResult {
   ordine?: number;
   cliente?: string;
   note?: string;
+  paia?: number;
 }
 
 export default function MultiSearchPage() {
@@ -114,6 +116,13 @@ export default function MultiSearchPage() {
     sessionStorage.setItem('selectedCartelli', JSON.stringify(selectedIds));
     router.push('/tracking/process-links');
   };
+
+  // Calculate total pairs for selected items
+  const totalPaia = useMemo(() => {
+    return results
+      .filter(r => selectedIds.includes(r.id))
+      .reduce((sum, r) => sum + (r.paia || 0), 0);
+  }, [results, selectedIds]);
 
   // Group results by articolo (modello) con descrizione
   const groupedResults: Record<string, { descrizione: string; items: SearchResult[] }> = {};
@@ -247,7 +256,7 @@ export default function MultiSearchPage() {
           <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                {total} risultati - {selectedIds.length} selezionati
+                {total} risultati
               </span>
               <button onClick={selectAll} className="text-sm text-blue-600 hover:underline">
                 Seleziona tutti
@@ -256,24 +265,21 @@ export default function MultiSearchPage() {
                 Deseleziona tutti
               </button>
             </div>
-            <button
-              onClick={handleProceed}
-              disabled={selectedIds.length === 0}
-              className="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <i className="fas fa-arrow-right mr-2"></i>
-              Procedi ({selectedIds.length})
-            </button>
           </div>
 
           {/* Grouped Results */}
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {Object.entries(groupedResults).map(([articolo, { descrizione, items }]) => (
+            {Object.entries(groupedResults).map(([articolo, { descrizione, items }]) => {
+              const groupPaia = items.reduce((sum, i) => sum + (i.paia || 0), 0);
+              return (
               <div key={articolo}>
                 <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700/50 font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3">
                   <span className="text-blue-600 dark:text-blue-400">{articolo}</span>
                   {descrizione && <span className="text-gray-500 dark:text-gray-400">- {descrizione}</span>}
-                  <span className="ml-auto text-sm bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded">{items.length}</span>
+                  <span className="ml-auto flex items-center gap-2">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{groupPaia} paia</span>
+                    <span className="text-sm bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded">{items.length}</span>
+                  </span>
                 </div>
                 <div className="divide-y divide-gray-100 dark:divide-gray-800">
                   {items.map(item => (
@@ -289,10 +295,14 @@ export default function MultiSearchPage() {
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(item.id)}
-                        onChange={() => toggleSelect(item.id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleSelect(item.id);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
                         className="mr-4 h-4 w-4 text-blue-600 rounded"
                       />
-                      <div className="flex-1 grid grid-cols-4 gap-4 text-sm">
+                      <div className="flex-1 grid grid-cols-5 gap-4 text-sm">
                         <div>
                           <span className="text-gray-500 dark:text-gray-400">Cartellino:</span>{' '}
                           <span className="font-medium text-gray-900 dark:text-white">{item.cartellino || item.id}</span>
@@ -309,12 +319,17 @@ export default function MultiSearchPage() {
                           <span className="text-gray-500 dark:text-gray-400">Cliente:</span>{' '}
                           <span className="text-gray-900 dark:text-white">{item.cliente || '-'}</span>
                         </div>
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">Paia:</span>{' '}
+                          <span className="font-medium text-blue-600 dark:text-blue-400">{item.paia || 0}</span>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
 
           {/* Pagination */}
@@ -341,6 +356,29 @@ export default function MultiSearchPage() {
           )}
         </div>
       )}
+
+      {/* Footer con conteggi e procedi */}
+      <Footer show={selectedIds.length > 0}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <div className="text-sm">
+              <span className="text-gray-500 dark:text-gray-400">Cartellini selezionati:</span>{' '}
+              <span className="font-semibold text-gray-900 dark:text-white">{selectedIds.length}</span>
+            </div>
+            <div className="text-sm">
+              <span className="text-gray-500 dark:text-gray-400">Totale paia:</span>{' '}
+              <span className="font-semibold text-blue-600 dark:text-blue-400">{totalPaia}</span>
+            </div>
+          </div>
+          <button
+            onClick={handleProceed}
+            className="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-lg transition"
+          >
+            <i className="fas fa-arrow-right mr-2"></i>
+            Procedi
+          </button>
+        </div>
+      </Footer>
     </motion.div>
   );
 }

@@ -303,6 +303,10 @@ export const trackingApi = {
     const response = await api.get(`/tracking/lots-without-ddt?page=${page}&limit=${limit}`);
     return response.data;
   },
+  getLotsWithDdt: async (page = 1, limit = 50) => {
+    const response = await api.get(`/tracking/lots-with-ddt?page=${page}&limit=${limit}`);
+    return response.data;
+  },
   getOrdersWithoutDate: async (page = 1, limit = 50) => {
     const response = await api.get(`/tracking/orders-without-date?page=${page}&limit=${limit}`);
     return response.data;
