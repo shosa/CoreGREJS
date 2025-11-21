@@ -22,6 +22,7 @@ import { SearchModule } from './modules/search/search.module';
 import { EtichetteModule } from './modules/etichette/etichette.module';
 import { InworkModule } from './modules/inwork/inwork.module';
 import { MobileApiModule } from './modules/mobile-api/mobile-api.module';
+import { JobsModule } from './modules/jobs/jobs.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { MobileApiModule } from './modules/mobile-api/mobile-api.module';
     EtichetteModule,
     InworkModule,
     MobileApiModule,
+    JobsModule,
   ],
 })
 export class AppModule {}

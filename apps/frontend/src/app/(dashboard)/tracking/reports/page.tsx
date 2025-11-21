@@ -20,46 +20,30 @@ export default function ReportsPage() {
   const handleGenerateReport = async (type: ReportType) => {
     setGenerating(type);
     try {
-      let blob: Blob;
-
       if (type === 'lot-pdf' || type === 'lot-excel') {
         const lots = lotInput.split('\n').map(l => l.trim()).filter(Boolean);
         if (lots.length === 0) {
           showError('Inserisci almeno un lotto');
           return;
         }
-        blob = type === 'lot-pdf'
-          ? await trackingApi.reportLotPdf(lots)
-          : await trackingApi.reportLotExcel(lots);
+        await trackingApi[type === 'lot-pdf' ? 'reportLotPdf' : 'reportLotExcel'](lots);
       } else if (type === 'cartel-pdf' || type === 'cartel-excel') {
         const cartelli = cartelInput.split('\n').map(l => parseInt(l.trim())).filter(n => !isNaN(n));
         if (cartelli.length === 0) {
           showError('Inserisci almeno un cartellino');
           return;
         }
-        blob = type === 'cartel-pdf'
-          ? await trackingApi.reportCartelPdf(cartelli)
-          : await trackingApi.reportCartelExcel(cartelli);
+        await trackingApi[type === 'cartel-pdf' ? 'reportCartelPdf' : 'reportCartelExcel'](cartelli);
       } else {
-        // Fiches
         const cartelli = fichesInput.split('\n').map(l => parseInt(l.trim())).filter(n => !isNaN(n));
         if (cartelli.length === 0) {
           showError('Inserisci almeno un cartellino');
           return;
         }
-        blob = await trackingApi.reportFichesPdf(cartelli);
+        await trackingApi.reportFichesPdf(cartelli);
       }
 
-      // Download file
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const ext = type.includes('excel') ? 'xlsx' : 'pdf';
-      const prefix = type.startsWith('lot') ? 'lotti' : type === 'fiches' ? 'fiches' : 'cartellini';
-      a.download = `packing_list_${prefix}_${new Date().toISOString().split('T')[0]}.${ext}`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showSuccess('Report generato con successo');
+      showSuccess('Il lavoro è stato messo in coda.');
     } catch (error: any) {
       showError(error?.response?.data?.message || 'Errore nella generazione del report');
     } finally {

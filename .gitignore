@@ -3,6 +3,9 @@ node_modules/
 .pnp
 .pnp.js
 
+#spoolfiles
+apps/backend/storage/jobs/*
+
 # Build
 dist/
 build/

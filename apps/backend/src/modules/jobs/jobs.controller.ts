@@ -1,0 +1,139 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Delete,
+  Query,
+  Param,
+  UseGuards,
+  Req,
+  Res,
+  BadRequestException,
+} from '@nestjs/common';
+import { Response, Request } from 'express';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { JobsService, JobStatus } from './jobs.service';
+import { JobsQueueService } from './jobs.queue';
+import * as fs from 'fs';
+import * as archiver from 'archiver';
+import { PDFDocument } from 'pdf-lib';
+
+@Controller('jobs')
+@UseGuards(JwtAuthGuard)
+export class JobsController {
+  constructor(
+    private readonly jobsService: JobsService,
+    private readonly jobsQueueService: JobsQueueService,
+  ) {}
+
+  @Post()
+  async enqueue(
+    @Body() body: { type: string; payload: any },
+    @Req() req: Request,
+  ) {
+    if (!body?.type) {
+      throw new BadRequestException('Tipo job mancante');
+    }
+    const userId = (req as any).user?.userId;
+    const job = await this.jobsQueueService.enqueue(body.type, body.payload || {}, userId);
+    return { jobId: job.id, status: job.status };
+  }
+
+  @Get()
+  async list(
+    @Req() req: Request,
+    @Query('status') status?: JobStatus,
+  ) {
+    const userId = (req as any).user?.userId;
+    return this.jobsService.listJobs(userId, status);
+  }
+
+  @Get(':id')
+  async detail(@Param('id') id: string, @Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    return this.jobsService.getJob(id, userId);
+  }
+
+  @Get(':id/download')
+  async download(@Param('id') id: string, @Req() req: Request, @Res() res: Response) {
+    const userId = (req as any).user?.userId;
+    const job = await this.jobsService.getJob(id, userId);
+    if (!job.outputPath || !fs.existsSync(job.outputPath)) {
+      throw new BadRequestException('File non pronto o non disponibile');
+    }
+
+    res.setHeader('Content-Disposition', `attachment; filename="${job.outputName || 'output'}"`);
+    if (job.outputMime) {
+      res.setHeader('Content-Type', job.outputMime);
+    }
+    const stream = fs.createReadStream(job.outputPath);
+    stream.pipe(res);
+  }
+
+  @Delete(':id')
+  async delete(@Param('id') id: string, @Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    const job = await this.jobsService.getJob(id, userId);
+    // Remove file if exists
+    if (job.outputPath && fs.existsSync(job.outputPath)) {
+      try {
+        fs.unlinkSync(job.outputPath);
+      } catch (e) {
+        // ignore
+      }
+    }
+    await this.jobsService.deleteJob(id, userId);
+    return { deleted: true };
+  }
+
+  @Post('merge-pdf')
+  async mergePdf(@Body() body: { ids: string[] }, @Req() req: Request, @Res() res: Response) {
+    const userId = (req as any).user?.userId;
+    const ids = body.ids || [];
+    if (!ids.length) throw new BadRequestException('Nessun job selezionato');
+
+    const jobs = await this.jobsService.findByIdsForUser(ids, userId);
+    if (jobs.length === 0) throw new BadRequestException('Nessun job valido trovato');
+
+    const pdfJobs = jobs.filter(j => j.outputMime === 'application/pdf' && j.outputPath && fs.existsSync(j.outputPath));
+    if (pdfJobs.length === 0) throw new BadRequestException('Selezione non valida per merge PDF');
+
+    const merged = await PDFDocument.create();
+    for (const job of pdfJobs) {
+      const bytes = fs.readFileSync(job.outputPath!);
+      const doc = await PDFDocument.load(bytes);
+      const copied = await merged.copyPages(doc, doc.getPageIndices());
+      copied.forEach(p => merged.addPage(p));
+    }
+    const mergedBytes = await merged.save();
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="merge.pdf"');
+    res.end(Buffer.from(mergedBytes));
+  }
+
+  @Post('zip')
+  async zipFiles(@Body() body: { ids: string[] }, @Req() req: Request, @Res() res: Response) {
+    const userId = (req as any).user?.userId;
+    const ids = body.ids || [];
+    if (!ids.length) throw new BadRequestException('Nessun job selezionato');
+
+    const jobs = await this.jobsService.findByIdsForUser(ids, userId);
+    if (jobs.length === 0) throw new BadRequestException('Nessun job valido trovato');
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="files.zip"');
+    archive.pipe(res);
+
+    for (const job of jobs) {
+      if (job.outputPath && fs.existsSync(job.outputPath)) {
+        const stream = fs.createReadStream(job.outputPath);
+        archive.append(stream, { name: job.outputName || job.id });
+      }
+    }
+
+    archive.finalize();
+  }
+}

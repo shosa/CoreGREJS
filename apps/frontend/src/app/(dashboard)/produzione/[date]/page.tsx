@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { produzioneApi } from '@/lib/api';
-import { showError } from '@/store/notifications';
+import { showError, showSuccess } from '@/store/notifications';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
@@ -115,32 +115,25 @@ export default function ProduzioneViewPage() {
       {/* Header */}
       <PageHeader
         title={`Produzione del ${formatDate(date)}`}
-        subtitle="Dettaglio produzione e spedizione"
+        subtitle="Dettaglio produzione"
         actions={
           <>
-            <motion.button
-              onClick={async () => {
-                try {
-                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3011/api'}/produzione/pdf/${date}`, {
-                    headers: {
-                      'Authorization': `Bearer ${JSON.parse(localStorage.getItem('coregre-auth') || '{}').state?.token}`,
-                    },
-                  });
-                  if (!response.ok) throw new Error('Errore generazione PDF');
-                  const blob = await response.blob();
-                  const url = window.URL.createObjectURL(blob);
-                  window.open(url, '_blank');
-                } catch (error) {
-                  showError('Errore nella generazione del PDF');
-                }
-              }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
-            >
-              <i className="fas fa-file-pdf mr-2 text-red-500"></i>
-              Scarica PDF
-            </motion.button>
+              <motion.button
+                onClick={async () => {
+                  const res = await produzioneApi.requestPdf(date);
+                  if (res?.jobId) {
+                    showSuccess('Il lavoro è stato messo in coda.');
+                  } else {
+                    showError('Errore nella generazione del PDF');
+                  }
+                }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+              >
+                <i className="fas fa-file-pdf mr-2 text-red-500"></i>
+                Stampa
+              </motion.button>
 
             <Link href={`/produzione/new?date=${date}`}>
               <motion.button

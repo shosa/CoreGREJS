@@ -1,0 +1,115 @@
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Queue, Worker, JobsOptions, Job } from 'bullmq';
+import { JobsService } from './jobs.service';
+import { TrackingService } from '../tracking/tracking.service';
+import { ProduzioneService } from '../produzione/produzione.service';
+import * as fs from 'fs';
+import * as fsp from 'fs/promises';
+import * as path from 'path';
+import PDFDocument = require('pdfkit');
+import { jobHandlers } from './handlers';
+import { JobHandlerHelpers } from './types';
+
+const QUEUE_NAME = 'coregre-jobs';
+
+type ReportPayload =
+  | { lots: string[] }
+  | { cartelli: number[] }
+  | { date: string };
+
+@Injectable()
+export class JobsQueueService implements OnModuleInit, OnModuleDestroy {
+  private queue: Queue;
+  private worker: Worker;
+  private readonly logger = new Logger(JobsQueueService.name);
+
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly jobsService: JobsService,
+    private readonly trackingService: TrackingService,
+    private readonly produzioneService: ProduzioneService,
+  ) {}
+
+  onModuleInit() {
+    const connection = {
+      host: this.configService.get<string>('REDIS_HOST', '127.0.0.1'),
+      port: Number(this.configService.get<string>('REDIS_PORT', '6379')),
+      password: this.configService.get<string>('REDIS_PASSWORD', 'coresuite_redis'),
+    };
+
+    this.queue = new Queue(QUEUE_NAME, {
+      connection,
+      defaultJobOptions: {
+        attempts: 2,
+        backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: true,
+        removeOnFail: false,
+      } as JobsOptions,
+    });
+
+    this.worker = new Worker(
+      QUEUE_NAME,
+      async (job) => this.handleJob(job),
+      { connection },
+    );
+
+    this.worker.on('failed', (job, err) => {
+      this.logger.error(`Job ${job?.id} failed: ${err?.message}`);
+    });
+  }
+
+  async onModuleDestroy() {
+    await this.worker?.close();
+    await this.queue?.close();
+  }
+
+  async enqueue(type: string, payload: ReportPayload, userId: number) {
+    const jobRecord = await this.jobsService.createJob(userId, type, payload);
+    await this.queue.add(type, { ...payload, userId, jobId: jobRecord.id });
+    return jobRecord;
+  }
+
+  private async handleJob(job: Job) {
+    const { jobId, userId } = job.data as { jobId: string; userId: number };
+
+    try {
+      await this.jobsService.markRunning(jobId);
+
+      const handler = jobHandlers[job.name];
+      if (!handler) {
+        throw new Error(`Tipo job non gestito: ${job.name}`);
+      }
+
+      const helpers: JobHandlerHelpers = {
+        trackingService: this.trackingService,
+        produzioneService: this.produzioneService,
+        ensureOutputPath: this.ensureOutputPath,
+        waitForPdf: this.waitForPdf,
+      };
+
+      const output = await handler(job.data, helpers);
+      await this.jobsService.markDone(jobId, output || {});
+    } catch (err: any) {
+      await this.jobsService.markFailed(jobId, err?.message || 'Errore job');
+      throw err;
+    }
+  }
+
+  private ensureOutputPath = async (userId: number, jobId: string, fileName: string) => {
+    const basePath = path.join(process.cwd(), 'storage', 'jobs', String(userId), jobId);
+    await fsp.mkdir(basePath, { recursive: true });
+    const fullPath = path.join(basePath, fileName);
+    return { fullPath };
+  };
+
+  private waitForPdf = (doc: InstanceType<typeof PDFDocument>, filePath: string) => {
+    return new Promise<void>((resolve, reject) => {
+      const stream = fs.createWriteStream(filePath);
+      doc.pipe(stream);
+      stream.on('finish', () => resolve());
+      stream.on('error', (err) => reject(err));
+      doc.end();
+    });
+  };
+}

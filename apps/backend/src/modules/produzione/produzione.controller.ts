@@ -9,17 +9,18 @@ import {
   Param,
   UseGuards,
   Request,
-  Res,
-  StreamableFile,
 } from '@nestjs/common';
-import { Response } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ProduzioneService } from './produzione.service';
+import { JobsQueueService } from '../jobs/jobs.queue';
 
 @Controller('produzione')
 @UseGuards(JwtAuthGuard)
 export class ProduzioneController {
-  constructor(private produzioneService: ProduzioneService) {}
+  constructor(
+    private produzioneService: ProduzioneService,
+    private jobsQueueService: JobsQueueService,
+  ) {}
 
   // ==================== PHASES ====================
 
@@ -161,18 +162,12 @@ export class ProduzioneController {
     return this.produzioneService.getComparison(m1, y1, m2, y2);
   }
 
-  // GET /produzione/pdf/:date - Generate PDF report
+  // GET /produzione/pdf/:date - enqueue PDF report
   @Get('pdf/:date')
-  async generatePdf(@Param('date') date: string, @Res() res: Response) {
-    const pdfBuffer = await this.produzioneService.generatePdf(date);
-
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="PRODUZIONE_${date}.pdf"`,
-      'Content-Length': pdfBuffer.length,
-    });
-
-    res.end(pdfBuffer);
+  async generatePdf(@Param('date') date: string, @Request() req: any) {
+    const userId = req.user?.userId || req.user?.id;
+    const job = await this.jobsQueueService.enqueue('prod.report-pdf', { date }, userId);
+    return { jobId: job.id, status: job.status };
   }
 
   // GET /produzione/date/:date - MUST be after all static routes
@@ -188,7 +183,8 @@ export class ProduzioneController {
     @Body() data: any,
     @Request() req,
   ) {
-    return this.produzioneService.upsert(date, data, req.user.id);
+    const userId = req.user?.userId || req.user?.id;
+    return this.produzioneService.upsert(date, data, userId);
   }
 
   // PUT /produzione/date/:date (alias for POST)
@@ -198,6 +194,7 @@ export class ProduzioneController {
     @Body() data: any,
     @Request() req,
   ) {
-    return this.produzioneService.upsert(date, data, req.user.id);
+    const userId = req.user?.userId || req.user?.id;
+    return this.produzioneService.upsert(date, data, userId);
   }
 }

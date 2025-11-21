@@ -186,6 +186,14 @@ export const produzioneApi = {
     const response = await api.get(`/produzione/date/${date}`);
     return response.data;
   },
+  requestPdf: async (date: string) => {
+    const response = await api.get(`/produzione/pdf/${date}`);
+    return response.data;
+  },
+  save: async (data: any) => {
+    const response = await api.post(`/produzione/date/${data.date}`, data);
+    return response.data;
+  },
   saveByDate: async (date: string, data: any) => {
     const response = await api.post(`/produzione/date/${date}`, data);
     return response.data;
@@ -358,23 +366,23 @@ export const trackingApi = {
 
   // ==================== REPORTS ====================
   reportLotPdf: async (lots: string[]) => {
-    const response = await api.post('/tracking/report-lot-pdf', { lots }, { responseType: 'blob' });
+    const response = await api.post('/tracking/report-lot-pdf', { lots });
     return response.data;
   },
   reportCartelPdf: async (cartelli: number[]) => {
-    const response = await api.post('/tracking/report-cartel-pdf', { cartelli }, { responseType: 'blob' });
+    const response = await api.post('/tracking/report-cartel-pdf', { cartelli });
     return response.data;
   },
   reportLotExcel: async (lots: string[]) => {
-    const response = await api.post('/tracking/report-lot-excel', { lots }, { responseType: 'blob' });
+    const response = await api.post('/tracking/report-lot-excel', { lots });
     return response.data;
   },
   reportCartelExcel: async (cartelli: number[]) => {
-    const response = await api.post('/tracking/report-cartel-excel', { cartelli }, { responseType: 'blob' });
+    const response = await api.post('/tracking/report-cartel-excel', { cartelli });
     return response.data;
   },
   reportFichesPdf: async (cartelli: number[]) => {
-    const response = await api.post('/tracking/report-fiches-pdf', { cartelli }, { responseType: 'blob' });
+    const response = await api.post('/tracking/report-fiches-pdf', { cartelli });
     return response.data;
   },
 };
@@ -400,6 +408,38 @@ export const settingsApi = {
   getImportProgress: async () => {
     const response = await api.get('/settings/import-progress');
     return response.data;
+  },
+};
+
+// Jobs / Spool API
+export const jobsApi = {
+  enqueue: async (type: string, payload: any) => {
+    const response = await api.post('/jobs', { type, payload });
+    return response.data;
+  },
+  list: async (status?: string) => {
+    const response = await api.get('/jobs', { params: { status } });
+    return response.data;
+  },
+  detail: async (id: string) => {
+    const response = await api.get(`/jobs/${id}`);
+    return response.data;
+  },
+  download: async (id: string) => {
+    const response = await api.get(`/jobs/${id}/download`, { responseType: 'blob' });
+    return response;
+  },
+  delete: async (id: string) => {
+    const response = await api.delete(`/jobs/${id}`);
+    return response.data;
+  },
+  mergePdf: async (ids: string[]) => {
+    const response = await api.post('/jobs/merge-pdf', { ids }, { responseType: 'blob' });
+    return response;
+  },
+  downloadZip: async (ids: string[]) => {
+    const response = await api.post('/jobs/zip', { ids }, { responseType: 'blob' });
+    return response;
   },
 };
 
