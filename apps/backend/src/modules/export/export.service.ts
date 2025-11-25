@@ -428,10 +428,48 @@ export class ExportService {
     voceLibera?: string;
     umLibera?: string;
     prezzoLibero?: number;
+    // Per aggiornare il master article
+    descrizione?: string;
+    voceDoganale?: string;
+    prezzoUnitario?: number;
   }) {
+    // Prima recupera l'item per sapere se è collegato a un master
+    const item = await this.prisma.exportDocumentItem.findUnique({
+      where: { id },
+      include: { article: true },
+    });
+
+    if (!item) {
+      throw new Error('Document item not found');
+    }
+
+    // Se è un articolo master E ci sono campi master da aggiornare
+    if (item.articleId && (data.descrizione !== undefined || data.voceDoganale !== undefined || data.prezzoUnitario !== undefined)) {
+      // Aggiorna il master article
+      const masterUpdateData: any = {};
+      if (data.descrizione !== undefined) masterUpdateData.descrizione = data.descrizione;
+      if (data.voceDoganale !== undefined) masterUpdateData.voceDoganale = data.voceDoganale;
+      if (data.prezzoUnitario !== undefined) masterUpdateData.prezzoUnitario = data.prezzoUnitario;
+
+      await this.prisma.exportArticleMaster.update({
+        where: { id: item.articleId },
+        data: masterUpdateData,
+      });
+    }
+
+    // Aggiorna l'item del documento (qtaReale, qtaOriginale, campi liberi)
+    const itemUpdateData: any = {};
+    if (data.qtaOriginale !== undefined) itemUpdateData.qtaOriginale = data.qtaOriginale;
+    if (data.qtaReale !== undefined) itemUpdateData.qtaReale = data.qtaReale;
+    if (data.codiceLibero !== undefined) itemUpdateData.codiceLibero = data.codiceLibero;
+    if (data.descrizioneLibera !== undefined) itemUpdateData.descrizioneLibera = data.descrizioneLibera;
+    if (data.voceLibera !== undefined) itemUpdateData.voceLibera = data.voceLibera;
+    if (data.umLibera !== undefined) itemUpdateData.umLibera = data.umLibera;
+    if (data.prezzoLibero !== undefined) itemUpdateData.prezzoLibero = data.prezzoLibero;
+
     return this.prisma.exportDocumentItem.update({
       where: { id },
-      data,
+      data: itemUpdateData,
       include: {
         article: true,
       },

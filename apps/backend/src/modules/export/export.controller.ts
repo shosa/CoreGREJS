@@ -219,6 +219,10 @@ export class ExportController {
       voceLibera?: string;
       umLibera?: string;
       prezzoLibero?: number;
+      // Per aggiornare il master article
+      descrizione?: string;
+      voceDoganale?: string;
+      prezzoUnitario?: number;
     }
   ) {
     return this.exportService.updateDocumentItem(parseInt(id), data);

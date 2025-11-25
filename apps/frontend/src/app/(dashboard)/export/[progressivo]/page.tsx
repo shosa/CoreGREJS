@@ -1,12 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  createColumnHelper,
+  ColumnDef,
+} from '@tanstack/react-table';
 import { exportApi } from '@/lib/api';
 import { showSuccess, showError } from '@/store/notifications';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
+import EditableCell from '@/components/export/EditableCell';
 
 const tabClasses = (active: boolean) =>
   `px-4 py-2 text-sm font-medium rounded-lg transition-all ${
@@ -95,6 +103,7 @@ export default function DocumentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [document, setDocument] = useState<Document | null>(null);
   const [activeTab, setActiveTab] = useState<'righe' | 'piede' | 'mancanti' | 'lanci' | 'upload'>('righe');
+  const [savingField, setSavingField] = useState<string | null>(null); // "itemId-field" es: "123-descrizione"
 
   // Modal states
   const [showAddItemModal, setShowAddItemModal] = useState(false);
@@ -232,26 +241,96 @@ export default function DocumentDetailPage() {
     }
   };
 
-  const handleUpdateItemField = async (itemId: number, field: string, value: any) => {
+  const handleUpdateItemField = async (itemId: number, field: string, value: any, tipoRiga: string) => {
+    const fieldKey = `${itemId}-${field}`;
+
     try {
+      // Imposta il loading per questo campo
+      setSavingField(fieldKey);
+
       const updateData: any = {};
+
+      // Sostituisci virgola con punto per i numeri
+      if (field === 'qtaReale' || field === 'prezzo') {
+        value = value.replace(',', '.');
+      }
 
       // Map field names to API field names
       if (field === 'descrizione') {
-        updateData.descrizioneLibera = value;
+        // Per articoli master, aggiorna il campo "descrizione" del master
+        // Per righe libere, aggiorna il campo "descrizioneLibera"
+        if (tipoRiga === 'libera') {
+          updateData.descrizioneLibera = value;
+        } else {
+          updateData.descrizione = value;
+        }
       } else if (field === 'qtaReale') {
-        updateData.qtaReale = parseInt(value) || 0;
+        // Forza 2 decimali - qtaReale può essere modificato per tutti i tipi
+        updateData.qtaReale = parseFloat(parseFloat(value).toFixed(2)) || 0;
       } else if (field === 'prezzo') {
-        updateData.prezzoLibero = parseFloat(value) || 0;
+        // Forza 2 decimali
+        const prezzo = parseFloat(parseFloat(value).toFixed(2)) || 0;
+        if (tipoRiga === 'libera') {
+          updateData.prezzoLibero = prezzo;
+        } else {
+          updateData.prezzoUnitario = prezzo;
+        }
       } else if (field === 'voceDoganale') {
-        updateData.voceLibera = value;
+        if (tipoRiga === 'libera') {
+          updateData.voceLibera = value;
+        } else {
+          updateData.voceDoganale = value;
+        }
       }
 
+      // Aggiorna lo stato locale per riflettere le modifiche immediatamente
+      if (document) {
+        setDocument({
+          ...document,
+          righe: document.righe.map(item => {
+            if (item.id === itemId) {
+              // Crea una copia dell'item con i dati aggiornati
+              const updatedItem = { ...item };
+
+              if (field === 'qtaReale') {
+                updatedItem.qtaReale = updateData.qtaReale;
+              } else if (field === 'prezzo') {
+                if (tipoRiga === 'libera') {
+                  updatedItem.prezzoLibero = updateData.prezzoLibero;
+                } else if (item.article) {
+                  updatedItem.article = { ...item.article, prezzoUnitario: updateData.prezzoUnitario };
+                }
+              } else if (field === 'descrizione') {
+                if (tipoRiga === 'libera') {
+                  updatedItem.descrizioneLibera = updateData.descrizioneLibera;
+                } else if (item.article) {
+                  updatedItem.article = { ...item.article, descrizione: updateData.descrizione };
+                }
+              } else if (field === 'voceDoganale') {
+                if (tipoRiga === 'libera') {
+                  updatedItem.voceLibera = updateData.voceLibera;
+                } else if (item.article) {
+                  updatedItem.article = { ...item.article, voceDoganale: updateData.voceDoganale };
+                }
+              }
+
+              return updatedItem;
+            }
+            return item;
+          })
+        });
+      }
+
+      // Salva sul server in background SENZA ricaricare la pagina
       await exportApi.updateDocumentItem(itemId, updateData);
-      // Refresh document silently to update the view
-      await fetchDocument();
+
+      console.log('Campo aggiornato:', field, value);
     } catch (error) {
+      console.error('Errore aggiornamento campo:', error);
       showError('Errore aggiornamento campo');
+    } finally {
+      // Rimuovi il loading
+      setSavingField(null);
     }
   };
 
@@ -522,6 +601,153 @@ export default function DocumentDetailPage() {
       (a.descrizione && a.descrizione.toLowerCase().includes(searchArticle.toLowerCase()))
   );
 
+  const isOpen = document?.stato === 'Aperto';
+
+  // Definizione colonne per react-table
+  const columns = useMemo<ColumnDef<DocumentItem>[]>(
+    () => [
+      {
+        accessorKey: 'codice',
+        header: 'Codice Articolo',
+        cell: ({ row }) => {
+          const item = row.original;
+          return (
+            <div className="font-mono">
+              {item.tipoRiga === 'articolo' && item.article
+                ? item.article.codiceArticolo
+                : item.codiceLibero || '-'}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: 'descrizione',
+        header: 'Descrizione',
+        cell: ({ row }) => {
+          const item = row.original;
+          const currentValue = item.tipoRiga === 'articolo' && item.article
+            ? item.article.descrizione || ''
+            : item.descrizioneLibera || '';
+
+          return (
+            <EditableCell
+              value={currentValue}
+              onChange={(value) => handleUpdateItemField(item.id, 'descrizione', value, item.tipoRiga)}
+              isLoading={savingField === `${item.id}-descrizione`}
+              readOnly={!isOpen}
+            />
+          );
+        },
+      },
+      {
+        accessorKey: 'voceDoganale',
+        header: 'Voce Doganale',
+        size: 150,
+        cell: ({ row }) => {
+          const item = row.original;
+          const currentValue = item.tipoRiga === 'articolo' && item.article
+            ? item.article.voceDoganale || ''
+            : item.voceLibera || '';
+
+          return (
+            <EditableCell
+              value={currentValue}
+              onChange={(value) => handleUpdateItemField(item.id, 'voceDoganale', value, item.tipoRiga)}
+              isLoading={savingField === `${item.id}-voceDoganale`}
+              readOnly={!isOpen}
+            />
+          );
+        },
+      },
+      {
+        accessorKey: 'um',
+        header: 'UM',
+        size: 80,
+        cell: ({ row }) => {
+          const item = row.original;
+          return (
+            <div className="bg-gray-50 dark:bg-gray-700/50">
+              {item.tipoRiga === 'articolo' && item.article ? item.article.um || '-' : item.umLibera || '-'}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: 'qtaOriginale',
+        header: 'QTA',
+        size: 100,
+        cell: ({ row }) => (
+          <div className="bg-gray-50 dark:bg-gray-700/50 text-right">
+            {Number(row.original.qtaOriginale).toFixed(3).replace('.', ',')}
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'qtaReale',
+        header: 'QTA Reale',
+        size: 100,
+        cell: ({ row }) => {
+          const item = row.original;
+          return (
+            <EditableCell
+              value={Number(item.qtaReale).toFixed(3).replace('.', ',')}
+              onChange={(value) => handleUpdateItemField(item.id, 'qtaReale', value, item.tipoRiga)}
+              align="right"
+              isLoading={savingField === `${item.id}-qtaReale`}
+              readOnly={!isOpen}
+            />
+          );
+        },
+      },
+      {
+        accessorKey: 'prezzoUnitario',
+        header: 'Costo Unit.',
+        size: 120,
+        cell: ({ row }) => {
+          const item = row.original;
+          const prezzoUnitario = item.tipoRiga === 'articolo' && item.article
+            ? Number(item.article.prezzoUnitario || 0)
+            : Number(item.prezzoLibero || 0);
+
+          return (
+            <EditableCell
+              value={'€' + prezzoUnitario.toFixed(3).replace('.', ',')}
+              onChange={(value) => handleUpdateItemField(item.id, 'prezzo', value, item.tipoRiga)}
+              align="right"
+              isLoading={savingField === `${item.id}-prezzo`}
+              readOnly={!isOpen}
+            />
+          );
+        },
+      },
+      {
+        accessorKey: 'totale',
+        header: 'Totale',
+        
+        cell: ({ row }) => {
+          const item = row.original;
+          const prezzoUnitario = item.tipoRiga === 'articolo' && item.article
+            ? Number(item.article.prezzoUnitario || 0)
+            : Number(item.prezzoLibero || 0);
+          const totale = item.qtaReale * prezzoUnitario;
+
+          return (
+            <div className="font-medium bg-green-50 dark:bg-green-800/20 text-right">
+              €{totale.toFixed(2).replace('.', ',')}
+            </div>
+          );
+        },
+      },
+    ],
+    [isOpen, savingField]
+  );
+
+  const table = useReactTable({
+    data: document?.righe || [],
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -537,8 +763,6 @@ export default function DocumentDetailPage() {
   if (!document) {
     return <div className="text-center py-12 text-red-500">Documento non trovato</div>;
   }
-
-  const isOpen = document.stato === 'Aperto';
 
   return (
     <div>
@@ -698,104 +922,45 @@ export default function DocumentDetailPage() {
               <p className="py-12 text-center text-gray-500">Nessuna riga inserita</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700">
-                      <th className="pb-3 text-left font-semibold text-gray-700 dark:text-gray-300">Codice</th>
-                      <th className="pb-3 text-left font-semibold text-gray-700 dark:text-gray-300">Descrizione</th>
-                      <th className="pb-3 text-left font-semibold text-gray-700 dark:text-gray-300">Voce Doganale</th>
-                      <th className="pb-3 text-right font-semibold text-gray-700 dark:text-gray-300">Qta Orig.</th>
-                      <th className="pb-3 text-right font-semibold text-gray-700 dark:text-gray-300">Qta Reale</th>
-                      <th className="pb-3 text-right font-semibold text-gray-700 dark:text-gray-300">UM</th>
-                      <th className="pb-3 text-right font-semibold text-gray-700 dark:text-gray-300">Prezzo Unit.</th>
-                      <th className="pb-3 text-right font-semibold text-gray-700 dark:text-gray-300">Totale</th>
-                    </tr>
+                <table className="w-full table-auto divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-900/50">
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <tr key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <th
+                            key={header.id}
+                            className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                          >
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </th>
+                        ))}
+                      </tr>
+                    ))}
                   </thead>
-                  <tbody>
-                    {document.righe.map((item) => {
-                      const prezzoUnitario = item.tipoRiga === 'articolo' && item.article
-                        ? Number(item.article.prezzoUnitario || 0)
-                        : Number(item.prezzoLibero || 0);
-                      const totale = item.qtaReale * prezzoUnitario;
-
-                      return (
-                        <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700/50">
-                          <td className="py-2 text-gray-900 dark:text-white">
-                            {item.tipoRiga === 'articolo' && item.article
-                              ? item.article.codiceArticolo
-                              : item.codiceLibero || '-'}
-                          </td>
-                          <td className="py-2">
-                            {isOpen ? (
-                              <input
-                                type="text"
-                                defaultValue={item.tipoRiga === 'articolo' && item.article
-                                  ? item.article.descrizione || ''
-                                  : item.descrizioneLibera || ''}
-                                onBlur={(e) => handleUpdateItemField(item.id, 'descrizione', e.target.value)}
-                                className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                              />
-                            ) : (
-                              <span className="text-gray-600 dark:text-gray-400">
-                                {item.tipoRiga === 'articolo' && item.article
-                                  ? item.article.descrizione || '-'
-                                  : item.descrizioneLibera || '-'}
-                              </span>
+                  <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800/40">
+                    {table.getRowModel().rows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <td
+                            key={cell.id}
+                            className="px-2 py-2 text-sm text-gray-900 dark:text-white"
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
                             )}
                           </td>
-                          <td className="py-2">
-                            {isOpen ? (
-                              <input
-                                type="text"
-                                defaultValue={item.tipoRiga === 'articolo' && item.article
-                                  ? item.article.voceDoganale || ''
-                                  : item.voceLibera || ''}
-                                onBlur={(e) => handleUpdateItemField(item.id, 'voceDoganale', e.target.value)}
-                                className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                              />
-                            ) : (
-                              <span className="text-gray-600 dark:text-gray-400">
-                                {item.tipoRiga === 'articolo' && item.article
-                                  ? item.article.voceDoganale || '-'
-                                  : item.voceLibera || '-'}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 text-right text-gray-900 dark:text-white">{item.qtaOriginale}</td>
-                          <td className="py-2 text-right">
-                            {isOpen ? (
-                              <input
-                                type="number"
-                                defaultValue={item.qtaReale}
-                                onBlur={(e) => handleUpdateItemField(item.id, 'qtaReale', e.target.value)}
-                                className="w-24 rounded border border-gray-300 bg-white px-2 py-1 text-right text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                              />
-                            ) : (
-                              <span className="text-gray-900 dark:text-white">{item.qtaReale}</span>
-                            )}
-                          </td>
-                          <td className="py-2 text-right text-gray-600 dark:text-gray-400">
-                            {item.tipoRiga === 'articolo' && item.article ? item.article.um || '-' : item.umLibera || '-'}
-                          </td>
-                          <td className="py-2 text-right">
-                            {isOpen ? (
-                              <input
-                                type="number"
-                                step="0.01"
-                                defaultValue={prezzoUnitario.toFixed(2)}
-                                onBlur={(e) => handleUpdateItemField(item.id, 'prezzo', e.target.value)}
-                                className="w-24 rounded border border-gray-300 bg-white px-2 py-1 text-right text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                              />
-                            ) : (
-                              <span className="text-gray-900 dark:text-white">{prezzoUnitario.toFixed(2)}</span>
-                            )}
-                          </td>
-                          <td className="py-2 text-right font-semibold text-blue-600 dark:text-blue-400">
-                            {totale.toFixed(2)}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                        ))}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
