@@ -8,14 +8,21 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ExportService } from './export.service';
+import { ExcelProcessorService } from './excel-processor.service';
 
 @Controller('export')
 @UseGuards(JwtAuthGuard)
 export class ExportController {
-  constructor(private exportService: ExportService) {}
+  constructor(
+    private exportService: ExportService,
+    private excelProcessor: ExcelProcessorService,
+  ) {}
 
   // ==================== ARTICOLI MASTER ====================
 
@@ -284,5 +291,75 @@ export class ExportController {
   @Delete('launch-data/:id')
   async deleteLaunchData(@Param('id') id: string) {
     return this.exportService.deleteLaunchData(parseInt(id));
+  }
+
+  // ==================== EXCEL UPLOAD & PROCESSING ====================
+
+  @Post('documents/:progressivo/upload-excel')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadExcelFile(
+    @Param('progressivo') progressivo: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const fileName = await this.excelProcessor.saveUploadedFile(
+      file,
+      progressivo,
+    );
+    return { success: true, fileName };
+  }
+
+  @Get('documents/:progressivo/uploaded-files')
+  async getUploadedFiles(@Param('progressivo') progressivo: string) {
+    return this.excelProcessor.getUploadedFiles(progressivo);
+  }
+
+  @Post('documents/:progressivo/process-excel')
+  async processExcelFile(
+    @Param('progressivo') progressivo: string,
+    @Body() body: { fileName: string },
+  ) {
+    return this.excelProcessor.processExcelFile(body.fileName, progressivo);
+  }
+
+  @Delete('documents/:progressivo/uploaded-files/:fileName')
+  async deleteUploadedFile(
+    @Param('progressivo') progressivo: string,
+    @Param('fileName') fileName: string,
+  ) {
+    await this.excelProcessor.deleteUploadedFile(progressivo, fileName);
+    return { success: true };
+  }
+
+  @Post('documents/:progressivo/save-excel-data')
+  async saveExcelDataAsItems(
+    @Param('progressivo') progressivo: string,
+    @Body()
+    body: {
+      fileName: string;
+      rows: Array<{ tipo: string; data: string[] }>;
+    },
+  ) {
+    // Get document
+    const document = await this.exportService.getDocumentByProgressivo(
+      progressivo,
+    );
+
+    // Create items from processed Excel data
+    const created = [];
+    for (const row of body.rows) {
+      const item = await this.exportService.addDocumentItem({
+        documentoId: document.id,
+        qtaOriginale: 1, // Default qty
+        qtaReale: 1,
+        codiceLibero: row.data[0] || '',
+        descrizioneLibera: `${row.tipo}: ${row.data.join(' | ')}`,
+        voceLibera: '',
+        umLibera: 'PZ',
+        prezzoLibero: 0,
+      });
+      created.push(item);
+    }
+
+    return { success: true, created: created.length };
   }
 }

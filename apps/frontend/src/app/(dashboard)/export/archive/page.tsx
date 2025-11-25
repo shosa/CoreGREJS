@@ -106,7 +106,7 @@ export default function ArchivePage() {
   };
 
   const handleOpenDocument = (progressivo: string) => {
-    router.push(`/export/continue?progressivo=${progressivo}`);
+    router.push(`/export/${progressivo}`);
   };
 
   if (loading) {

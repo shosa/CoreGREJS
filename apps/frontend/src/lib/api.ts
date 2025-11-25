@@ -673,6 +673,32 @@ export const exportApi = {
     return response.data;
   },
 
+  // ==================== EXCEL UPLOAD & PROCESSING ====================
+  uploadExcelFile: async (progressivo: string, formData: FormData) => {
+    const response = await api.post(`/export/documents/${progressivo}/upload-excel`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+  getUploadedFiles: async (progressivo: string) => {
+    const response = await api.get(`/export/documents/${progressivo}/uploaded-files`);
+    return response.data;
+  },
+  processExcelFile: async (progressivo: string, fileName: string) => {
+    const response = await api.post(`/export/documents/${progressivo}/process-excel`, { fileName });
+    return response.data;
+  },
+  deleteUploadedFile: async (progressivo: string, fileName: string) => {
+    const response = await api.delete(`/export/documents/${progressivo}/uploaded-files/${fileName}`);
+    return response.data;
+  },
+  saveExcelDataAsItems: async (progressivo: string, fileName: string, rows: Array<{ tipo: string; data: string[] }>) => {
+    const response = await api.post(`/export/documents/${progressivo}/save-excel-data`, { fileName, rows });
+    return response.data;
+  },
+
   // ==================== REPORTS ====================
   requestSegnacolliPdf: async (progressivo: string) => {
     const response = await api.post('/jobs', {

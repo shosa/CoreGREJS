@@ -1,6 +1,7 @@
 import PDFDocument = require('pdfkit');
 import { JobHandler } from '../types';
 import * as fs from 'fs';
+import * as path from 'path';
 
 const handler: JobHandler = async (payload, helpers) => {
   const { progressivo, userId, jobId } = payload as {
@@ -17,137 +18,82 @@ const handler: JobHandler = async (payload, helpers) => {
     throw new Error(`Documento ${progressivo} non trovato`);
   }
 
-  const fileName = `segnacolli_${progressivo}.pdf`;
+  if (!document.piede || !document.piede.nColli) {
+    throw new Error('Informazioni sui colli non trovate nel documento');
+  }
+
+  const fileName = `segnacolli_${progressivo}_${new Date().toISOString().split('T')[0]}.pdf`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
 
   const doc = new PDFDocument({
-    margin: 30,
+    margin: 60,
     size: 'A4',
-    layout: 'portrait'
+    layout: 'landscape'
   });
 
-  const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const startX = doc.page.margins.left;
+  const nColli = document.piede.nColli;
+  const aspettoColli = document.piede.aspettoColli || 'Collo';
+  const ragioneSociale = document.terzista.ragioneSociale;
+  const idDocumento = document.id;
 
-  const ensureSpace = (needed = 60) => {
-    if (doc.y + needed > doc.page.height - doc.page.margins.bottom) {
+  // Logo path (se esiste)
+  const logoPath = path.join(process.cwd(), 'public', 'assets', 'small_logo.png');
+  const hasLogo = fs.existsSync(logoPath);
+
+  // Genera una pagina per ogni collo - IDENTICO AL LEGACY
+  for (let i = 1; i <= nColli; i++) {
+    if (i > 1) {
       doc.addPage();
     }
-  };
 
-  // Header
-  doc.fillColor('#0066cc').fontSize(18).font('Helvetica-Bold')
-    .text('SEGNACOLLI', startX, doc.y, { align: 'center' });
-  doc.moveDown(0.5);
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const centerX = pageWidth / 2;
 
-  // Document info
-  doc.fillColor('#333333').fontSize(11).font('Helvetica');
-  doc.text(`DDT: ${document.progressivo}`, startX, doc.y);
-  doc.text(`Data: ${new Date(document.data).toLocaleDateString('it-IT')}`, startX, doc.y);
-  doc.text(`Terzista: ${document.terzista.ragioneSociale}`, startX, doc.y);
-
-  if (document.terzista.indirizzo1) {
-    doc.text(document.terzista.indirizzo1, startX, doc.y);
-  }
-  if (document.terzista.indirizzo2) {
-    doc.text(document.terzista.indirizzo2, startX, doc.y);
-  }
-  if (document.terzista.indirizzo3) {
-    doc.text(document.terzista.indirizzo3, startX, doc.y);
-  }
-  if (document.terzista.nazione) {
-    doc.text(`Nazione: ${document.terzista.nazione}`, startX, doc.y);
-  }
-
-  doc.moveDown(1.5);
-
-  // Footer data if available
-  if (document.piede) {
-    ensureSpace(80);
-
-    doc.fillColor('#0066cc').fontSize(12).font('Helvetica-Bold')
-      .text('COLLI', startX, doc.y);
-    doc.moveDown(0.5);
-
-    doc.fillColor('#333333').fontSize(10).font('Helvetica');
-
-    if (document.piede.aspettoColli) {
-      doc.text(`Aspetto: ${document.piede.aspettoColli}`, startX, doc.y);
-    }
-    if (document.piede.nColli) {
-      doc.text(`N. Colli: ${document.piede.nColli}`, startX, doc.y);
-    }
-    if (document.piede.totPesoLordo) {
-      doc.text(`Peso Lordo: ${Number(document.piede.totPesoLordo).toFixed(2)} kg`, startX, doc.y);
-    }
-    if (document.piede.totPesoNetto) {
-      doc.text(`Peso Netto: ${Number(document.piede.totPesoNetto).toFixed(2)} kg`, startX, doc.y);
-    }
-    if (document.piede.trasportatore) {
-      doc.text(`Trasportatore: ${document.piede.trasportatore}`, startX, doc.y);
+    // Logo (se esiste)
+    let currentY = 80;
+    if (hasLogo) {
+      try {
+        doc.image(logoPath, centerX - 160, currentY, { width: 320 });
+        currentY += 100;
+      } catch (err) {
+        // Logo non caricabile, continua senza
+        currentY += 20;
+      }
     }
 
-    doc.moveDown(1);
-  }
+    // X grande (40pt come nel Legacy)
+    doc.fillColor('#000000')
+      .fontSize(40)
+      .font('Helvetica-Bold')
+      .text('X', 0, currentY, { width: pageWidth, align: 'center' });
 
-  // Articles summary
-  ensureSpace(100);
+    currentY += 60;
 
-  doc.fillColor('#0066cc').fontSize(12).font('Helvetica-Bold')
-    .text('ARTICOLI', startX, doc.y);
-  doc.moveDown(0.5);
+    // Nome azienda con sfondo nero (60pt come nel Legacy)
+    doc.rect(60, currentY, pageWidth - 120, 80)
+      .fillAndStroke('#000000', '#000000');
 
-  // Table header
-  const colWidths = [usableWidth * 0.3, usableWidth * 0.4, usableWidth * 0.15, usableWidth * 0.15];
-  let currentX = startX;
+    doc.fillColor('#FFFFFF')
+      .fontSize(60)
+      .font('Helvetica-Bold')
+      .text(ragioneSociale, 80, currentY + 15, {
+        width: pageWidth - 160,
+        align: 'center'
+      });
 
-  doc.fillColor('#666666').fontSize(9).font('Helvetica-Bold');
-  doc.text('CODICE', currentX, doc.y, { width: colWidths[0], align: 'left' });
-  currentX += colWidths[0];
-  doc.text('DESCRIZIONE', currentX, doc.y, { width: colWidths[1], align: 'left' });
-  currentX += colWidths[1];
-  doc.text('QTA', currentX, doc.y, { width: colWidths[2], align: 'center' });
-  currentX += colWidths[2];
-  doc.text('UM', currentX, doc.y, { width: colWidths[3], align: 'center' });
+    currentY += 120;
 
-  doc.moveDown(0.3);
-
-  // Horizontal line
-  doc.strokeColor('#cccccc').lineWidth(0.5)
-    .moveTo(startX, doc.y)
-    .lineTo(startX + usableWidth, doc.y)
-    .stroke();
-
-  doc.moveDown(0.3);
-
-  // Table rows
-  doc.fillColor('#333333').fontSize(9).font('Helvetica');
-
-  for (const item of document.righe) {
-    if (item.isMancante) continue; // Skip missing items
-
-    ensureSpace(20);
-
-    const codice = item.article?.codiceArticolo || item.codiceLibero || '-';
-    const descrizione = item.article?.descrizione || item.descrizioneLibera || '-';
-    const qta = item.qtaReale || item.qtaOriginale;
-    const um = item.article?.um || item.umLibera || '-';
-
-    currentX = startX;
-    doc.text(codice, currentX, doc.y, { width: colWidths[0], align: 'left' });
-    doc.text(descrizione, currentX + colWidths[0], doc.y, { width: colWidths[1], align: 'left' });
-    doc.text(String(qta), currentX + colWidths[0] + colWidths[1], doc.y, { width: colWidths[2], align: 'center' });
-    doc.text(um, currentX + colWidths[0] + colWidths[1] + colWidths[2], doc.y, { width: colWidths[3], align: 'center' });
-
-    doc.moveDown(0.3);
-  }
-
-  // Authorization if present
-  if (document.autorizzazione) {
-    doc.moveDown(1);
-    ensureSpace(30);
-    doc.fillColor('#666666').fontSize(9).font('Helvetica-Oblique')
-      .text(`Autorizzazione: ${document.autorizzazione}`, startX, doc.y, { align: 'left' });
+    // Footer con DDT e Collo (25pt come nel Legacy)
+    doc.fillColor('#000000')
+      .fontSize(25)
+      .font('Helvetica-Bold')
+      .text(
+        `DDT ${idDocumento} | ${aspettoColli} ${i} di ${nColli}`,
+        0,
+        pageHeight - 100,
+        { width: pageWidth, align: 'right' }
+      );
   }
 
   await waitForPdf(doc, fullPath);
