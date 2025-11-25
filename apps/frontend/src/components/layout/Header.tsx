@@ -25,7 +25,7 @@ export default function Header() {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
-        className="sticky top-0 z-999 flex w-full bg-white shadow-md dark:bg-gray-800 dark:shadow-none"
+        className="sticky top-0 z-10 flex w-full bg-white shadow-md dark:bg-gray-800 dark:shadow-none"
       >
         <div className="flex flex-grow items-center justify-between px-4 py-4 md:px-6 2xl:px-11">
           {/* Left side - Menu toggle and search */}

@@ -694,8 +694,19 @@ export const exportApi = {
     const response = await api.delete(`/export/documents/${progressivo}/uploaded-files/${fileName}`);
     return response.data;
   },
-  saveExcelDataAsItems: async (progressivo: string, fileName: string, rows: Array<{ tipo: string; data: string[] }>) => {
-    const response = await api.post(`/export/documents/${progressivo}/save-excel-data`, { fileName, rows });
+  saveExcelData: async (progressivo: string, data: {
+    modello: string;
+    lancio: string;
+    qty: number;
+    tableTaglio: string[][];
+    tableOrlatura: string[][];
+    originalFileName: string;
+  }) => {
+    const response = await api.post(`/export/documents/${progressivo}/save-excel-data`, data);
+    return response.data;
+  },
+  generateDDT: async (progressivo: string) => {
+    const response = await api.post(`/export/documents/${progressivo}/generate-ddt`);
     return response.data;
   },
 

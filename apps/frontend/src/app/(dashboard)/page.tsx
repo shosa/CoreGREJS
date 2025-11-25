@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useAuthStore } from '@/store/auth';
-import { dashboardApi } from '@/lib/api';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAuthStore } from "@/store/auth";
+import { dashboardApi } from "@/lib/api";
 
 interface DashboardStats {
   riparazioniAperte: number;
@@ -38,7 +38,7 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.4, ease: 'easeOut' },
+    transition: { duration: 0.4, ease: "easeOut" },
   },
 };
 
@@ -60,7 +60,7 @@ export default function DashboardPage() {
       const statsData = await dashboardApi.getStats();
       setStats(statsData);
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error("Error fetching stats:", error);
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ export default function DashboardPage() {
       const activitiesData = await dashboardApi.getActivities();
       setActivities(activitiesData);
     } catch (error) {
-      console.error('Error fetching activities:', error);
+      console.error("Error fetching activities:", error);
     } finally {
       setActivitiesLoading(false);
     }
@@ -82,19 +82,22 @@ export default function DashboardPage() {
     fetchActivities();
 
     // Auto refresh ogni 5 minuti
-    const interval = setInterval(() => {
-      fetchData();
-      fetchActivities();
-    }, 5 * 60 * 1000);
+    const interval = setInterval(
+      () => {
+        fetchData();
+        fetchActivities();
+      },
+      5 * 60 * 1000
+    );
 
     return () => clearInterval(interval);
   }, []);
 
-  const currentDate = new Date().toLocaleDateString('it-IT', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  const currentDate = new Date().toLocaleDateString("it-IT", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 
   if (loading) {
@@ -102,7 +105,7 @@ export default function DashboardPage() {
       <div className="flex h-64 items-center justify-center">
         <motion.div
           animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           className="h-12 w-12 rounded-full border-4 border-solid border-blue-500 border-t-transparent"
         />
       </div>
@@ -148,7 +151,7 @@ export default function DashboardPage() {
         <motion.div
           variants={itemVariants}
           whileHover={cardHover}
-          onClick={() => window.location.href = '/riparazioni'}
+          onClick={() => (window.location.href = "/riparazioni")}
           className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800/40 backdrop-blur-sm cursor-pointer"
         >
           <div className="flex items-center justify-between">
@@ -159,7 +162,7 @@ export default function DashboardPage() {
               <motion.h3
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
+                transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
                 className="mt-2 text-3xl font-bold text-gray-900 dark:text-white"
               >
                 {stats?.riparazioniAperte || 0}
@@ -187,7 +190,7 @@ export default function DashboardPage() {
         <motion.div
           variants={itemVariants}
           whileHover={cardHover}
-          onClick={() => window.location.href = '/quality'}
+          onClick={() => (window.location.href = "/quality")}
           className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800/40 backdrop-blur-sm cursor-pointer"
         >
           <div className="flex items-center justify-between">
@@ -198,7 +201,7 @@ export default function DashboardPage() {
               <motion.h3
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ delay: 0.4, type: 'spring', stiffness: 200 }}
+                transition={{ delay: 0.4, type: "spring", stiffness: 200 }}
                 className="mt-2 text-3xl font-bold text-gray-900 dark:text-white"
               >
                 {stats?.qualityRecordsToday || 0}
@@ -212,7 +215,10 @@ export default function DashboardPage() {
             </motion.div>
           </div>
           <div className="mt-4">
-            <Link href="/quality" className="text-sm font-medium text-primary hover:underline">
+            <Link
+              href="/quality"
+              className="text-sm font-medium text-primary hover:underline"
+            >
               Visualizza tutto →
             </Link>
           </div>
@@ -222,7 +228,7 @@ export default function DashboardPage() {
         <motion.div
           variants={itemVariants}
           whileHover={cardHover}
-          onClick={() => window.location.href = '/produzione'}
+          onClick={() => (window.location.href = "/produzione")}
           className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800/40 backdrop-blur-sm cursor-pointer"
         >
           <div className="flex items-center justify-between">
@@ -233,7 +239,7 @@ export default function DashboardPage() {
               <motion.h3
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ delay: 0.5, type: 'spring', stiffness: 200 }}
+                transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
                 className="mt-2 text-3xl font-bold text-gray-900 dark:text-white"
               >
                 {stats?.produzioneSettimana || 0}
@@ -261,7 +267,7 @@ export default function DashboardPage() {
         <motion.div
           variants={itemVariants}
           whileHover={cardHover}
-          onClick={() => window.location.href = '/scm-admin'}
+          onClick={() => (window.location.href = "/scm-admin")}
           className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800/40 backdrop-blur-sm cursor-pointer"
         >
           <div className="flex items-center justify-between">
@@ -272,7 +278,7 @@ export default function DashboardPage() {
               <motion.h3
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ delay: 0.6, type: 'spring', stiffness: 200 }}
+                transition={{ delay: 0.6, type: "spring", stiffness: 200 }}
                 className="mt-2 text-3xl font-bold text-gray-900 dark:text-white"
               >
                 {stats?.scmLanciAttivi || 0}
@@ -286,7 +292,10 @@ export default function DashboardPage() {
             </motion.div>
           </div>
           <div className="mt-4">
-            <Link href="/scm-admin" className="text-sm font-medium text-primary hover:underline">
+            <Link
+              href="/scm-admin"
+              className="text-sm font-medium text-primary hover:underline"
+            >
               Visualizza tutto →
             </Link>
           </div>
@@ -310,10 +319,14 @@ export default function DashboardPage() {
             </h3>
           </div>
           <div className="space-y-3">
-            {hasPermission('riparazioni') && (
+            {hasPermission("riparazioni") && (
               <Link href="/riparazioni/create">
                 <motion.div
-                  whileHover={{ scale: 1.02, y: -2, backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
+                  whileHover={{
+                    scale: 1.02,
+                    y: -2,
+                    backgroundColor: "rgba(59, 130, 246, 0.05)",
+                  }}
                   whileTap={{ scale: 0.98 }}
                   className="flex items-center p-4 border border-gray-200 rounded-xl dark:border-gray-700 transition-all duration-200 shadow-md hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-500"
                 >
@@ -330,10 +343,14 @@ export default function DashboardPage() {
               </Link>
             )}
 
-            {hasPermission('produzione') && (
+            {hasPermission("produzione") && (
               <Link href="/produzione/new">
                 <motion.div
-                  whileHover={{ scale: 1.02, y: -2, backgroundColor: 'rgba(234, 179, 8, 0.05)' }}
+                  whileHover={{
+                    scale: 1.02,
+                    y: -2,
+                    backgroundColor: "rgba(234, 179, 8, 0.05)",
+                  }}
                   whileTap={{ scale: 0.98 }}
                   className="flex items-center p-4 border border-gray-200 rounded-xl dark:border-gray-700 transition-all duration-200 shadow-md hover:shadow-lg hover:border-yellow-300 dark:hover:border-yellow-500"
                 >
@@ -350,10 +367,14 @@ export default function DashboardPage() {
               </Link>
             )}
 
-            {hasPermission('export') && (
+            {hasPermission("export") && (
               <Link href="/export/create">
                 <motion.div
-                  whileHover={{ scale: 1.02, y: -2, backgroundColor: 'rgba(168, 85, 247, 0.05)' }}
+                  whileHover={{
+                    scale: 1.02,
+                    y: -2,
+                    backgroundColor: "rgba(168, 85, 247, 0.05)",
+                  }}
                   whileTap={{ scale: 0.98 }}
                   className="flex items-center p-4 border border-gray-200 rounded-xl dark:border-gray-700 transition-all duration-200 shadow-md hover:shadow-lg hover:border-purple-300 dark:hover:border-purple-500"
                 >
@@ -370,10 +391,14 @@ export default function DashboardPage() {
               </Link>
             )}
 
-            {hasPermission('scm_admin') && (
+            {hasPermission("scm_admin") && (
               <Link href="/scm-admin/launches/create">
                 <motion.div
-                  whileHover={{ scale: 1.02, y: -2, backgroundColor: 'rgba(249, 115, 22, 0.05)' }}
+                  whileHover={{
+                    scale: 1.02,
+                    y: -2,
+                    backgroundColor: "rgba(249, 115, 22, 0.05)",
+                  }}
                   whileTap={{ scale: 0.98 }}
                   className="flex items-center p-4 border border-gray-200 rounded-xl dark:border-gray-700 transition-all duration-200 shadow-md hover:shadow-lg hover:border-orange-300 dark:hover:border-orange-500"
                 >
@@ -392,7 +417,11 @@ export default function DashboardPage() {
 
             <Link href="/tracking">
               <motion.div
-                whileHover={{ scale: 1.02, y: -2, backgroundColor: 'rgba(236, 72, 153, 0.05)' }}
+                whileHover={{
+                  scale: 1.02,
+                  y: -2,
+                  backgroundColor: "rgba(236, 72, 153, 0.05)",
+                }}
                 whileTap={{ scale: 0.98 }}
                 className="flex items-center p-4 border border-gray-200 rounded-xl dark:border-gray-700 transition-all duration-200 shadow-md hover:shadow-lg hover:border-pink-300 dark:hover:border-pink-500"
               >
@@ -426,7 +455,7 @@ export default function DashboardPage() {
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <motion.i
                   animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                   className="fas fa-spinner text-2xl mb-2"
                 />
                 <p>Caricamento attività...</p>
@@ -444,7 +473,10 @@ export default function DashboardPage() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    whileHover={{ x: 5, backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
+                    whileHover={{
+                      x: 5,
+                      backgroundColor: "rgba(59, 130, 246, 0.05)",
+                    }}
                     className="flex items-start space-x-3 p-3 rounded-xl transition-colors"
                   >
                     <div className="flex-shrink-0">
@@ -453,7 +485,9 @@ export default function DashboardPage() {
                         transition={{ duration: 0.5 }}
                         className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/20"
                       >
-                        <i className={`fas fa-${activity.icon || 'history'} text-sm text-blue-600 dark:text-blue-400`}></i>
+                        <i
+                          className={`fas fa-${activity.icon || "history"} text-sm text-blue-600 dark:text-blue-400`}
+                        ></i>
                       </motion.div>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -461,11 +495,12 @@ export default function DashboardPage() {
                         {activity.description}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {activity.user?.nome} • {new Date(activity.createdAt).toLocaleString('it-IT', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
+                        {activity.user?.nome} •{" "}
+                        {new Date(activity.createdAt).toLocaleString("it-IT", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
                         })}
                       </p>
                     </div>
@@ -481,7 +516,10 @@ export default function DashboardPage() {
               transition={{ delay: 0.5 }}
               className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700"
             >
-              <Link href="/logs" className="text-sm font-medium text-primary hover:underline flex items-center justify-center">
+              <Link
+                href="/logs"
+                className="text-sm font-medium text-primary hover:underline flex items-center justify-center"
+              >
                 Visualizza tutte le attività
                 <i className="fas fa-arrow-right ml-2"></i>
               </Link>
@@ -489,42 +527,6 @@ export default function DashboardPage() {
           )}
         </motion.div>
       </motion.div>
-
-      {/* DDT in Bozza - Alert Card */}
-      {stats?.ddtBozze && stats.ddtBozze > 0 && (
-        <motion.div
-          variants={itemVariants}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-          className="mt-6"
-        >
-          <motion.div
-            whileHover={{ scale: 1.01 }}
-            className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20"
-          >
-            <div className="flex items-center">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-100 dark:bg-yellow-900/40">
-                <i className="fas fa-exclamation-triangle text-yellow-600 dark:text-yellow-400"></i>
-              </div>
-              <div className="ml-4 flex-1">
-                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                  Hai {stats.ddtBozze} DDT in bozza da completare
-                </p>
-              </div>
-              <Link href="/export">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-4 py-2 text-sm font-medium text-yellow-700 bg-yellow-100 rounded-lg hover:bg-yellow-200 dark:text-yellow-200 dark:bg-yellow-900/40 dark:hover:bg-yellow-900/60"
-                >
-                  Visualizza
-                </motion.button>
-              </Link>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
     </motion.div>
   );
 }

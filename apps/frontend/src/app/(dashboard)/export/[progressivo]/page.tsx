@@ -103,10 +103,20 @@ export default function DocumentDetailPage() {
   const [showEditFooterModal, setShowEditFooterModal] = useState(false);
 
   // Upload states
-  const [uploadedFiles, setUploadedFiles] = useState<Array<{ name: string; lancio: string; qty: string; uploadedAt: Date }>>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{ name: string; lancio: string; qty: string; uploadedAt: Date; processed?: boolean }>>([]);
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewFileName, setPreviewFileName] = useState<string>('');
   const [uploading, setUploading] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+  // Modal form states
+  const [excelFormData, setExcelFormData] = useState({
+    lancio: '',
+    qty: 1,
+    modello: '',
+  });
+  const [selectedTaglioRows, setSelectedTaglioRows] = useState<Set<number>>(new Set());
+  const [selectedOrlaturaRows, setSelectedOrlaturaRows] = useState<Set<number>>(new Set());
 
   // Search articoli
   const [articles, setArticles] = useState<Article[]>([]);
@@ -222,6 +232,29 @@ export default function DocumentDetailPage() {
     }
   };
 
+  const handleUpdateItemField = async (itemId: number, field: string, value: any) => {
+    try {
+      const updateData: any = {};
+
+      // Map field names to API field names
+      if (field === 'descrizione') {
+        updateData.descrizioneLibera = value;
+      } else if (field === 'qtaReale') {
+        updateData.qtaReale = parseInt(value) || 0;
+      } else if (field === 'prezzo') {
+        updateData.prezzoLibero = parseFloat(value) || 0;
+      } else if (field === 'voceDoganale') {
+        updateData.voceLibera = value;
+      }
+
+      await exportApi.updateDocumentItem(itemId, updateData);
+      // Refresh document silently to update the view
+      await fetchDocument();
+    } catch (error) {
+      showError('Errore aggiornamento campo');
+    }
+  };
+
   const handleSaveFooter = async () => {
     if (!document) return;
 
@@ -323,6 +356,15 @@ export default function DocumentDetailPage() {
       if (data.success) {
         setPreviewData(data);
         setPreviewFileName(fileName);
+        setExcelFormData({
+          lancio: data.lancio || '',
+          qty: parseFloat(data.qty) || 1,
+          modello: data.modello || '',
+        });
+        // Select all rows by default
+        setSelectedTaglioRows(new Set(data.rows?.taglio?.map((_: any, idx: number) => idx) || []));
+        setSelectedOrlaturaRows(new Set(data.rows?.orlatura?.map((_: any, idx: number) => idx) || []));
+        setShowPreviewModal(true);
       } else {
         showError(data.error || 'Errore processamento file');
       }
@@ -350,35 +392,88 @@ export default function DocumentDetailPage() {
   const handleSaveExcelData = async () => {
     if (!previewData || !previewFileName) return;
 
-    const rows: Array<{ tipo: string; data: string[] }> = [];
+    // Validate lancio
+    if (!excelFormData.lancio.trim()) {
+      showError('Il campo Lancio è obbligatorio');
+      return;
+    }
 
-    // Add TAGLIO rows
+    // Collect selected TAGLIO rows with totals calculated
+    const tableTaglio: string[][] = [];
     if (previewData.rows?.taglio) {
-      previewData.rows.taglio.forEach((row: string[]) => {
-        rows.push({ tipo: 'TAGLIO', data: row });
+      previewData.rows.taglio.forEach((row: string[], idx: number) => {
+        if (selectedTaglioRows.has(idx)) {
+          const unitValue = parseFloat(row[4]) || 0;
+          const total = (unitValue * excelFormData.qty).toFixed(2);
+          tableTaglio.push([...row.slice(0, 5), total]);
+        }
       });
     }
 
-    // Add ORLATURA rows
+    // Collect selected ORLATURA rows with totals calculated
+    const tableOrlatura: string[][] = [];
     if (previewData.rows?.orlatura) {
-      previewData.rows.orlatura.forEach((row: string[]) => {
-        rows.push({ tipo: 'ORLATURA', data: row });
+      previewData.rows.orlatura.forEach((row: string[], idx: number) => {
+        if (selectedOrlaturaRows.has(idx)) {
+          const unitValue = parseFloat(row[4]) || 0;
+          const total = (unitValue * excelFormData.qty).toFixed(2);
+          tableOrlatura.push([...row.slice(0, 5), total]);
+        }
       });
     }
 
-    if (rows.length === 0) {
-      showError('Nessun dato da salvare');
+    if (tableTaglio.length === 0 && tableOrlatura.length === 0) {
+      showError('Seleziona almeno una riga da salvare');
       return;
     }
 
     try {
-      await exportApi.saveExcelDataAsItems(progressivo, previewFileName, rows);
-      showSuccess(`${rows.length} righe salvate nel documento`);
+      await exportApi.saveExcelData(progressivo, {
+        modello: excelFormData.modello,
+        lancio: excelFormData.lancio,
+        qty: excelFormData.qty,
+        tableTaglio,
+        tableOrlatura,
+        originalFileName: previewFileName,
+      });
+      showSuccess('Scheda processata e salvata!');
+
+      // Mark file as processed
+      setUploadedFiles(prev =>
+        prev.map(f => f.name === previewFileName ? { ...f, processed: true, lancio: excelFormData.lancio, qty: String(excelFormData.qty) } : f)
+      );
+
+      // Close modal and reset
+      setShowPreviewModal(false);
       setPreviewData(null);
       setPreviewFileName('');
-      fetchDocument();
+      setExcelFormData({ lancio: '', qty: 1, modello: '' });
+      setSelectedTaglioRows(new Set());
+      setSelectedOrlaturaRows(new Set());
+
+      // Refresh files list
+      await fetchUploadedFiles();
     } catch (error) {
       showError('Errore salvataggio dati');
+    }
+  };
+
+  const handleGenerateDDT = async () => {
+    if (!confirm('Generare il DDT? Tutti gli articoli dalle schede elaborate verranno consolidati e inseriti nel documento.')) return;
+
+    try {
+      const result = await exportApi.generateDDT(progressivo);
+      if (result.success) {
+        showSuccess(result.message || 'DDT generato con successo!');
+        // Refresh document to show new items
+        await fetchDocument();
+        // Switch to Righe tab to see results
+        setActiveTab('righe');
+      } else {
+        showError(result.error || 'Errore generazione DDT');
+      }
+    } catch (error) {
+      showError('Errore generazione DDT');
     }
   };
 
@@ -612,50 +707,95 @@ export default function DocumentDetailPage() {
                       <th className="pb-3 text-right font-semibold text-gray-700 dark:text-gray-300">Qta Orig.</th>
                       <th className="pb-3 text-right font-semibold text-gray-700 dark:text-gray-300">Qta Reale</th>
                       <th className="pb-3 text-right font-semibold text-gray-700 dark:text-gray-300">UM</th>
-                      <th className="pb-3 text-right font-semibold text-gray-700 dark:text-gray-300">Prezzo</th>
-                      {isOpen && <th className="pb-3 text-right font-semibold text-gray-700 dark:text-gray-300"></th>}
+                      <th className="pb-3 text-right font-semibold text-gray-700 dark:text-gray-300">Prezzo Unit.</th>
+                      <th className="pb-3 text-right font-semibold text-gray-700 dark:text-gray-300">Totale</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {document.righe.map((item) => (
-                      <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700/50">
-                        <td className="py-3 text-gray-900 dark:text-white">
-                          {item.tipoRiga === 'articolo' && item.article
-                            ? item.article.codiceArticolo
-                            : item.codiceLibero || '-'}
-                        </td>
-                        <td className="py-3 text-gray-600 dark:text-gray-400">
-                          {item.tipoRiga === 'articolo' && item.article
-                            ? item.article.descrizione || '-'
-                            : item.descrizioneLibera || '-'}
-                        </td>
-                        <td className="py-3 text-gray-600 dark:text-gray-400">
-                          {item.tipoRiga === 'articolo' && item.article
-                            ? item.article.voceDoganale || '-'
-                            : item.voceLibera || '-'}
-                        </td>
-                        <td className="py-3 text-right text-gray-900 dark:text-white">{item.qtaOriginale}</td>
-                        <td className="py-3 text-right text-gray-900 dark:text-white">{item.qtaReale}</td>
-                        <td className="py-3 text-right text-gray-600 dark:text-gray-400">
-                          {item.tipoRiga === 'articolo' && item.article ? item.article.um || '-' : item.umLibera || '-'}
-                        </td>
-                        <td className="py-3 text-right text-gray-900 dark:text-white">
-                          {item.tipoRiga === 'articolo' && item.article
-                            ? item.article.prezzoUnitario?.toFixed(2) || '-'
-                            : item.prezzoLibero?.toFixed(2) || '-'}
-                        </td>
-                        {isOpen && (
-                          <td className="py-3 text-right">
-                            <button
-                              onClick={() => handleDeleteItem(item.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <i className="fas fa-trash"></i>
-                            </button>
+                    {document.righe.map((item) => {
+                      const prezzoUnitario = item.tipoRiga === 'articolo' && item.article
+                        ? Number(item.article.prezzoUnitario || 0)
+                        : Number(item.prezzoLibero || 0);
+                      const totale = item.qtaReale * prezzoUnitario;
+
+                      return (
+                        <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700/50">
+                          <td className="py-2 text-gray-900 dark:text-white">
+                            {item.tipoRiga === 'articolo' && item.article
+                              ? item.article.codiceArticolo
+                              : item.codiceLibero || '-'}
                           </td>
-                        )}
-                      </tr>
-                    ))}
+                          <td className="py-2">
+                            {isOpen ? (
+                              <input
+                                type="text"
+                                defaultValue={item.tipoRiga === 'articolo' && item.article
+                                  ? item.article.descrizione || ''
+                                  : item.descrizioneLibera || ''}
+                                onBlur={(e) => handleUpdateItemField(item.id, 'descrizione', e.target.value)}
+                                className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                              />
+                            ) : (
+                              <span className="text-gray-600 dark:text-gray-400">
+                                {item.tipoRiga === 'articolo' && item.article
+                                  ? item.article.descrizione || '-'
+                                  : item.descrizioneLibera || '-'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2">
+                            {isOpen ? (
+                              <input
+                                type="text"
+                                defaultValue={item.tipoRiga === 'articolo' && item.article
+                                  ? item.article.voceDoganale || ''
+                                  : item.voceLibera || ''}
+                                onBlur={(e) => handleUpdateItemField(item.id, 'voceDoganale', e.target.value)}
+                                className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                              />
+                            ) : (
+                              <span className="text-gray-600 dark:text-gray-400">
+                                {item.tipoRiga === 'articolo' && item.article
+                                  ? item.article.voceDoganale || '-'
+                                  : item.voceLibera || '-'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 text-right text-gray-900 dark:text-white">{item.qtaOriginale}</td>
+                          <td className="py-2 text-right">
+                            {isOpen ? (
+                              <input
+                                type="number"
+                                defaultValue={item.qtaReale}
+                                onBlur={(e) => handleUpdateItemField(item.id, 'qtaReale', e.target.value)}
+                                className="w-24 rounded border border-gray-300 bg-white px-2 py-1 text-right text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                              />
+                            ) : (
+                              <span className="text-gray-900 dark:text-white">{item.qtaReale}</span>
+                            )}
+                          </td>
+                          <td className="py-2 text-right text-gray-600 dark:text-gray-400">
+                            {item.tipoRiga === 'articolo' && item.article ? item.article.um || '-' : item.umLibera || '-'}
+                          </td>
+                          <td className="py-2 text-right">
+                            {isOpen ? (
+                              <input
+                                type="number"
+                                step="0.01"
+                                defaultValue={prezzoUnitario.toFixed(2)}
+                                onBlur={(e) => handleUpdateItemField(item.id, 'prezzo', e.target.value)}
+                                className="w-24 rounded border border-gray-300 bg-white px-2 py-1 text-right text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                              />
+                            ) : (
+                              <span className="text-gray-900 dark:text-white">{prezzoUnitario.toFixed(2)}</span>
+                            )}
+                          </td>
+                          <td className="py-2 text-right font-semibold text-blue-600 dark:text-blue-400">
+                            {totale.toFixed(2)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -886,155 +1026,76 @@ export default function DocumentDetailPage() {
             {uploadedFiles.length === 0 ? (
               <p className="py-12 text-center text-gray-500">Nessuna scheda caricata</p>
             ) : (
-              <div className="space-y-3">
-                {uploadedFiles.map((file) => (
-                  <div
-                    key={file.name}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/60"
-                  >
-                    <div className="flex items-center gap-3">
-                      <i className="fas fa-file-excel text-2xl text-green-500"></i>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{file.name}</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          Lancio: {file.lancio} | Qty: {file.qty} | {new Date(file.uploadedAt).toLocaleString('it-IT')}
-                        </p>
+              <>
+                <div className="space-y-3">
+                  {uploadedFiles.map((file) => (
+                    <div
+                      key={file.name}
+                      className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/60"
+                    >
+                      <div className="flex items-center gap-3">
+                        <i className={`fas fa-file-excel text-2xl ${file.processed ? 'text-green-500' : 'text-blue-500'}`}></i>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-900 dark:text-white">{file.name}</p>
+                            {file.processed && (
+                              <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-800/20 dark:text-green-300">
+                                <i className="fas fa-check mr-1"></i>
+                                Elaborato
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {file.lancio && file.lancio !== 'N/A' ? `Lancio: ${file.lancio} | Qty: ${file.qty} | ` : ''}
+                            {new Date(file.uploadedAt).toLocaleString('it-IT')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handlePreviewFile(file.name)}
+                          className="rounded-lg bg-blue-500 px-3 py-1.5 text-sm text-white transition-all hover:bg-blue-600"
+                        >
+                          <i className="fas fa-eye mr-1"></i>
+                          {file.processed ? 'Rielabora' : 'Elabora'}
+                        </button>
+                        {isOpen && (
+                          <button
+                            onClick={() => handleDeleteFile(file.name)}
+                            className="rounded-lg bg-red-500 px-3 py-1.5 text-sm text-white transition-all hover:bg-red-600"
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handlePreviewFile(file.name)}
-                        className="rounded-lg bg-blue-500 px-3 py-1.5 text-sm text-white transition-all hover:bg-blue-600"
-                      >
-                        <i className="fas fa-eye mr-1"></i>
-                        Preview
-                      </button>
-                      {isOpen && (
-                        <button
-                          onClick={() => handleDeleteFile(file.name)}
-                          className="rounded-lg bg-red-500 px-3 py-1.5 text-sm text-white transition-all hover:bg-red-600"
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Preview Section */}
-            {previewData && (
-              <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-6 dark:border-blue-900 dark:bg-blue-900/20">
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">Preview: {previewFileName}</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Modello: {previewData.modello} | Lancio: {previewData.lancio} | Qty: {previewData.qty}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setPreviewData(null);
-                      setPreviewFileName('');
-                    }}
-                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  >
-                    <i className="fas fa-times text-xl"></i>
-                  </button>
+                  ))}
                 </div>
 
-                {/* TAGLIO Section */}
-                {previewData.rows?.taglio && previewData.rows.taglio.length > 0 && (
-                  <div className="mb-6">
-                    <h5 className="mb-3 font-semibold text-gray-900 dark:text-white">
-                      <i className="fas fa-cut mr-2 text-blue-500"></i>
-                      TAGLIO ({previewData.rows.taglio.length} righe)
-                    </h5>
-                    <div className="overflow-x-auto rounded-lg bg-white dark:bg-gray-800">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
-                            {previewData.headers?.map((header: string, idx: number) => (
-                              <th key={idx} className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">
-                                {header}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {previewData.rows.taglio.slice(0, 10).map((row: string[], idx: number) => (
-                            <tr key={idx} className="border-b border-gray-100 dark:border-gray-700/50">
-                              {row.map((cell, cellIdx) => (
-                                <td key={cellIdx} className="px-3 py-2 text-gray-900 dark:text-white">
-                                  {cell || '-'}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      {previewData.rows.taglio.length > 10 && (
-                        <p className="p-2 text-center text-xs text-gray-500">
-                          ... e altre {previewData.rows.taglio.length - 10} righe
+                {/* Generate DDT Button */}
+                {uploadedFiles.some(f => f.processed) && isOpen && (
+                  <div className="mt-6 rounded-lg border-2 border-green-200 bg-green-50 p-6 dark:border-green-800/50 dark:bg-green-900/20">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="mb-1 text-sm font-semibold text-gray-900 dark:text-white">
+                          <i className="fas fa-check-circle mr-2 text-green-600"></i>
+                          Pronto per generare il DDT
+                        </h4>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          Tutte le schede elaborate verranno consolidate e inserite nel documento
                         </p>
-                      )}
+                      </div>
+                      <button
+                        onClick={handleGenerateDDT}
+                        className="rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-6 py-2.5 text-sm font-medium text-white transition-all hover:shadow-lg"
+                      >
+                        <i className="fas fa-cogs mr-2"></i>
+                        Genera DDT
+                      </button>
                     </div>
                   </div>
                 )}
-
-                {/* ORLATURA Section */}
-                {previewData.rows?.orlatura && previewData.rows.orlatura.length > 0 && (
-                  <div className="mb-6">
-                    <h5 className="mb-3 font-semibold text-gray-900 dark:text-white">
-                      <i className="fas fa-border-style mr-2 text-green-500"></i>
-                      ORLATURA ({previewData.rows.orlatura.length} righe)
-                    </h5>
-                    <div className="overflow-x-auto rounded-lg bg-white dark:bg-gray-800">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
-                            {previewData.headers?.map((header: string, idx: number) => (
-                              <th key={idx} className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">
-                                {header}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {previewData.rows.orlatura.slice(0, 10).map((row: string[], idx: number) => (
-                            <tr key={idx} className="border-b border-gray-100 dark:border-gray-700/50">
-                              {row.map((cell, cellIdx) => (
-                                <td key={cellIdx} className="px-3 py-2 text-gray-900 dark:text-white">
-                                  {cell || '-'}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      {previewData.rows.orlatura.length > 10 && (
-                        <p className="p-2 text-center text-xs text-gray-500">
-                          ... e altre {previewData.rows.orlatura.length - 10} righe
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Save Button */}
-                {isOpen && (
-                  <div className="flex justify-end">
-                    <button
-                      onClick={handleSaveExcelData}
-                      className="rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-6 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
-                    >
-                      <i className="fas fa-save mr-2"></i>
-                      Salva nel Documento
-                    </button>
-                  </div>
-                )}
-              </div>
+              </>
             )}
           </div>
         )}
@@ -1419,6 +1480,234 @@ export default function DocumentDetailPage() {
                 className="rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
               >
                 Aggiungi
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* MODAL: Excel Preview & Edit */}
+      {showPreviewModal && previewData && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex max-h-[90vh] w-full max-w-6xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-gray-800"
+          >
+            {/* FIXED HEADER */}
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                <i className="fas fa-file-excel mr-2 text-green-500"></i>
+                Elabora Scheda Excel
+              </h3>
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <i className="fas fa-times text-xl"></i>
+              </button>
+            </div>
+
+            {/* SCROLLABLE BODY */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {/* Form inputs */}
+              <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <i className="fas fa-tag mr-1 text-blue-500"></i>
+                    Modello
+                  </label>
+                  <input
+                    type="text"
+                    value={excelFormData.modello}
+                    readOnly
+                    className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <i className="fas fa-rocket mr-1 text-green-500"></i>
+                    Lancio <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={excelFormData.lancio}
+                    onChange={(e) => setExcelFormData({ ...excelFormData, lancio: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    placeholder="Inserisci lancio"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <i className="fas fa-cubes mr-1 text-orange-500"></i>
+                    Quantità (Moltiplicatore)
+                  </label>
+                  <input
+                    type="number"
+                    value={excelFormData.qty}
+                    onChange={(e) => setExcelFormData({ ...excelFormData, qty: parseFloat(e.target.value) || 1 })}
+                    min="0.01"
+                    step="0.01"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* TAGLIO Table */}
+              {previewData.rows?.taglio && previewData.rows.taglio.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="mb-3 flex items-center text-lg font-semibold text-gray-900 dark:text-white">
+                    <i className="fas fa-cut mr-2 text-red-500"></i>
+                    TAGLIO ({selectedTaglioRows.size}/{previewData.rows.taglio.length} selezionate)
+                  </h4>
+                  <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                          <th className="px-3 py-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedTaglioRows.size === previewData.rows.taglio.length}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedTaglioRows(new Set(previewData.rows.taglio.map((_: any, idx: number) => idx)));
+                                } else {
+                                  setSelectedTaglioRows(new Set());
+                                }
+                              }}
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                          </th>
+                          {previewData.headers?.map((header: string, idx: number) => (
+                            <th key={idx} className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">
+                              {header}
+                            </th>
+                          ))}
+                          <th className="px-3 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">Totale</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+                        {previewData.rows.taglio.map((row: string[], idx: number) => {
+                          const unitValue = parseFloat(row[4]) || 0;
+                          const total = (unitValue * excelFormData.qty).toFixed(2);
+                          return (
+                            <tr key={idx} className={!selectedTaglioRows.has(idx) ? 'opacity-40' : ''}>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedTaglioRows.has(idx)}
+                                  onChange={(e) => {
+                                    const newSet = new Set(selectedTaglioRows);
+                                    if (e.target.checked) {
+                                      newSet.add(idx);
+                                    } else {
+                                      newSet.delete(idx);
+                                    }
+                                    setSelectedTaglioRows(newSet);
+                                  }}
+                                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                              </td>
+                              {row.map((cell, cellIdx) => (
+                                <td key={cellIdx} className="px-3 py-2 text-gray-900 dark:text-white">
+                                  {cell || '-'}
+                                </td>
+                              ))}
+                              <td className="px-3 py-2 text-right font-medium text-gray-900 dark:text-white">{total}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* ORLATURA Table */}
+              {previewData.rows?.orlatura && previewData.rows.orlatura.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="mb-3 flex items-center text-lg font-semibold text-gray-900 dark:text-white">
+                    <i className="fas fa-border-style mr-2 text-blue-500"></i>
+                    ORLATURA ({selectedOrlaturaRows.size}/{previewData.rows.orlatura.length} selezionate)
+                  </h4>
+                  <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                          <th className="px-3 py-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedOrlaturaRows.size === previewData.rows.orlatura.length}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedOrlaturaRows(new Set(previewData.rows.orlatura.map((_: any, idx: number) => idx)));
+                                } else {
+                                  setSelectedOrlaturaRows(new Set());
+                                }
+                              }}
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                          </th>
+                          {previewData.headers?.map((header: string, idx: number) => (
+                            <th key={idx} className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">
+                              {header}
+                            </th>
+                          ))}
+                          <th className="px-3 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">Totale</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+                        {previewData.rows.orlatura.map((row: string[], idx: number) => {
+                          const unitValue = parseFloat(row[4]) || 0;
+                          const total = (unitValue * excelFormData.qty).toFixed(2);
+                          return (
+                            <tr key={idx} className={!selectedOrlaturaRows.has(idx) ? 'opacity-40' : ''}>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedOrlaturaRows.has(idx)}
+                                  onChange={(e) => {
+                                    const newSet = new Set(selectedOrlaturaRows);
+                                    if (e.target.checked) {
+                                      newSet.add(idx);
+                                    } else {
+                                      newSet.delete(idx);
+                                    }
+                                    setSelectedOrlaturaRows(newSet);
+                                  }}
+                                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                              </td>
+                              {row.map((cell, cellIdx) => (
+                                <td key={cellIdx} className="px-3 py-2 text-gray-900 dark:text-white">
+                                  {cell || '-'}
+                                </td>
+                              ))}
+                              <td className="px-3 py-2 text-right font-medium text-gray-900 dark:text-white">{total}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* FIXED FOOTER */}
+            <div className="flex justify-end space-x-3 border-t border-gray-200 px-6 py-4 dark:border-gray-700">
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handleSaveExcelData}
+                className="rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-6 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
+              >
+                <i className="fas fa-save mr-2"></i>
+                Salva Scheda
               </button>
             </div>
           </motion.div>

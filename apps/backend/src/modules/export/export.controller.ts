@@ -15,6 +15,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ExportService } from './export.service';
 import { ExcelProcessorService } from './excel-processor.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Controller('export')
 @UseGuards(JwtAuthGuard)
@@ -22,6 +23,7 @@ export class ExportController {
   constructor(
     private exportService: ExportService,
     private excelProcessor: ExcelProcessorService,
+    private prisma: PrismaService,
   ) {}
 
   // ==================== ARTICOLI MASTER ====================
@@ -331,35 +333,35 @@ export class ExportController {
   }
 
   @Post('documents/:progressivo/save-excel-data')
-  async saveExcelDataAsItems(
+  async saveExcelData(
     @Param('progressivo') progressivo: string,
     @Body()
     body: {
-      fileName: string;
-      rows: Array<{ tipo: string; data: string[] }>;
+      modello: string;
+      lancio: string;
+      qty: number;
+      tableTaglio: string[][];
+      tableOrlatura: string[][];
+      originalFileName: string;
     },
   ) {
-    // Get document
-    const document = await this.exportService.getDocumentByProgressivo(
-      progressivo,
-    );
+    // Save processed Excel file to temp directory (like Legacy)
+    const result = await this.excelProcessor.saveProcessedExcel({
+      modello: body.modello,
+      lancio: body.lancio,
+      qty: body.qty,
+      tableTaglio: body.tableTaglio,
+      tableOrlatura: body.tableOrlatura,
+      originalFileName: body.originalFileName,
+      progressivo: progressivo,
+    });
 
-    // Create items from processed Excel data
-    const created = [];
-    for (const row of body.rows) {
-      const item = await this.exportService.addDocumentItem({
-        documentoId: document.id,
-        qtaOriginale: 1, // Default qty
-        qtaReale: 1,
-        codiceLibero: row.data[0] || '',
-        descrizioneLibera: `${row.tipo}: ${row.data.join(' | ')}`,
-        voceLibera: '',
-        umLibera: 'PZ',
-        prezzoLibero: 0,
-      });
-      created.push(item);
-    }
+    return result;
+  }
 
-    return { success: true, created: created.length };
+  @Post('documents/:progressivo/generate-ddt')
+  async generateDDT(@Param('progressivo') progressivo: string) {
+    // Generate DDT from processed Excel files
+    return this.excelProcessor.generateDDT(progressivo);
   }
 }
