@@ -73,7 +73,10 @@ export default function ArchivePage() {
         exportApi.getTerzisti(true),
       ]);
 
-      setDocuments(docsData);
+      const sortedDocs = [...docsData].sort((a: any, b: any) =>
+        b.progressivo.localeCompare(a.progressivo, undefined, { numeric: true })
+      );
+      setDocuments(sortedDocs);
       setTerzisti(terzistiData);
     } catch (error) {
       showError('Errore nel caricamento dei documenti');

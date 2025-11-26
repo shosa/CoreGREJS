@@ -732,6 +732,13 @@ export const exportApi = {
     });
     return response.data;
   },
+  requestDdtExcel: async (progressivo: string) => {
+    const response = await api.post('/jobs', {
+      type: 'export.ddt-excel',
+      payload: { progressivo }
+    });
+    return response.data;
+  },
 
   requestDownloadExcel: async (progressivo: string, fileName: string) => {
     const response = await api.post('/jobs', {

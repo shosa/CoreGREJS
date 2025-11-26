@@ -865,6 +865,17 @@ export default function DocumentDetailPage() {
     }
   };
 
+  const handleGenerateXLSX = async (type: "ddt-completo") => {
+    if (!document) return;
+
+    try {
+      await exportApi.requestDdtExcel(progressivo);
+      showSuccess("Il lavoro è stato messo in coda.");
+    } catch (error) {
+      showError("Errore generazione Excel");
+    }
+  };
+
   const filteredArticles = articles.filter(
     (a) =>
       a.codiceArticolo.toLowerCase().includes(searchArticle.toLowerCase()) ||

@@ -7,6 +7,7 @@ import prodReportPdf from './prod.report-pdf';
 import exportSegnacolliPdf from './export.segnacolli-pdf';
 import exportGrigliaMaterialiPdf from './export.griglia-materiali-pdf';
 import exportDdtCompletoPdf from './export.ddt-completo-pdf';
+import exportDdtExcel from './export.ddt-excel';
 import exportDownloadExcel from './export.download-excel';
 import { JobHandler } from '../types';
 
@@ -20,5 +21,6 @@ export const jobHandlers: Record<string, JobHandler> = {
   'export.segnacolli-pdf': exportSegnacolliPdf,
   'export.griglia-materiali-pdf': exportGrigliaMaterialiPdf,
   'export.ddt-completo-pdf': exportDdtCompletoPdf,
+  'export.ddt-excel': exportDdtExcel,
   'export.download-excel': exportDownloadExcel,
 };
