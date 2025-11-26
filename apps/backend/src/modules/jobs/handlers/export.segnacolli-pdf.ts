@@ -51,11 +51,11 @@ const handler: JobHandler = async (payload, helpers) => {
     const centerX = pageWidth / 2;
 
     // Logo (se esiste)
-    let currentY = 80;
+    let currentY = 60;
     if (hasLogo) {
       try {
         doc.image(logoPath, centerX - 160, currentY, { width: 320 });
-        currentY += 100;
+        currentY += 250;
       } catch (err) {
         // Logo non caricabile, continua senza
         currentY += 20;
@@ -90,7 +90,7 @@ const handler: JobHandler = async (payload, helpers) => {
       .font('Helvetica-Bold')
       .text(
         `DDT ${idDocumento} | ${aspettoColli} ${i} di ${nColli}`,
-        0,
+        -20,
         pageHeight - 100,
         { width: pageWidth, align: 'right' }
       );

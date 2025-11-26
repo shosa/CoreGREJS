@@ -8,6 +8,7 @@ interface EditableCellProps {
   isLoading?: boolean;
   readOnly?: boolean;
   align?: 'left' | 'right' | 'center';
+  highlight?: boolean; // Evidenzia la cella in giallo
 }
 
 export default function EditableCell({
@@ -16,6 +17,7 @@ export default function EditableCell({
   isLoading = false,
   readOnly = false,
   align = 'left',
+  highlight = false,
 }: EditableCellProps) {
   const divRef = useRef<HTMLDivElement>(null);
 
@@ -36,10 +38,18 @@ export default function EditableCell({
 
   const textAlignClass = align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left';
   const cursorClass = readOnly ? 'cursor-not-allowed' : '';
-  const bgClass = readOnly ? 'bg-gray-100 dark:bg-gray-700' : 'hover:border-blue-300 focus:border-blue-500';
+  const bgClass = readOnly
+    ? 'bg-gray-100 dark:bg-gray-700'
+    : highlight
+    ? 'bg-yellow-100 dark:bg-yellow-900/30 hover:border-yellow-400 focus:border-yellow-500'
+    : 'hover:border-blue-300 focus:border-blue-500';
 
   if (readOnly) {
-    return <div className={`${textAlignClass}`}>{value}</div>;
+    return (
+      <div className={`${textAlignClass} ${highlight ? 'bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded' : ''}`}>
+        {value}
+      </div>
+    );
   }
 
   return (

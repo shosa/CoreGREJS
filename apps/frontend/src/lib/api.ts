@@ -725,6 +725,21 @@ export const exportApi = {
     });
     return response.data;
   },
+  requestDdtCompletoPdf: async (progressivo: string) => {
+    const response = await api.post('/jobs', {
+      type: 'export.ddt-completo-pdf',
+      payload: { progressivo }
+    });
+    return response.data;
+  },
+
+  requestDownloadExcel: async (progressivo: string, fileName: string) => {
+    const response = await api.post('/jobs', {
+      type: 'export.download-excel',
+      payload: { progressivo, fileName }
+    });
+    return response.data;
+  },
 };
 
 export default api;

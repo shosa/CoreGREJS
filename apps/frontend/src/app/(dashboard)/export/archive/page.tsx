@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportApi } from '@/lib/api';
-import { showError } from '@/store/notifications';
+import { showError, showSuccess } from '@/store/notifications';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
@@ -52,6 +52,10 @@ export default function ArchivePage() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+
+  // Delete modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -107,6 +111,31 @@ export default function ArchivePage() {
 
   const handleOpenDocument = (progressivo: string) => {
     router.push(`/export/${progressivo}`);
+  };
+
+  const handleDeleteClick = (progressivo: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDocumentToDelete(progressivo);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!documentToDelete) return;
+
+    try {
+      await exportApi.deleteDocument(documentToDelete);
+      showSuccess(`Documento ${documentToDelete} eliminato con successo`);
+      setShowDeleteModal(false);
+      setDocumentToDelete(null);
+      await fetchData();
+    } catch (error) {
+      showError('Errore durante l\'eliminazione del documento');
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setDocumentToDelete(null);
   };
 
   if (loading) {
@@ -326,15 +355,27 @@ export default function ArchivePage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenDocument(doc.progressivo);
-                        }}
-                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:scale-110 transition-transform"
-                      >
-                        <i className="fas fa-edit"></i>
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenDocument(doc.progressivo);
+                          }}
+                          className="px-3 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
+                          title="Modifica"
+                        >
+                          <i className="fas fa-edit"></i>
+                        </button>
+                        {doc.stato === 'Aperto' && (
+                          <button
+                            onClick={(e) => handleDeleteClick(doc.progressivo, e)}
+                            className="px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
+                            title="Elimina"
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </motion.tr>
                 ))}
@@ -405,6 +446,52 @@ export default function ArchivePage() {
             <i className="fas fa-chevron-right"></i>
           </button>
         </motion.div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-800"
+          >
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                <i className="fas fa-exclamation-triangle text-xl text-red-600 dark:text-red-400"></i>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Conferma Eliminazione</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Questa azione è irreversibile</p>
+              </div>
+            </div>
+
+            <div className="mb-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/50">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                Sei sicuro di voler eliminare il documento <span className="font-mono font-bold text-red-600 dark:text-red-400">{documentToDelete}</span>?
+              </p>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Tutti i dati associati (righe, piede, mancanti, lanci) verranno eliminati definitivamente.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleCancelDelete}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="flex-1 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:shadow-lg"
+              >
+                <i className="fas fa-trash mr-2"></i>
+                Elimina
+              </button>
+            </div>
+          </motion.div>
+        </div>
       )}
     </motion.div>
   );

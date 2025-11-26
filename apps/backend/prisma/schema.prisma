@@ -337,7 +337,7 @@ model ExportArticleMaster {
   descrizione     String?  @db.VarChar(255)
   voceDoganale    String?  @map("voce_doganale") @db.VarChar(50)
   um              String?  @db.VarChar(10)
-  prezzoUnitario  Decimal? @map("prezzo_unitario") @db.Decimal(10, 2)
+  prezzoUnitario  Decimal? @map("prezzo_unitario") @db.Decimal(10, 3)
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 

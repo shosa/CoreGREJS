@@ -1,6 +1,8 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class ExportService {
@@ -368,6 +370,12 @@ export class ExportService {
   async deleteDocument(progressivo: string) {
     await this.getDocumentByProgressivo(progressivo); // Check exists
 
+    // Delete Excel files directory
+    const srcDir = path.join(process.cwd(), 'storage', 'export', 'src', progressivo);
+    if (fs.existsSync(srcDir)) {
+      fs.rmSync(srcDir, { recursive: true, force: true });
+    }
+
     return this.prisma.exportDocument.delete({
       where: { progressivo },
     });
@@ -436,7 +444,10 @@ export class ExportService {
     // Prima recupera l'item per sapere se è collegato a un master
     const item = await this.prisma.exportDocumentItem.findUnique({
       where: { id },
-      include: { article: true },
+      include: {
+        article: true,
+        documento: true,
+      },
     });
 
     if (!item) {
@@ -467,13 +478,75 @@ export class ExportService {
     if (data.umLibera !== undefined) itemUpdateData.umLibera = data.umLibera;
     if (data.prezzoLibero !== undefined) itemUpdateData.prezzoLibero = data.prezzoLibero;
 
-    return this.prisma.exportDocumentItem.update({
+    const updatedItem = await this.prisma.exportDocumentItem.update({
       where: { id },
       data: itemUpdateData,
       include: {
         article: true,
       },
     });
+
+    // GESTIONE AUTOMATICA MANCANTI: se qtaReale < qtaOriginale
+    if (data.qtaReale !== undefined || data.qtaOriginale !== undefined) {
+      await this.syncMissingDataForItem(updatedItem);
+    }
+
+    return updatedItem;
+  }
+
+  /**
+   * Sincronizza automaticamente i dati mancanti per un item
+   * Se qtaReale < qtaOriginale: crea/aggiorna il mancante
+   * Se qtaReale >= qtaOriginale: elimina il mancante se esiste
+   */
+  private async syncMissingDataForItem(item: any) {
+    const qtaDifference = item.qtaOriginale - item.qtaReale;
+
+    // Determina codice e descrizione articolo
+    const codiceArticolo = item.tipoRiga === 'articolo' && item.article
+      ? item.article.codiceArticolo
+      : item.codiceLibero || 'N/A';
+
+    const descrizione = item.tipoRiga === 'articolo' && item.article
+      ? item.article.descrizione
+      : item.descrizioneLibera;
+
+    // Cerca se esiste già un mancante per questo articolo
+    const existingMissing = await this.prisma.exportMissingData.findFirst({
+      where: {
+        documentoId: item.documentoId,
+        codiceArticolo: codiceArticolo,
+      },
+    });
+
+    if (qtaDifference > 0) {
+      // C'è una differenza: crea o aggiorna il mancante
+      if (existingMissing) {
+        await this.prisma.exportMissingData.update({
+          where: { id: existingMissing.id },
+          data: {
+            qtaMancante: qtaDifference,
+            descrizione: descrizione,
+          },
+        });
+      } else {
+        await this.prisma.exportMissingData.create({
+          data: {
+            documentoId: item.documentoId,
+            codiceArticolo: codiceArticolo,
+            qtaMancante: qtaDifference,
+            descrizione: descrizione,
+          },
+        });
+      }
+    } else {
+      // Non c'è differenza (qtaReale >= qtaOriginale): elimina il mancante se esiste
+      if (existingMissing) {
+        await this.prisma.exportMissingData.delete({
+          where: { id: existingMissing.id },
+        });
+      }
+    }
   }
 
   async deleteDocumentItem(id: number) {
