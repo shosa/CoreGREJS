@@ -213,9 +213,37 @@ export default function DocumentDetailPage() {
     try {
       setLoading(true);
       const doc = await exportApi.getDocumentByProgressivo(progressivo);
-      setDocument(doc);
+      const sortedRighe = [...doc.righe].sort((a, b) => {
+        const voceA =
+          a.tipoRiga === "articolo"
+            ? a.article?.voceDoganale || ""
+            : a.voceLibera || "";
+        const voceB =
+          b.tipoRiga === "articolo"
+            ? b.article?.voceDoganale || ""
+            : b.voceLibera || "";
+        return voceA.localeCompare(voceB, undefined, { numeric: true });
+      });
+      const sortedFooterVoci = Array.isArray(doc.piede?.vociDoganali)
+        ? [...(doc.piede?.vociDoganali || [])].sort((a, b) =>
+            (a.voce || "").localeCompare(b.voce || "", undefined, { numeric: true })
+          )
+        : doc.piede?.vociDoganali;
+      setDocument({
+        ...doc,
+        righe: sortedRighe,
+        piede: doc.piede
+          ? {
+              ...doc.piede,
+              vociDoganali: sortedFooterVoci,
+            }
+          : doc.piede,
+      });
       if (doc.piede) {
-        setFooter(doc.piede);
+        setFooter({
+          ...doc.piede,
+          vociDoganali: sortedFooterVoci,
+        });
       }
     } catch (error) {
       showError("Errore nel caricamento del documento");
@@ -444,7 +472,10 @@ export default function DocumentDetailPage() {
       peso: vociMap.get(voce) || 0,
     }));
 
-    setVociDoganaliEdit(inizializzate);
+    const sorted = inizializzate.sort((a, b) =>
+      (a.voce || "").localeCompare(b.voce || "", undefined, { numeric: true })
+    );
+    setVociDoganaliEdit(sorted);
     setShowVociDoganaliOffcanvas(true);
   };
 
@@ -460,7 +491,9 @@ export default function DocumentDetailPage() {
       const updatedFooter = await exportApi.upsertDocumentFooter(updateData);
       const mergedFooter = updatedFooter || {
         ...(document.piede || {}),
-        vociDoganali: vociDoganaliEdit,
+        vociDoganali: [...vociDoganaliEdit].sort((a, b) =>
+          (a.voce || "").localeCompare(b.voce || "", undefined, { numeric: true })
+        ),
       };
       setFooter(mergedFooter);
       setDocument((prev) =>
@@ -825,7 +858,7 @@ export default function DocumentDetailPage() {
         "ddt-completo": "DDT Completo",
       };
       showSuccess(
-        `Generazione PDF ${labels[type]} avviata. Controlla la sezione Lavori.`
+        `Il lavoro è stato messo in coda.`
       );
     } catch (error) {
       showError("Errore generazione PDF");
@@ -1095,15 +1128,22 @@ export default function DocumentDetailPage() {
         <div className="flex gap-2">
           <button
             onClick={() => handleGeneratePDF("ddt-completo")}
-            className="rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
+            className="cursor-pointer rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
           >
             <i className="fas fa-file-pdf mr-2"></i>
-            DDT Completo
+            DDT
+          </button>
+           <button
+            onClick={() => handleGenerateXLSX("ddt-completo")}
+            className="cursor-pointer rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
+          >
+            <i className="fas fa-file-excel mr-2"></i>
+            DDT
           </button>
 
           <button
             onClick={() => handleGeneratePDF("griglia")}
-            className="rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
+            className="cursor-pointer rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
           >
             <i className="fas fa-file-pdf mr-2"></i>
             Griglia Materiali
@@ -1116,6 +1156,7 @@ export default function DocumentDetailPage() {
             <i className="fas fa-file-pdf mr-2"></i>
             Segnacolli
           </button>
+          
         </div>
       </div>
 
@@ -1531,8 +1572,13 @@ export default function DocumentDetailPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {document.piede.vociDoganali.map(
-                          (v: any, idx: number) => (
+                        {[...document.piede.vociDoganali]
+                          .sort((a: any, b: any) =>
+                            (a.voce || "").localeCompare(b.voce || "", undefined, {
+                              numeric: true,
+                            })
+                          )
+                          .map((v: any, idx: number) => (
                             <tr
                               key={idx}
                               className="border-t border-gray-100 dark:border-gray-700"
@@ -1544,8 +1590,7 @@ export default function DocumentDetailPage() {
                                 {v.peso}
                               </td>
                             </tr>
-                          )
-                        )}
+                          ))}
                       </tbody>
                     </table>
                   </div>
@@ -2897,7 +2942,7 @@ export default function DocumentDetailPage() {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "tween", duration: 0.3 }}
-            className="relative ml-auto h-full w-full max-w-2xl overflow-y-auto bg-white shadow-2xl dark:bg-gray-800"
+            className="relative ml-auto h-full w-full max-w-3xl overflow-y-auto bg-white shadow-2xl dark:bg-gray-800"
           >
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
               <div>
@@ -2925,36 +2970,47 @@ export default function DocumentDetailPage() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {vociDoganaliEdit.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50"
-                    >
-                      <div className="mb-2 flex items-center gap-2">
-                        <i className="fas fa-barcode text-blue-500"></i>
-                        <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
-                          {item.voce}
-                        </span>
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm dark:border-gray-700">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-900">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          Voce Doganale
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                           Peso (kg)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={item.peso}
-                          onChange={(e) => {
-                            const newVoci = [...vociDoganaliEdit];
-                            newVoci[idx].peso = parseFloat(e.target.value) || 0;
-                            setVociDoganaliEdit(newVoci);
-                          }}
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                        />
-                      </div>
-                    </div>
-                  ))}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {[...vociDoganaliEdit]
+                        .sort((a, b) =>
+                          (a.voce || "").localeCompare(b.voce || "", undefined, {
+                            numeric: true,
+                          })
+                        )
+                        .map((item, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/60">
+                            <td className="px-4 py-2 font-mono text-sm text-gray-900 dark:text-white">
+                              {item.voce}
+                            </td>
+                            <td className="px-4 py-2">
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={item.peso}
+                                onChange={(e) => {
+                                  const newVoci = [...vociDoganaliEdit];
+                                  newVoci[idx].peso = parseFloat(e.target.value) || 0;
+                                  setVociDoganaliEdit(newVoci);
+                                }}
+                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>

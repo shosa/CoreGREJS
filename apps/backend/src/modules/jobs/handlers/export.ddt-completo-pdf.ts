@@ -10,9 +10,12 @@ function separateArticlesByVoceDoganale(righe: any[]) {
   const priorityArticles: any[] = [];
   const otherArticles: any[] = [];
 
+  const getVoce = (riga: any) =>
+    riga.article?.voceDoganale || riga.voceLibera || '';
+
   righe.forEach((riga) => {
     if (!riga.isMancante && (riga.qtaReale || riga.qtaOriginale) > 0) {
-      const voce = riga.article?.voceDoganale || riga.voceLibera || '';
+      const voce = getVoce(riga);
       if (voce === '64061010') {
         priorityArticles.push(riga);
       } else {
@@ -21,7 +24,13 @@ function separateArticlesByVoceDoganale(righe: any[]) {
     }
   });
 
-  return { priority: priorityArticles, others: otherArticles };
+  const voceCompare = (a: any, b: any) =>
+    getVoce(a).localeCompare(getVoce(b), undefined, { numeric: true });
+
+  return {
+    priority: priorityArticles.sort(voceCompare),
+    others: otherArticles.sort(voceCompare),
+  };
 }
 
 /**
@@ -184,36 +193,27 @@ function handlePageBreak(
   const col5W = usableWidth * 0.14;
   const col6W = usableWidth * 0.14;
 
+  // Bordi interni alleggeriti
+  doc.save();
+  doc.lineWidth(0.4);
   doc.rect(marginX, infoTableY, col1W, infoRowHeight).stroke();
   doc.rect(marginX + col1W, infoTableY, col2W, infoRowHeight).stroke();
   doc.rect(marginX + col1W + col2W, infoTableY, col3W, infoRowHeight).stroke();
   doc.rect(marginX + col1W + col2W + col3W, infoTableY, col4W, infoRowHeight).stroke();
   doc.rect(marginX + col1W + col2W + col3W + col4W, infoTableY, col5W, infoRowHeight).stroke();
-  doc.rect(
-    marginX + col1W + col2W + col3W + col4W + col5W,
-    infoTableY,
-    col6W,
-    infoRowHeight
-  ).stroke();
+  doc.rect(marginX + col1W + col2W + col3W + col4W + col5W, infoTableY, col6W, infoRowHeight).stroke();
   doc.rect(marginX, infoTableY + infoRowHeight, col1W, infoRowHeight).stroke();
-  doc.rect(
-    marginX + col1W,
-    infoTableY + infoRowHeight,
-    col2W + col3W + col4W,
-    infoRowHeight
-  ).stroke();
-  doc.rect(
-    marginX + col1W + col2W + col3W + col4W,
-    infoTableY + infoRowHeight,
-    col5W,
-    infoRowHeight
-  ).stroke();
-  doc.rect(
-    marginX + col1W + col2W + col3W + col4W + col5W,
-    infoTableY + infoRowHeight,
-    col6W,
-    infoRowHeight
-  ).stroke();
+  doc.rect(marginX + col1W, infoTableY + infoRowHeight, col2W, infoRowHeight).stroke();
+  doc.rect(marginX + col1W + col2W, infoTableY + infoRowHeight, col3W, infoRowHeight).stroke();
+  doc.rect(marginX + col1W + col2W + col3W, infoTableY + infoRowHeight, col4W, infoRowHeight).stroke();
+  doc.rect(marginX + col1W + col2W + col3W + col4W, infoTableY + infoRowHeight, col5W, infoRowHeight).stroke();
+  doc.rect(marginX + col1W + col2W + col3W + col4W + col5W, infoTableY + infoRowHeight, col6W, infoRowHeight).stroke();
+  doc.restore();
+  // Bordi esterni più marcati e allineati
+  doc.save();
+  doc.lineWidth(1);
+  doc.rect(marginX, infoTableY, usableWidth, infoRowHeight * 2).stroke();
+  doc.restore();
 
   // Prima riga: label/valore
   doc.fontSize(8).fillColor('#000000').font('Helvetica-Bold');
@@ -264,6 +264,8 @@ function handlePageBreak(
   currentY = infoTableY + infoRowHeight * 2 + 15;
 
   // Header tabella articoli
+  doc.save();
+  doc.lineWidth(0.4);
   doc.rect(marginX, currentY, usableWidth, rowHeight).fillAndStroke('#e0e0e0', '#000000');
 
   doc.fontSize(8).fillColor('#000000').font('Helvetica-Bold');
@@ -432,24 +434,11 @@ const handler: JobHandler = async (payload, helpers) => {
   doc.rect(marginX + col1W + col2W + col3W + col4W, infoTableY, col5W, infoRowHeight).stroke();
   doc.rect(marginX + col1W + col2W + col3W + col4W + col5W, infoTableY, col6W, infoRowHeight).stroke();
   doc.rect(marginX, infoTableY + infoRowHeight, col1W, infoRowHeight).stroke();
-  doc.rect(
-    marginX + col1W,
-    infoTableY + infoRowHeight,
-    col2W + col3W + col4W,
-    infoRowHeight
-  ).stroke();
-  doc.rect(
-    marginX + col1W + col2W + col3W + col4W,
-    infoTableY + infoRowHeight,
-    col5W,
-    infoRowHeight
-  ).stroke();
-  doc.rect(
-    marginX + col1W + col2W + col3W + col4W + col5W,
-    infoTableY + infoRowHeight,
-    col6W,
-    infoRowHeight
-  ).stroke();
+  doc.rect(marginX + col1W, infoTableY + infoRowHeight, col2W, infoRowHeight).stroke();
+  doc.rect(marginX + col1W + col2W, infoTableY + infoRowHeight, col3W, infoRowHeight).stroke();
+  doc.rect(marginX + col1W + col2W + col3W, infoTableY + infoRowHeight, col4W, infoRowHeight).stroke();
+  doc.rect(marginX + col1W + col2W + col3W + col4W, infoTableY + infoRowHeight, col5W, infoRowHeight).stroke();
+  doc.rect(marginX + col1W + col2W + col3W + col4W + col5W, infoTableY + infoRowHeight, col6W, infoRowHeight).stroke();
 
   doc.fontSize(8).fillColor('#000000').font('Helvetica-Bold');
   doc.text('TIPO DOCUMENTO:', marginX + 2, infoTableY + 6, {
@@ -470,12 +459,9 @@ const handler: JobHandler = async (payload, helpers) => {
   });
 
   doc.fontSize(8).font('Helvetica-Bold');
-  doc.text(
-    'DATA:',
-    marginX + col1W + col2W + col3W + col4W + 2,
-    infoTableY + 6,
-    { width: col5W - 4 }
-  );
+  doc.text('DATA:', marginX + col1W + col2W + col3W + col4W + 2, infoTableY + 6, {
+    width: col5W - 4,
+  });
   doc.fontSize(8).font('Helvetica');
   doc.text(
     new Date(document.data).toLocaleDateString('it-IT'),
@@ -537,8 +523,13 @@ const handler: JobHandler = async (payload, helpers) => {
   const colQta = usableWidth * 0.06;
   const colValore = usableWidth * 0.11;
 
+  const articleSectionStartY = currentY;
+
   // Header tabella
+  doc.save();
+  doc.lineWidth(0.4);
   doc.rect(marginX, currentY, usableWidth, rowHeight).fillAndStroke('#e0e0e0', '#000000');
+  doc.restore();
 
   doc.fontSize(8).fillColor('#000000').font('Helvetica-Bold');
   doc.text('ARTICOLO', marginX + 2, currentY + 4, { width: colArticolo - 4 });
@@ -567,12 +558,14 @@ const handler: JobHandler = async (payload, helpers) => {
   currentY += rowHeight;
 
   let totalValue = 0;
+  let hasArticles = false;
 
   // Separa articoli prioritari (64061010) da altri
   const { priority, others } = separateArticlesByVoceDoganale(document.righe);
 
   // Stampa articoli prioritari
   for (const riga of priority) {
+    hasArticles = true;
     const codice = riga.article?.codiceArticolo || riga.codiceLibero || '';
     const descrizione = riga.article?.descrizione || riga.descrizioneLibera || '';
     const nomCom = riga.article?.voceDoganale || riga.voceLibera || '';
@@ -609,6 +602,7 @@ const handler: JobHandler = async (payload, helpers) => {
     }
 
     doc.fontSize(7).fillColor('#000000').font('Helvetica');
+    doc.lineWidth(0.4);
 
     // Bordi verticali
     doc
@@ -725,6 +719,7 @@ const handler: JobHandler = async (payload, helpers) => {
 
   // Stampa altri articoli
   for (const riga of others) {
+    hasArticles = true;
     const codice = riga.article?.codiceArticolo || riga.codiceLibero || '';
     const descrizione = riga.article?.descrizione || riga.descrizioneLibera || '';
     const nomCom = riga.article?.voceDoganale || riga.voceLibera || '';
@@ -831,6 +826,48 @@ const handler: JobHandler = async (payload, helpers) => {
 
   // Mancanti raggruppati per DDT
   const mancantiGrouped = groupMancantiByDDT(document.righe);
+  const mancantiSectionStartY = currentY;
+
+  // Separatore finale articoli
+  if (hasArticles) {
+    doc.save();
+    doc.lineWidth(1);
+    if (currentY + 2 > pageHeight - 80) {
+      currentY = handlePageBreak(
+        doc,
+        currentY,
+        pageHeight,
+        marginX,
+        marginY,
+        usableWidth,
+        rowHeight,
+        colArticolo,
+        colDescrizione,
+        colNomCom,
+        colUM,
+        colQta,
+        colValore,
+        progressivo,
+        document.terzista,
+        String(document.data),
+        document.stato,
+        document.piede,
+        logoPath,
+        hasLogo
+      );
+    }
+    doc.moveTo(marginX, currentY).lineTo(marginX + usableWidth, currentY).stroke();
+    // Bordi esterni più marcati e allineati
+    doc
+      .moveTo(marginX, articleSectionStartY)
+      .lineTo(marginX, currentY)
+      .stroke();
+    doc
+      .moveTo(marginX + usableWidth, articleSectionStartY)
+      .lineTo(marginX + usableWidth, currentY)
+      .stroke();
+    doc.restore();
+  }
 
   for (const [rif, mancanti] of Object.entries(mancantiGrouped)) {
     // Riga header "MANCANTI SU ..."
@@ -859,14 +896,9 @@ const handler: JobHandler = async (payload, helpers) => {
       );
     }
 
-    doc
-      .moveTo(marginX, currentY)
-      .lineTo(marginX, currentY + rowHeight)
-      .stroke();
-    doc
-      .moveTo(marginX + usableWidth, currentY)
-      .lineTo(marginX + usableWidth, currentY + rowHeight)
-      .stroke();
+    doc.lineWidth(0.4);
+    doc.moveTo(marginX, currentY).lineTo(marginX, currentY + rowHeight).stroke();
+    doc.moveTo(marginX + usableWidth, currentY).lineTo(marginX + usableWidth, currentY + rowHeight).stroke();
 
     doc.fontSize(8).fillColor('#000000').font('Helvetica-Bold');
     doc.text(`MANCANTI SU ${rif}`, marginX + colArticolo + 2, currentY + 3, {
@@ -913,40 +945,14 @@ const handler: JobHandler = async (payload, helpers) => {
 
       doc.fontSize(7).fillColor('#000000').font('Helvetica');
 
-      doc
-        .moveTo(marginX, currentY)
-        .lineTo(marginX, currentY + rowHeight)
-        .stroke();
-      doc
-        .moveTo(marginX + colArticolo, currentY)
-        .lineTo(marginX + colArticolo, currentY + rowHeight)
-        .stroke();
-      doc
-        .moveTo(marginX + colArticolo + colDescrizione, currentY)
-        .lineTo(marginX + colArticolo + colDescrizione, currentY + rowHeight)
-        .stroke();
-      doc
-        .moveTo(marginX + colArticolo + colDescrizione + colNomCom, currentY)
-        .lineTo(marginX + colArticolo + colDescrizione + colNomCom, currentY + rowHeight)
-        .stroke();
-      doc
-        .moveTo(marginX + colArticolo + colDescrizione + colNomCom + colUM, currentY)
-        .lineTo(
-          marginX + colArticolo + colDescrizione + colNomCom + colUM,
-          currentY + rowHeight
-        )
-        .stroke();
-      doc
-        .moveTo(marginX + colArticolo + colDescrizione + colNomCom + colUM + colQta, currentY)
-        .lineTo(
-          marginX + colArticolo + colDescrizione + colNomCom + colUM + colQta,
-          currentY + rowHeight
-        )
-        .stroke();
-      doc
-        .moveTo(marginX + usableWidth, currentY)
-        .lineTo(marginX + usableWidth, currentY + rowHeight)
-        .stroke();
+      doc.lineWidth(0.4);
+      doc.moveTo(marginX, currentY).lineTo(marginX, currentY + rowHeight).stroke();
+      doc.moveTo(marginX + colArticolo, currentY).lineTo(marginX + colArticolo, currentY + rowHeight).stroke();
+      doc.moveTo(marginX + colArticolo + colDescrizione, currentY).lineTo(marginX + colArticolo + colDescrizione, currentY + rowHeight).stroke();
+      doc.moveTo(marginX + colArticolo + colDescrizione + colNomCom, currentY).lineTo(marginX + colArticolo + colDescrizione + colNomCom, currentY + rowHeight).stroke();
+      doc.moveTo(marginX + colArticolo + colDescrizione + colNomCom + colUM, currentY).lineTo(marginX + colArticolo + colDescrizione + colNomCom + colUM, currentY + rowHeight).stroke();
+      doc.moveTo(marginX + colArticolo + colDescrizione + colNomCom + colUM + colQta, currentY).lineTo(marginX + colArticolo + colDescrizione + colNomCom + colUM + colQta, currentY + rowHeight).stroke();
+      doc.moveTo(marginX + usableWidth, currentY).lineTo(marginX + usableWidth, currentY + rowHeight).stroke();
 
       doc.text(codice, marginX + 2, currentY + 3, {
         width: colArticolo - 4,
@@ -981,8 +987,50 @@ const handler: JobHandler = async (payload, helpers) => {
     }
   }
 
+  // Separatore finale sezione mancanti
+  if (Object.keys(mancantiGrouped).length > 0) {
+    doc.save();
+    doc.lineWidth(1);
+    if (currentY + 2 > pageHeight - 80) {
+      currentY = handlePageBreak(
+        doc,
+        currentY,
+        pageHeight,
+        marginX,
+        marginY,
+        usableWidth,
+        rowHeight,
+        colArticolo,
+        colDescrizione,
+        colNomCom,
+        colUM,
+        colQta,
+        colValore,
+        progressivo,
+        document.terzista,
+        String(document.data),
+        document.stato,
+        document.piede,
+        logoPath,
+        hasLogo
+      );
+    }
+    doc.moveTo(marginX, currentY).lineTo(marginX + usableWidth, currentY).stroke();
+    doc
+      .moveTo(marginX, mancantiSectionStartY)
+      .lineTo(marginX, currentY)
+      .stroke();
+    doc
+      .moveTo(marginX + usableWidth, mancantiSectionStartY)
+      .lineTo(marginX + usableWidth, currentY)
+      .stroke();
+    doc.restore();
+  }
+
   // Materiali mancanti dal documento (se presenti)
   if (document.mancanti && document.mancanti.length > 0) {
+    const missingSectionStartY = currentY;
+
     // Riga vuota
     if (currentY + rowHeight > pageHeight - 80) {
       currentY = handlePageBreak(
@@ -1008,14 +1056,9 @@ const handler: JobHandler = async (payload, helpers) => {
         hasLogo
       );
     }
-    doc
-      .moveTo(marginX, currentY)
-      .lineTo(marginX, currentY + rowHeight)
-      .stroke();
-    doc
-      .moveTo(marginX + usableWidth, currentY)
-      .lineTo(marginX + usableWidth, currentY + rowHeight)
-      .stroke();
+    doc.lineWidth(0.4);
+    doc.moveTo(marginX, currentY).lineTo(marginX, currentY + rowHeight).stroke();
+    doc.moveTo(marginX + usableWidth, currentY).lineTo(marginX + usableWidth, currentY + rowHeight).stroke();
     currentY += rowHeight;
 
     // Header "MATERIALI MANCANTI"
@@ -1043,14 +1086,9 @@ const handler: JobHandler = async (payload, helpers) => {
         hasLogo
       );
     }
-    doc
-      .moveTo(marginX, currentY)
-      .lineTo(marginX, currentY + rowHeight)
-      .stroke();
-    doc
-      .moveTo(marginX + usableWidth, currentY)
-      .lineTo(marginX + usableWidth, currentY + rowHeight)
-      .stroke();
+    doc.lineWidth(0.4);
+    doc.moveTo(marginX, currentY).lineTo(marginX, currentY + rowHeight).stroke();
+    doc.moveTo(marginX + usableWidth, currentY).lineTo(marginX + usableWidth, currentY + rowHeight).stroke();
 
     doc.fontSize(8).fillColor('#000000').font('Helvetica-Bold');
     doc.text('MATERIALI MANCANTI', marginX + 2, currentY + 3, {
@@ -1152,6 +1190,27 @@ const handler: JobHandler = async (payload, helpers) => {
 
       currentY += rowHeight;
     }
+
+    // Separatore e bordi laterali esterni sezione materiali mancanti
+    if (currentY + 2 > pageHeight - 100) {
+      doc.addPage();
+      currentY = marginY + 20;
+    }
+    doc.save();
+    doc.lineWidth(1);
+    doc.moveTo(marginX, currentY).lineTo(marginX + usableWidth, currentY).stroke();
+    doc.moveTo(marginX, missingSectionStartY).lineTo(marginX, currentY).stroke();
+    doc.moveTo(marginX + usableWidth, missingSectionStartY).lineTo(marginX + usableWidth, currentY).stroke();
+    doc.restore();
+  }
+
+  // Separatore finale materiali mancanti (document.mancanti)
+  if (document.mancanti && document.mancanti.length > 0) {
+    if (currentY + 2 > pageHeight - 100) {
+      doc.addPage();
+      currentY = marginY + 20;
+    }
+    doc.moveTo(marginX, currentY).lineTo(marginX + usableWidth, currentY).stroke();
   }
 
   // Riga vuota
@@ -1193,7 +1252,9 @@ const handler: JobHandler = async (payload, helpers) => {
 
   // Voci doganali (da piede)
   if (document.piede && document.piede.vociDoganali) {
-    const voci = document.piede.vociDoganali as Array<{ voce: string; peso: number }>;
+    const voci = [...(document.piede.vociDoganali as Array<{ voce: string; peso: number }>)]?.sort(
+      (a, b) => (a.voce || '').localeCompare(b.voce || '', undefined, { numeric: true })
+    );
     const vociCount = voci.filter((v) => v.voce && v.peso).length;
 
     for (let i = 0; i < voci.length; i++) {
@@ -1361,9 +1422,30 @@ const handler: JobHandler = async (payload, helpers) => {
   );
   currentY += rowHeight;
 
-  // ========== COMMENTO E FIRMA ==========
+  // Spazio riempitivo per spingere commento/firma verso il fondo pagina
   const footerHeight = 80;
-  if (currentY + footerHeight > pageHeight - 100) {
+  const footerStartTarget = pageHeight - marginY - footerHeight;
+  if (currentY < footerStartTarget) {
+    // Stampa autorizzazione terzista se presente nel riempitivo
+    if (document.terzista?.autorizzazione) {
+      doc.fontSize(8).fillColor('#000000').font('Helvetica-Bold');
+      doc.text(document.terzista.autorizzazione, marginX, currentY + 5, {
+        width: usableWidth,
+        align: 'center',
+      });
+      currentY += 18;
+    }
+    // allunga i bordi laterali per arrivare al footer
+    doc.moveTo(marginX, currentY).lineTo(marginX, footerStartTarget).stroke();
+    doc
+      .moveTo(marginX + usableWidth, currentY)
+      .lineTo(marginX + usableWidth, footerStartTarget)
+      .stroke();
+    currentY = footerStartTarget;
+  }
+
+  // ========== COMMENTO E FIRMA ==========
+  if (currentY + footerHeight > pageHeight - marginY) {
     doc.addPage();
     currentY = marginY + 20;
   }
