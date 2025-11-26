@@ -174,19 +174,27 @@ function handlePageBreak(
 
   // INFORMAZIONI DOCUMENTO
   const infoTableY = currentY;
-  const infoRowHeight = 30;
+  const infoRowHeight = 20;
 
-  const col1W = usableWidth * 0.29;
-  const col2W = usableWidth * 0.32;
-  const col3W = usableWidth * 0.10;
-  const col4W = usableWidth * 0.10;
-  const col5W = usableWidth * 0.10;
+  // Colonne (prime due pi� strette) + colonna pagina
+  const col1W = usableWidth * 0.22;
+  const col2W = usableWidth * 0.22;
+  const col3W = usableWidth * 0.14;
+  const col4W = usableWidth * 0.14;
+  const col5W = usableWidth * 0.14;
+  const col6W = usableWidth * 0.14;
 
   doc.rect(marginX, infoTableY, col1W, infoRowHeight).stroke();
   doc.rect(marginX + col1W, infoTableY, col2W, infoRowHeight).stroke();
   doc.rect(marginX + col1W + col2W, infoTableY, col3W, infoRowHeight).stroke();
   doc.rect(marginX + col1W + col2W + col3W, infoTableY, col4W, infoRowHeight).stroke();
   doc.rect(marginX + col1W + col2W + col3W + col4W, infoTableY, col5W, infoRowHeight).stroke();
+  doc.rect(
+    marginX + col1W + col2W + col3W + col4W + col5W,
+    infoTableY,
+    col6W,
+    infoRowHeight
+  ).stroke();
   doc.rect(marginX, infoTableY + infoRowHeight, col1W, infoRowHeight).stroke();
   doc.rect(
     marginX + col1W,
@@ -200,67 +208,58 @@ function handlePageBreak(
     col5W,
     infoRowHeight
   ).stroke();
+  doc.rect(
+    marginX + col1W + col2W + col3W + col4W + col5W,
+    infoTableY + infoRowHeight,
+    col6W,
+    infoRowHeight
+  ).stroke();
 
+  // Prima riga: label/valore
   doc.fontSize(8).fillColor('#000000').font('Helvetica-Bold');
-  doc.text('TIPO DOCUMENTO:', marginX + 2, infoTableY + 6, {
-    width: col1W - 4,
+  doc.text('TIPO DOCUMENTO:', marginX + 2, infoTableY + 6, { width: col1W - 4 });
+  doc.fontSize(8).font('Helvetica');
+  doc.text('DDT VALORIZZATO', marginX + col1W + 2, infoTableY + 6, { width: col2W - 4 });
+
+  doc.fontSize(8).font('Helvetica-Bold');
+  doc.text('N° DOCUMENTO:', marginX + col1W + col2W + 2, infoTableY + 6, { width: col3W - 4 });
+  doc.fontSize(8).font('Helvetica');
+  doc.text(progressivo, marginX + col1W + col2W + col3W + 2, infoTableY + 6, { width: col4W - 4 });
+
+  doc.fontSize(8).font('Helvetica-Bold');
+  doc.text('DATA:', marginX + col1W + col2W + col3W + col4W + 2, infoTableY + 6, {
+    width: col5W - 4,
   });
   doc.fontSize(8).font('Helvetica');
-  doc.text('DDT VALORIZZATO', marginX + col1W + 2, infoTableY + 6, {
+  doc.text(
+    new Date(data).toLocaleDateString('it-IT'),
+    marginX + col1W + col2W + col3W + col4W + col5W + 2,
+    infoTableY + 6,
+    { width: col6W - 4 }
+  );
+
+  // Seconda riga: label/valore allineati sotto
+  doc.fontSize(8).font('Helvetica-Bold');
+  doc.text('TRASPORTATORE:', marginX + 2, infoTableY + infoRowHeight + 6, { width: col1W - 4 });
+  doc.fontSize(8).font('Helvetica');
+  doc.text(piede?.trasportatore || '', marginX + col1W + 2, infoTableY + infoRowHeight + 6, {
     width: col2W - 4,
   });
 
   doc.fontSize(8).font('Helvetica-Bold');
-  doc.text('N° DOCUMENTO:', marginX + col1W + col2W + 2, infoTableY + 6, {
+  doc.text('CONSEGNA:', marginX + col1W + col2W + 2, infoTableY + infoRowHeight + 6, {
     width: col3W - 4,
   });
   doc.fontSize(8).font('Helvetica');
-  doc.text(progressivo, marginX + col1W + col2W + col3W + 2, infoTableY + 6, {
+  doc.text(terzista.consegna || '', marginX + col1W + col2W + col3W + 2, infoTableY + infoRowHeight + 6, {
     width: col4W - 4,
   });
 
   doc.fontSize(8).font('Helvetica-Bold');
-  doc.text(
-    'DATA DOCUMENTO:',
-    marginX + col1W + col2W + col3W + col4W + 2,
-    infoTableY + 6,
-    { width: col5W - 4 }
-  );
-  doc.fontSize(8).font('Helvetica');
-  doc.text(
-    new Date(data).toLocaleDateString('it-IT'),
-    marginX + col1W + col2W + col3W + col4W + 2,
-    infoTableY + infoRowHeight - 7,
-    { width: col5W - 4 }
-  );
-
-  // Seconda riga
-  doc.fontSize(8).font('Helvetica-Bold');
-  doc.text('TRASPORTATORE:', marginX + 2, infoTableY + infoRowHeight + 6, {
-    width: col1W - 4,
+  doc.text('PAGINA:', marginX + col1W + col2W + col3W + col4W + 2, infoTableY + infoRowHeight + 6, {
+    width: col5W - 4,
   });
-  doc.fontSize(8).font('Helvetica');
-  doc.text(
-    piede?.trasportatore || '',
-    marginX + col1W + 2,
-    infoTableY + infoRowHeight + 6,
-    { width: col2W + col3W + col4W - 4 }
-  );
-
-  doc.fontSize(8).font('Helvetica-Bold');
-  doc.text(
-    'CONSEGNA:',
-    marginX + col1W + col2W + col3W + col4W + 2,
-    infoTableY + infoRowHeight + 6,
-    { width: col5W - 4 }
-  );
-  doc.fontSize(8).font('Helvetica');
-  doc.text(
-    terzista.consegna || '',
-    marginX + col1W + col2W + col3W + col4W + 2,
-    infoTableY + infoRowHeight + infoRowHeight - 7,
-    { width: col5W - 4 }
-  );
+  // Valore pagina in col6 verrà inserito dopo
 
   currentY = infoTableY + infoRowHeight * 2 + 15;
 
@@ -318,6 +317,7 @@ const handler: JobHandler = async (payload, helpers) => {
     margin: 30,
     size: 'A4',
     layout: 'portrait',
+    bufferPages: true, // necessario per inserire numerazione a posteriori
   });
 
   const pageWidth = doc.page.width;
@@ -417,18 +417,20 @@ const handler: JobHandler = async (payload, helpers) => {
   const infoTableY = currentY;
   const infoRowHeight = 20;
 
-  // Prima riga: 3 colonne
-  const col1W = usableWidth * 0.25;
-  const col2W = usableWidth * 0.25;
-  const col3W = usableWidth * 0.16;
-  const col4W = usableWidth * 0.17;
-  const col5W = usableWidth * 0.17;
+  // Colonne (prime due pi� strette) + colonna pagina
+  const col1W = usableWidth * 0.22;
+  const col2W = usableWidth * 0.22;
+  const col3W = usableWidth * 0.14;
+  const col4W = usableWidth * 0.14;
+  const col5W = usableWidth * 0.14;
+  const col6W = usableWidth * 0.14;
 
   doc.rect(marginX, infoTableY, col1W, infoRowHeight).stroke();
   doc.rect(marginX + col1W, infoTableY, col2W, infoRowHeight).stroke();
   doc.rect(marginX + col1W + col2W, infoTableY, col3W, infoRowHeight).stroke();
   doc.rect(marginX + col1W + col2W + col3W, infoTableY, col4W, infoRowHeight).stroke();
   doc.rect(marginX + col1W + col2W + col3W + col4W, infoTableY, col5W, infoRowHeight).stroke();
+  doc.rect(marginX + col1W + col2W + col3W + col4W + col5W, infoTableY, col6W, infoRowHeight).stroke();
   doc.rect(marginX, infoTableY + infoRowHeight, col1W, infoRowHeight).stroke();
   doc.rect(
     marginX + col1W,
@@ -440,6 +442,12 @@ const handler: JobHandler = async (payload, helpers) => {
     marginX + col1W + col2W + col3W + col4W,
     infoTableY + infoRowHeight,
     col5W,
+    infoRowHeight
+  ).stroke();
+  doc.rect(
+    marginX + col1W + col2W + col3W + col4W + col5W,
+    infoTableY + infoRowHeight,
+    col6W,
     infoRowHeight
   ).stroke();
 
@@ -463,7 +471,7 @@ const handler: JobHandler = async (payload, helpers) => {
 
   doc.fontSize(8).font('Helvetica-Bold');
   doc.text(
-    'DATA DOCUMENTO:',
+    'DATA:',
     marginX + col1W + col2W + col3W + col4W + 2,
     infoTableY + 6,
     { width: col5W - 4 }
@@ -471,12 +479,12 @@ const handler: JobHandler = async (payload, helpers) => {
   doc.fontSize(8).font('Helvetica');
   doc.text(
     new Date(document.data).toLocaleDateString('it-IT'),
-    marginX + col1W + col2W + col3W + col4W + 2,
-    infoTableY + infoRowHeight - 7,
-    { width: col5W - 4 }
+    marginX + col1W + col2W + col3W + col4W + col5W + 2,
+    infoTableY + 6,
+    { width: col6W - 4 }
   );
 
-  // Seconda riga
+  // Seconda riga: label/valore allineati sotto
   doc.fontSize(8).font('Helvetica-Bold');
   doc.text('TRASPORTATORE:', marginX + 2, infoTableY + infoRowHeight + 6, {
     width: col1W - 4,
@@ -486,23 +494,33 @@ const handler: JobHandler = async (payload, helpers) => {
     document.piede?.trasportatore || '',
     marginX + col1W + 2,
     infoTableY + infoRowHeight + 6,
-    { width: col2W + col3W + col4W - 4 }
+    { width: col2W - 4 }
   );
 
   doc.fontSize(8).font('Helvetica-Bold');
   doc.text(
     'CONSEGNA:',
-    marginX + col1W + col2W + col3W + col4W + 2,
+    marginX + col1W + col2W + 2,
     infoTableY + infoRowHeight + 6,
-    { width: col5W - 4 }
+    { width: col3W - 4 }
   );
   doc.fontSize(8).font('Helvetica');
   doc.text(
     document.terzista.consegna || '',
+    marginX + col1W + col2W + col3W + 2,
+    infoTableY + infoRowHeight + 6,
+    { width: col4W - 4 }
+  );
+
+  // Colonna pagina (testo aggiunto dopo con numerazione definitiva)
+  doc.fontSize(8).font('Helvetica-Bold');
+  doc.text(
+    'PAGINA:',
     marginX + col1W + col2W + col3W + col4W + 2,
-    infoTableY + infoRowHeight + infoRowHeight - 7,
+    infoTableY + infoRowHeight + 6,
     { width: col5W - 4 }
   );
+  // Valore pagina in col6 verrà inserito dopo
 
   currentY = infoTableY + infoRowHeight * 2 + 15;
 
@@ -1374,6 +1392,31 @@ const handler: JobHandler = async (payload, helpers) => {
     width: 150,
     align: 'center',
   });
+
+  // Numerazione pagine (Pagina X di Y) nella colonna dedicata dell'intestazione
+  const pageRange = doc.bufferedPageRange();
+  const headerInfoTableY = marginY + tableLogoHeight + 15 + 30; // punto di partenza tabella info
+  const headerInfoRowHeight = 20;
+  const hCol1W = usableWidth * 0.22;
+  const hCol2W = usableWidth * 0.22;
+  const hCol3W = usableWidth * 0.14;
+  const hCol4W = usableWidth * 0.14;
+  const hCol5W = usableWidth * 0.14;
+  const hCol6W = usableWidth * 0.14;
+
+  for (let i = 0; i < pageRange.count; i++) {
+    doc.switchToPage(pageRange.start + i);
+    doc.fontSize(7).fillColor('#000000').font('Helvetica');
+    doc.text(
+      `Pagina ${i + 1} di ${pageRange.count}`,
+      marginX + hCol1W + hCol2W + hCol3W + hCol4W + hCol5W + 2,
+      headerInfoTableY + headerInfoRowHeight + 6,
+      {
+        width: hCol6W - 4,
+        align: 'left',
+      }
+    );
+  }
 
   await waitForPdf(doc, fullPath);
   const stat = fs.statSync(fullPath);
