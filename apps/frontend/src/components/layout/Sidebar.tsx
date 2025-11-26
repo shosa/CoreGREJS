@@ -82,9 +82,8 @@ const menuItems: MenuItem[] = [
     permission: 'export',
     children: [
       { name: 'Menu', href: '/export', icon: 'fa-home' },
-      { name: 'DDT Aperti', href: '/export/continue', icon: 'fa-edit' },
       { name: 'Nuovo DDT', href: '/export/create', icon: 'fa-plus-circle' },
-      { name: 'Archivio DDT', href: '/export/archive', icon: 'fa-archive' },
+      { name: 'Archivio', href: '/export/archive', icon: 'fa-archive' },
       { name: 'Terzisti', href: '/export/terzisti', icon: 'fa-truck' },
       { name: 'Articoli', href: '/export/articles', icon: 'fa-box' },
     ]

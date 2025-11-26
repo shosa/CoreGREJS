@@ -44,7 +44,7 @@ export default function ArchivePage() {
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [statoFilter, setStatoFilter] = useState('');
+  const [chiusiFilter, setChiusiFilter] = useState<'ESCLUDI' | 'INCLUDI' | 'SOLO'>('ESCLUDI');
   const [terzistaFilter, setTerzistaFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -63,7 +63,7 @@ export default function ArchivePage() {
 
   useEffect(() => {
     setCurrentPage(1); // Reset to page 1 when filters change
-  }, [searchTerm, statoFilter, terzistaFilter, dateFrom, dateTo]);
+  }, [searchTerm, chiusiFilter, terzistaFilter, dateFrom, dateTo]);
 
   const fetchData = async () => {
     try {
@@ -92,14 +92,22 @@ export default function ArchivePage() {
       doc.terzista.ragioneSociale.toLowerCase().includes(searchTerm.toLowerCase()) ||
       doc.autorizzazione?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStato = !statoFilter || doc.stato === statoFilter;
+    // Logica chiusi: ESCLUDI (solo aperti), INCLUDI (tutti), SOLO (solo chiusi)
+    let matchesChiusi = true;
+    if (chiusiFilter === 'ESCLUDI') {
+      matchesChiusi = doc.stato !== 'Chiuso';
+    } else if (chiusiFilter === 'SOLO') {
+      matchesChiusi = doc.stato === 'Chiuso';
+    }
+    // INCLUDI non filtra nulla
+
     const matchesTerzista = !terzistaFilter || doc.terzista.ragioneSociale === terzistaFilter;
 
     const docDate = new Date(doc.data);
     const matchesDateFrom = !dateFrom || docDate >= new Date(dateFrom);
     const matchesDateTo = !dateTo || docDate <= new Date(dateTo);
 
-    return matchesSearch && matchesStato && matchesTerzista && matchesDateFrom && matchesDateTo;
+    return matchesSearch && matchesChiusi && matchesTerzista && matchesDateFrom && matchesDateTo;
   });
 
   // Pagination
@@ -168,102 +176,134 @@ export default function ArchivePage() {
       {/* Filters */}
       <motion.div
         variants={itemVariants}
-        className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
+        className="mb-4 rounded-xl border border-gray-200 bg-white p-3 shadow dark:border-gray-800 dark:bg-gray-800/40"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Search */}
-          <div className="lg:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Ricerca
-            </label>
-            <div className="relative">
-              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+        <div className="space-y-2">
+          {/* Prima riga: Ricerca + Date */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+            {/* Search */}
+            <div className="md:col-span-6">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                <i className="fas fa-search text-orange-500 mr-1"></i>
+                Ricerca
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Progressivo, terzista..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <i className="fas fa-times-circle text-xs"></i>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Date From */}
+            <div className="md:col-span-3">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                <i className="fas fa-calendar text-orange-500 mr-1"></i>
+                Da
+              </label>
               <input
-                type="text"
-                placeholder="Progressivo, terzista, autorizzazione..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full px-2 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+              />
+            </div>
+
+            {/* Date To */}
+            <div className="md:col-span-3">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                A
+              </label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full px-2 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
               />
             </div>
           </div>
 
-          {/* Stato */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Stato
-            </label>
-            <select
-              value={statoFilter}
-              onChange={(e) => setStatoFilter(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Tutti</option>
-              <option value="Aperto">Aperto</option>
-              <option value="Chiuso">Chiuso</option>
-            </select>
-          </div>
+          {/* Seconda riga: Terzista + Documenti Chiusi + Reset */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+            {/* Terzista - stesso span della ricerca (6 colonne) */}
+            <div className="md:col-span-6">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                <i className="fas fa-building text-orange-500 mr-1"></i>
+                Terzista
+              </label>
+              <select
+                value={terzistaFilter}
+                onChange={(e) => setTerzistaFilter(e.target.value)}
+                className="w-full px-2 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+              >
+                <option value="">Tutti</option>
+                {terzisti.map((t) => (
+                  <option key={t.id} value={t.ragioneSociale}>
+                    {t.ragioneSociale}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* Terzista */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Terzista
-            </label>
-            <select
-              value={terzistaFilter}
-              onChange={(e) => setTerzistaFilter(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Tutti</option>
-              {terzisti.map((t) => (
-                <option key={t.id} value={t.ragioneSociale}>
-                  {t.ragioneSociale}
-                </option>
-              ))}
-            </select>
-          </div>
+            {/* Documenti Chiusi */}
+            <div className="md:col-span-4">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                <i className="fas fa-lock text-orange-500 mr-1"></i>
+                Documenti Chiusi
+              </label>
+              <div className="flex gap-1">
+                {(['ESCLUDI', 'INCLUDI', 'SOLO'] as const).map((mode) => (
+                  <label
+                    key={mode}
+                    className={`flex-1 flex items-center justify-center px-3 py-2 text-xs font-medium rounded-lg border cursor-pointer transition-all whitespace-nowrap ${
+                      chiusiFilter === mode
+                        ? 'bg-gradient-to-r from-orange-500 to-orange-600 border-orange-500 text-white shadow'
+                        : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="chiusiFilter"
+                      value={mode}
+                      checked={chiusiFilter === mode}
+                      onChange={(e) => setChiusiFilter(e.target.value as any)}
+                      className="sr-only"
+                    />
+                    {mode === 'ESCLUDI' && 'Escludi'}
+                    {mode === 'INCLUDI' && 'Tutti'}
+                    {mode === 'SOLO' && 'Solo'}
+                  </label>
+                ))}
+              </div>
+            </div>
 
-          {/* Date From */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Data Da
-            </label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Date To */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Data A
-            </label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Reset Filters */}
-          <div className="lg:col-span-2 flex items-end">
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setStatoFilter('');
-                setTerzistaFilter('');
-                setDateFrom('');
-                setDateTo('');
-              }}
-              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <i className="fas fa-redo mr-2"></i>
-              Reset Filtri
-            </button>
+            {/* Reset */}
+            <div className="md:col-span-2">
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setChiusiFilter('ESCLUDI');
+                  setTerzistaFilter('');
+                  setDateFrom('');
+                  setDateTo('');
+                }}
+                className="w-full px-4 py-2 text-xs font-medium rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:shadow-lg transition-all"
+              >
+                <i className="fas fa-redo mr-1.5"></i>
+                Reset
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>

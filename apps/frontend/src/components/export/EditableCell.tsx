@@ -9,6 +9,7 @@ interface EditableCellProps {
   readOnly?: boolean;
   align?: 'left' | 'right' | 'center';
   highlight?: boolean; // Evidenzia la cella in giallo
+  maxValue?: number; // Valore massimo consentito (per qtaReale)
 }
 
 export default function EditableCell({
@@ -18,6 +19,7 @@ export default function EditableCell({
   readOnly = false,
   align = 'left',
   highlight = false,
+  maxValue,
 }: EditableCellProps) {
   const divRef = useRef<HTMLDivElement>(null);
 
@@ -26,6 +28,26 @@ export default function EditableCell({
       divRef.current.textContent = String(value);
     }
   }, [value]);
+
+  const handleInput = () => {
+    if (divRef.current && maxValue !== undefined) {
+      const currentText = divRef.current.textContent || '';
+      // Sostituisci virgola con punto per il parsing
+      const numericValue = parseFloat(currentText.replace(',', '.'));
+
+      if (!isNaN(numericValue) && numericValue > maxValue) {
+        // Ripristina al valore massimo
+        divRef.current.textContent = String(maxValue).replace('.', ',');
+        // Sposta il cursore alla fine
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.selectNodeContents(divRef.current);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
+    }
+  };
 
   const handleBlur = () => {
     if (divRef.current) {
@@ -58,6 +80,7 @@ export default function EditableCell({
         ref={divRef}
         contentEditable={!readOnly}
         suppressContentEditableWarning
+        onInput={handleInput}
         onBlur={handleBlur}
         className={`
           min-h-[1.5rem] p-2 rounded border-2 border-transparent

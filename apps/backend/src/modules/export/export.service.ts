@@ -669,28 +669,26 @@ export class ExportService {
   // ==================== UTILITY ====================
 
   async generateNextProgressivo() {
-    // Formato: YYYYMMDD-NNN
-    const today = new Date();
-    const prefix = today.toISOString().slice(0, 10).replace(/-/g, '');
-
-    const lastToday = await this.prisma.exportDocument.findFirst({
-      where: {
-        progressivo: {
-          startsWith: prefix,
-        },
-      },
-      orderBy: {
-        progressivo: 'desc',
+    // Recupera tutti i documenti per trovare il MAX numerico
+    const allDocuments = await this.prisma.exportDocument.findMany({
+      select: {
+        progressivo: true,
       },
     });
 
-    if (!lastToday) {
-      return `${prefix}-001`;
+    if (allDocuments.length === 0) {
+      return '1';
     }
 
-    const lastNum = parseInt(lastToday.progressivo.split('-')[1] || '0');
-    const nextNum = (lastNum + 1).toString().padStart(3, '0');
+    // Converte tutti i progressivi in numeri e trova il massimo
+    const maxNum = allDocuments.reduce((max, doc) => {
+      const num = parseInt(doc.progressivo);
+      if (!isNaN(num) && num > max) {
+        return num;
+      }
+      return max;
+    }, 0);
 
-    return `${prefix}-${nextNum}`;
+    return (maxNum + 1).toString();
   }
 }

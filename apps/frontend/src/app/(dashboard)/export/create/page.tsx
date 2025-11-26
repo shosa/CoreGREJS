@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { exportApi } from '@/lib/api';
 import { showError, showSuccess } from '@/store/notifications';
@@ -25,6 +25,7 @@ interface Terzista {
 
 export default function CreateDDTPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [checkingProgressivo, setCheckingProgressivo] = useState(false);
   const [terzisti, setTerzisti] = useState<Terzista[]>([]);
@@ -50,6 +51,15 @@ export default function CreateDDTPage() {
       setProgressivo(nextProg.progressivo);
       setTerzisti(terzistiData);
       setProgressivoValid(true);
+
+      // Check if terzista query param exists and pre-select
+      const terzistaParam = searchParams.get('terzista');
+      if (terzistaParam) {
+        const terzistaIdFromParam = parseInt(terzistaParam, 10);
+        if (!isNaN(terzistaIdFromParam)) {
+          setTerzistaId(terzistaIdFromParam);
+        }
+      }
     } catch (error) {
       showError('Errore nel caricamento dei dati iniziali');
     } finally {
@@ -160,59 +170,59 @@ export default function CreateDDTPage() {
         </div>
 
         <div className="space-y-6">
-          {/* Progressivo */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Progressivo *
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={progressivo}
-                onChange={(e) => handleProgressivoChange(e.target.value)}
-                placeholder="YYYYMMDD-NNN"
-                className={`w-full px-4 py-3 rounded-lg border ${
-                  progressivoEdited
-                    ? progressivoValid
-                      ? 'border-green-500 dark:border-green-500'
-                      : 'border-red-500 dark:border-red-500'
-                    : 'border-gray-300 dark:border-gray-600'
-                } bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10`}
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                {checkingProgressivo ? (
-                  <i className="fas fa-spinner fa-spin text-gray-400"></i>
-                ) : progressivoEdited ? (
-                  progressivoValid ? (
-                    <i className="fas fa-check-circle text-green-500"></i>
-                  ) : (
-                    <i className="fas fa-times-circle text-red-500"></i>
-                  )
-                ) : null}
+          {/* Progressivo e Data affiancati */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Progressivo */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Progressivo *
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={progressivo}
+                  onChange={(e) => handleProgressivoChange(e.target.value)}
+                  placeholder="es. 1, 2, 3..."
+                  className={`w-full px-4 py-3 rounded-lg border ${
+                    progressivoEdited
+                      ? progressivoValid
+                        ? 'border-green-500 dark:border-green-500'
+                        : 'border-red-500 dark:border-red-500'
+                      : 'border-gray-300 dark:border-gray-600'
+                  } bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10`}
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {checkingProgressivo ? (
+                    <i className="fas fa-spinner fa-spin text-gray-400"></i>
+                  ) : progressivoEdited ? (
+                    progressivoValid ? (
+                      <i className="fas fa-check-circle text-green-500"></i>
+                    ) : (
+                      <i className="fas fa-times-circle text-red-500"></i>
+                    )
+                  ) : null}
+                </div>
               </div>
+              {progressivoEdited && !progressivoValid && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  <i className="fas fa-exclamation-triangle mr-1"></i>
+                  Progressivo già esistente
+                </p>
+              )}
             </div>
-            {progressivoEdited && !progressivoValid && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                <i className="fas fa-exclamation-triangle mr-1"></i>
-                Progressivo già esistente o non valido
-              </p>
-            )}
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Puoi modificare il progressivo suggerito. Formato: YYYYMMDD-NNN
-            </p>
-          </div>
 
-          {/* Data */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Data *
-            </label>
-            <input
-              type="date"
-              value={data}
-              onChange={(e) => setData(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            {/* Data */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Data *
+              </label>
+              <input
+                type="date"
+                value={data}
+                onChange={(e) => setData(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
           </div>
 
           {/* Terzista */}

@@ -34,7 +34,7 @@ const handler: JobHandler = async (payload, helpers) => {
   const nColli = document.piede.nColli;
   const aspettoColli = document.piede.aspettoColli || 'Collo';
   const ragioneSociale = document.terzista.ragioneSociale;
-  const idDocumento = document.id;
+  const documentoProgressivo = document.progressivo;
 
   // Logo path (se esiste)
   const logoPath = path.join(process.cwd(), 'public', 'assets', 'small_logo.png');
@@ -89,7 +89,7 @@ const handler: JobHandler = async (payload, helpers) => {
       .fontSize(25)
       .font('Helvetica-Bold')
       .text(
-        `DDT ${idDocumento} | ${aspettoColli} ${i} di ${nColli}`,
+        `DDT ${documentoProgressivo} | ${aspettoColli} ${i} di ${nColli}`,
         -20,
         pageHeight - 100,
         { width: pageWidth, align: 'right' }
