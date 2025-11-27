@@ -425,13 +425,17 @@ export class ExportService {
     voceLibera?: string;
     umLibera?: string;
     prezzoLibero?: number;
+    // Per integrazione mancanti
+    isMancante?: boolean;
+    rifMancante?: string;
+    missingDataId?: number;
   }) {
     // Se ha articleId, verifica exists
     if (data.articleId) {
       await this.getArticleMasterById(data.articleId);
     }
 
-    return this.prisma.exportDocumentItem.create({
+    const createdItem = await this.prisma.exportDocumentItem.create({
       data: {
         documentoId: data.documentoId,
         articleId: data.articleId,
@@ -443,11 +447,30 @@ export class ExportService {
         voceLibera: data.voceLibera,
         umLibera: data.umLibera,
         prezzoLibero: data.prezzoLibero,
+        isMancante: data.isMancante ?? false,
+        rifMancante: data.rifMancante,
       },
       include: {
         article: true,
       },
     });
+
+    // Se stiamo integrando un mancante, rimuovilo dalla tabella dei mancanti
+    if (data.missingDataId) {
+      try {
+        await this.prisma.exportMissingData.delete({
+          where: { id: data.missingDataId },
+        });
+      } catch (error) {
+        // Se il record è già stato eliminato o non esiste, non blocchiamo l'inserimento
+        console.warn(
+          `Impossibile eliminare exp_dati_mancanti id=${data.missingDataId}:`,
+          error
+        );
+      }
+    }
+
+    return createdItem;
   }
 
   async updateDocumentItem(

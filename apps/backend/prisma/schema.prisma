@@ -399,8 +399,8 @@ model ExportDocumentItem {
   id              Int      @id @default(autoincrement())
   documentoId     Int      @map("documento_id")
   articleId       Int?     @map("article_id") // FK a master, NULL se riga libera
-  qtaOriginale    Int      @default(0) @map("qta_originale")
-  qtaReale        Int      @default(0) @map("qta_reale")
+  qtaOriginale    Decimal? @default(0) @map("qta_originale") @db.Decimal(10, 2)
+  qtaReale        Decimal? @default(0) @map("qta_reale") @db.Decimal(10, 2)
   isMancante      Boolean  @default(false) @map("is_mancante")
   rifMancante     String?  @map("rif_mancante") @db.VarChar(50)
   tipoRiga        String   @default("articolo") @map("tipo_riga") @db.VarChar(20) // articolo, libera
@@ -409,7 +409,7 @@ model ExportDocumentItem {
   descrizioneLibera String? @map("descrizione_libera") @db.VarChar(255)
   voceLibera      String?  @map("voce_libera") @db.VarChar(50)
   umLibera        String?  @map("um_libera") @db.VarChar(10)
-  prezzoLibero    Decimal? @map("prezzo_libero") @db.Decimal(10, 2)
+  prezzoLibero    Decimal? @map("prezzo_libero") @db.Decimal(10, 3)
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 

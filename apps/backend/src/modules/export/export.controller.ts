@@ -204,6 +204,9 @@ export class ExportController {
     voceLibera?: string;
     umLibera?: string;
     prezzoLibero?: number;
+    isMancante?: boolean;
+    rifMancante?: string;
+    missingDataId?: number;
   }) {
     return this.exportService.addDocumentItem(data);
   }

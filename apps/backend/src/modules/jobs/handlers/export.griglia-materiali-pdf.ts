@@ -99,13 +99,13 @@ const handler: JobHandler = async (payload, helpers) => {
     const descrizione = item.article?.descrizione || item.descrizioneLibera || '-';
     const voce = item.article?.voceDoganale || item.voceLibera || '-';
     const um = item.article?.um || item.umLibera || '-';
-    const qtaOrig = item.qtaOriginale;
-    const qtaReale = item.qtaReale || item.qtaOriginale;
-    const prezzo = item.article?.prezzoUnitario || item.prezzoLibero || 0;
+    const qtaOrig = Number(item.qtaOriginale ?? 0);
+    const qtaReale = Number(item.qtaReale ?? item.qtaOriginale ?? 0);
+    const prezzo = Number(item.article?.prezzoUnitario ?? item.prezzoLibero ?? 0);
 
     totalQtaOriginale += qtaOrig;
     totalQtaReale += qtaReale;
-    totalValue += qtaReale * Number(prezzo);
+    totalValue += qtaReale * prezzo;
 
     currentX = startX;
     const rowY = doc.y;

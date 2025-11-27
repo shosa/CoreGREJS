@@ -594,6 +594,9 @@ export const exportApi = {
     voceLibera?: string;
     umLibera?: string;
     prezzoLibero?: number;
+    isMancante?: boolean;
+    rifMancante?: string;
+    missingDataId?: number;
   }) => {
     const response = await api.post('/export/document-items', data);
     return response.data;

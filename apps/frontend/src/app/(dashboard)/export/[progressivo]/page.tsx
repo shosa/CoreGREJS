@@ -55,6 +55,8 @@ interface DocumentItem {
   umLibera?: string;
   prezzoLibero?: number;
   article?: Article;
+  isMancante?: boolean;
+  rifMancante?: string;
 }
 
 interface DocumentFooter {
@@ -192,6 +194,11 @@ export default function DocumentDetailPage() {
     voceLibera: "",
     umLibera: "",
     prezzoLibero: 0,
+  });
+  const [newItemInputs, setNewItemInputs] = useState({
+    qtaOriginale: "",
+    qtaReale: "",
+    prezzoLibero: "",
   });
 
   const [newLaunch, setNewLaunch] = useState({
@@ -953,6 +960,32 @@ export default function DocumentDetailPage() {
         a.descrizione.toLowerCase().includes(searchArticle.toLowerCase()))
   );
 
+  const sanitizeDecimalInput = (value: string) =>
+    value.replace(/[^0-9.,]/g, "");
+
+  const parseDecimalInput = (value: string) => {
+    const normalized = value.replace(",", ".");
+    const num = parseFloat(normalized);
+    if (Number.isNaN(num)) return 0;
+    return Math.round(num * 100) / 100;
+  };
+
+  const handleDecimalChange = (
+    field: "qtaOriginale" | "qtaReale" | "prezzoLibero",
+    value: string
+  ) => {
+    const sanitized = sanitizeDecimalInput(value);
+    const parsed = parseDecimalInput(sanitized);
+    setNewItem((prev) => ({
+      ...prev,
+      [field]: parsed,
+    }));
+    setNewItemInputs((prev) => ({
+      ...prev,
+      [field]: sanitized,
+    }));
+  };
+
   // Integra mancanti selezionati nel documento corrente
   const handleOpenGrigliaModal = () => {
     if (!document) return;
@@ -1002,8 +1035,11 @@ export default function DocumentDetailPage() {
         await exportApi.addDocumentItem({
           documentoId: document.id,
           articleId: mancante.articleId,
-          qtaOriginale: mancante.qtaMancante,
-          qtaReale: mancante.qtaMancante,
+          qtaOriginale: Number(mancante.qtaMancante),
+          qtaReale: Number(mancante.qtaMancante),
+          isMancante: true,
+          rifMancante: `DDT ${mancante.documento.progressivo}`,
+          missingDataId: mancante.id,
         });
       }
 
@@ -2223,15 +2259,10 @@ export default function DocumentDetailPage() {
                     Prezzo
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
-                    value={newItem.prezzoLibero}
-                    onChange={(e) =>
-                      setNewItem({
-                        ...newItem,
-                        prezzoLibero: parseFloat(e.target.value),
-                      })
-                    }
+                    type="text"
+                  
+                    value={newItemInputs.prezzoLibero}
+                    onChange={(e) => handleDecimalChange("prezzoLibero", e.target.value)}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
@@ -2244,14 +2275,10 @@ export default function DocumentDetailPage() {
                   Qta Originale
                 </label>
                 <input
-                  type="number"
-                  value={newItem.qtaOriginale}
-                  onChange={(e) =>
-                    setNewItem({
-                      ...newItem,
-                      qtaOriginale: parseInt(e.target.value) || 0,
-                    })
-                  }
+                  type="text"
+                 
+                  value={newItemInputs.qtaOriginale}
+                  onChange={(e) => handleDecimalChange("qtaOriginale", e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 />
               </div>
@@ -2260,14 +2287,10 @@ export default function DocumentDetailPage() {
                   Qta Reale
                 </label>
                 <input
-                  type="number"
-                  value={newItem.qtaReale}
-                  onChange={(e) =>
-                    setNewItem({
-                      ...newItem,
-                      qtaReale: parseInt(e.target.value) || 0,
-                    })
-                  }
+                  type="text"
+                 
+                  value={newItemInputs.qtaReale}
+                  onChange={(e) => handleDecimalChange("qtaReale", e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 />
               </div>
