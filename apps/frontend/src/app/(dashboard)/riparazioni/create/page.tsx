@@ -7,6 +7,7 @@ import { riparazioniApi } from '@/lib/api';
 import { showError, showSuccess } from '@/store/notifications';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
+import Footer from '@/components/layout/Footer';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -490,43 +491,56 @@ export default function CreateRiparazionePage() {
                 </div>
               </div>
 
-              {/* Buttons */}
-              <div className="mt-6 flex gap-4 justify-end">
-                <button
-                  onClick={() => {
-                    setStep(1);
-                    setArticleData(null);
-                    setNumerata(null);
-                    setCartellinoInput('');
-                  }}
-                  className="px-6 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
-                >
-                  <i className="fas fa-arrow-left mr-2"></i>
-                  Indietro
-                </button>
-
-                <button
-                  onClick={handleCreate}
-                  disabled={creating || !laboratorioId || calculateTotal() === 0}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  {creating ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin mr-2"></i>
-                      Creazione...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-check-circle mr-2"></i>
-                      Crea Riparazione
-                    </>
-                  )}
-                </button>
-              </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+      <Footer show={step === 2 && !!articleData}>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-lg shadow-sm">
+              {calculateTotal()}
+            </div>
+            <div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Totale taglie</div>
+              <div className="text-lg font-semibold text-gray-900 dark:text-white">{calculateTotal()} paia</div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-3">
+            <button
+              onClick={() => {
+                setStep(1);
+                setArticleData(null);
+                setNumerata(null);
+                setCartellinoInput('');
+              }}
+              className="px-6 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
+            >
+              <i className="fas fa-arrow-left mr-2"></i>
+              Indietro
+            </button>
+
+            <button
+              onClick={handleCreate}
+              disabled={creating || !laboratorioId || calculateTotal() === 0}
+              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              {creating ? (
+                <>
+                  <i className="fas fa-spinner fa-spin mr-2"></i>
+                  Creazione...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-check-circle mr-2"></i>
+                  Crea Riparazione
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </Footer>
     </motion.div>
   );
 }

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { riparazioniApi } from '@/lib/api';
+import { riparazioniApi, jobsApi } from '@/lib/api';
+import Footer from '@/components/layout/Footer';
 import { showError, showSuccess } from '@/store/notifications';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
@@ -99,6 +100,8 @@ export default function RiparazioneDetailPage() {
   const [riparazione, setRiparazione] = useState<Riparazione | null>(null);
   const [completing, setCompleting] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchRiparazione();
@@ -130,6 +133,34 @@ export default function RiparazioneDetailPage() {
       showError(error.response?.data?.message || 'Errore nel completamento della riparazione');
     } finally {
       setCompleting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!riparazione) return;
+    if (!confirm(`Eliminare la riparazione ${riparazione.idRiparazione}?`)) return;
+    try {
+      setDeleting(true);
+      await riparazioniApi.deleteRiparazione(riparazione.id);
+      showSuccess('Riparazione eliminata');
+      router.push('/riparazioni/list');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore durante la eliminazione');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    if (!riparazione) return;
+    try {
+      setPrinting(true);
+      const { jobId } = await jobsApi.enqueue('riparazioni.cedola-pdf', { id: riparazione.id });
+      showSuccess(`Stampa avviata. Job ${jobId} nello spool`);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore nella stampa');
+    } finally {
+      setPrinting(false);
     }
   };
 
@@ -215,15 +246,6 @@ export default function RiparazioneDetailPage() {
           </div>
 
           <div className="flex gap-2">
-            {!riparazione.completa && (
-              <button
-                onClick={() => setShowCompleteModal(true)}
-                className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
-              >
-                <i className="fas fa-check-circle mr-2"></i>
-                Completa Riparazione
-              </button>
-            )}
             <button
               onClick={() => router.push('/riparazioni/list')}
               className="px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
@@ -447,6 +469,41 @@ export default function RiparazioneDetailPage() {
           </motion.div>
         </div>
       )}
+
+      <Footer show>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Riparazione {riparazione.idRiparazione} • Cartellino {riparazione.cartellino || '-'}
+          </div>
+          <div className="flex flex-wrap justify-end gap-3">
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="px-5 py-3 rounded-lg border-2 border-red-300 text-red-700 dark:border-red-700 dark:text-red-300 font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition disabled:opacity-50"
+            >
+              {deleting ? <i className="fas fa-spinner fa-spin mr-2"></i> : <i className="fas fa-trash mr-2"></i>}
+              Elimina
+            </button>
+            {!riparazione.completa && (
+              <button
+                onClick={() => setShowCompleteModal(true)}
+                className="px-5 py-3 rounded-lg border-2 border-green-300 text-green-700 dark:border-green-700 dark:text-green-300 font-medium hover:bg-green-50 dark:hover:bg-green-900/20 transition"
+              >
+                <i className="fas fa-check-circle mr-2"></i>
+                Completa
+              </button>
+            )}
+            <button
+              onClick={handlePrint}
+              disabled={printing}
+              className="px-6 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium shadow-lg hover:shadow-xl transition disabled:opacity-50"
+            >
+              {printing ? <i className="fas fa-spinner fa-spin mr-2"></i> : <i className="fas fa-print mr-2"></i>}
+              Stampa
+            </button>
+          </div>
+        </div>
+      </Footer>
     </motion.div>
   );
 }
