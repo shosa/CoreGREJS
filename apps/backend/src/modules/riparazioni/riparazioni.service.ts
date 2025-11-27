@@ -487,6 +487,69 @@ export class RiparazioniService {
     return numerata;
   }
 
+  /**
+   * Create laboratorio
+   */
+  async createLaboratorio(data: Prisma.LaboratorioCreateInput) {
+    return this.prisma.laboratorio.create({ data });
+  }
+
+  /**
+   * Update laboratorio
+   */
+  async updateLaboratorio(id: number, data: Prisma.LaboratorioUpdateInput) {
+    return this.prisma.laboratorio.update({ where: { id }, data });
+  }
+
+  /**
+   * Delete laboratorio
+   */
+  async deleteLaboratorio(id: number) {
+    return this.prisma.laboratorio.delete({ where: { id } });
+  }
+
+  /**
+   * Create reparto
+   */
+  async createReparto(data: Prisma.RepartoCreateInput) {
+    return this.prisma.reparto.create({ data });
+  }
+
+  /**
+   * Update reparto
+   */
+  async updateReparto(id: number, data: Prisma.RepartoUpdateInput) {
+    return this.prisma.reparto.update({ where: { id }, data });
+  }
+
+  /**
+   * Delete reparto
+   */
+  async deleteReparto(id: number) {
+    return this.prisma.reparto.delete({ where: { id } });
+  }
+
+  /**
+   * Create numerata
+   */
+  async createNumerata(data: Prisma.NumerataCreateInput) {
+    return this.prisma.numerata.create({ data });
+  }
+
+  /**
+   * Update numerata
+   */
+  async updateNumerata(id: number, data: Prisma.NumerataUpdateInput) {
+    return this.prisma.numerata.update({ where: { id }, data });
+  }
+
+  /**
+   * Delete numerata
+   */
+  async deleteNumerata(id: number) {
+    return this.prisma.numerata.delete({ where: { id } });
+  }
+
   // ==================== HELPER FUNCTIONS ====================
 
   /**

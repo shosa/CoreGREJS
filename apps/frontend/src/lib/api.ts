@@ -897,31 +897,82 @@ export const riparazioniApi = {
 
   // Get all reparti
   getReparti: async () => {
-    const response = await api.get('/riparazioni/support/reparti');
+    const response = await api.get('/riparazioni/reparti');
     return response.data;
   },
 
   // Get all laboratori
   getLaboratori: async () => {
-    const response = await api.get('/riparazioni/support/laboratori');
+    const response = await api.get('/riparazioni/laboratori');
     return response.data;
   },
 
   // Get all linee
   getLinee: async () => {
-    const response = await api.get('/riparazioni/support/linee');
+    const response = await api.get('/riparazioni/linee');
     return response.data;
   },
 
   // Get all numerate
   getNumerate: async () => {
-    const response = await api.get('/riparazioni/support/numerate');
+    const response = await api.get('/riparazioni/numerate');
     return response.data;
   },
 
   // Get numerata by ID
   getNumerata: async (id: number) => {
-    const response = await api.get(`/riparazioni/support/numerate/${id}`);
+    const response = await api.get(`/riparazioni/numerate/${id}`);
+    return response.data;
+  },
+
+  // ==================== LABORATORI CRUD ====================
+
+  createLaboratorio: async (data: { nome: string; attivo?: boolean }) => {
+    const response = await api.post('/riparazioni/laboratori', data);
+    return response.data;
+  },
+
+  updateLaboratorio: async (id: number, data: { nome?: string; attivo?: boolean }) => {
+    const response = await api.put(`/riparazioni/laboratori/${id}`, data);
+    return response.data;
+  },
+
+  deleteLaboratorio: async (id: number) => {
+    const response = await api.delete(`/riparazioni/laboratori/${id}`);
+    return response.data;
+  },
+
+  // ==================== REPARTI CRUD ====================
+
+  createReparto: async (data: { nome: string; ordine?: number; attivo?: boolean }) => {
+    const response = await api.post('/riparazioni/reparti', data);
+    return response.data;
+  },
+
+  updateReparto: async (id: number, data: { nome?: string; ordine?: number; attivo?: boolean }) => {
+    const response = await api.put(`/riparazioni/reparti/${id}`, data);
+    return response.data;
+  },
+
+  deleteReparto: async (id: number) => {
+    const response = await api.delete(`/riparazioni/reparti/${id}`);
+    return response.data;
+  },
+
+  // ==================== NUMERATE CRUD ====================
+
+  createNumerata: async (data: any) => {
+    const response = await api.post('/riparazioni/numerate', data);
+    return response.data;
+  },
+
+  updateNumerata: async (id: number, data: any) => {
+    const response = await api.put(`/riparazioni/numerate/${id}`, data);
+    return response.data;
+  },
+
+  deleteNumerata: async (id: number) => {
+    const response = await api.delete(`/riparazioni/numerate/${id}`);
     return response.data;
   },
 };

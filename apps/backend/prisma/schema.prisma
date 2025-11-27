@@ -314,7 +314,8 @@ model Laboratorio {
 }
 
 model Numerata {
-  id  Int @id @default(autoincrement())
+  id         Int    @id @default(autoincrement())
+  idNumerata String @unique @map("id_numerata") @db.VarChar(2) // NU code (text, max 2 chars)
 
   // 20 colonne per i nomi delle taglie
   n01 String? @db.VarChar(10)

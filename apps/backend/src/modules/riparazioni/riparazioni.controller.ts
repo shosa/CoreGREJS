@@ -9,6 +9,7 @@ import {
   Query,
   ParseIntPipe,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { RiparazioniService } from './riparazioni.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -114,7 +115,7 @@ export class RiparazioniController {
    * GET /riparazioni/:id
    * Get riparazione by numeric ID
    */
-  @Get(':id')
+  @Get(':id(\\d+)')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.riparazioniService.findOne(id);
   }
@@ -166,7 +167,7 @@ export class RiparazioniController {
    * PUT /riparazioni/:id
    * Update riparazione
    */
-  @Put(':id')
+  @Put(':id(\\d+)')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDto: any,
@@ -205,7 +206,7 @@ export class RiparazioniController {
    * PUT /riparazioni/:id/complete
    * Mark riparazione as completed
    */
-  @Put(':id/complete')
+  @Put(':id(\\d+)/complete')
   async complete(@Param('id', ParseIntPipe) id: number) {
     return this.riparazioniService.complete(id);
   }
@@ -214,7 +215,7 @@ export class RiparazioniController {
    * DELETE /riparazioni/:id
    * Delete riparazione
    */
-  @Delete(':id')
+  @Delete(':id(\\d+)')
   async remove(@Param('id', ParseIntPipe) id: number) {
     await this.riparazioniService.remove(id);
     return { message: 'Riparazione eliminata con successo' };
@@ -294,7 +295,7 @@ export class RiparazioniController {
    * GET /riparazioni/interne/:id
    * Get riparazione interna by ID
    */
-  @Get('interne/:id')
+  @Get('interne/:id(\\d+)')
   async findOneInterna(@Param('id', ParseIntPipe) id: number) {
     return this.riparazioniService.findOneInterna(id);
   }
@@ -347,7 +348,7 @@ export class RiparazioniController {
    * PUT /riparazioni/interne/:id
    * Update riparazione interna
    */
-  @Put('interne/:id')
+  @Put('interne/:id(\\d+)')
   async updateInterna(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDto: any,
@@ -382,7 +383,7 @@ export class RiparazioniController {
    * PUT /riparazioni/interne/:id/complete
    * Mark riparazione interna as completed
    */
-  @Put('interne/:id/complete')
+  @Put('interne/:id(\\d+)/complete')
   async completeInterna(
     @Param('id', ParseIntPipe) id: number,
     @Body('operatoreChiusura') operatoreChiusura?: string,
@@ -394,7 +395,7 @@ export class RiparazioniController {
    * DELETE /riparazioni/interne/:id
    * Delete riparazione interna
    */
-  @Delete('interne/:id')
+  @Delete('interne/:id(\\d+)')
   async removeInterna(@Param('id', ParseIntPipe) id: number) {
     await this.riparazioniService.removeInterna(id);
     return { message: 'Riparazione interna eliminata con successo' };
@@ -403,47 +404,198 @@ export class RiparazioniController {
   // ==================== SUPPORT DATA ====================
 
   /**
-   * GET /riparazioni/support/reparti
+   * GET /riparazioni/reparti
    * Get all reparti
    */
-  @Get('support/reparti')
+  @Get('reparti')
   async getReparti() {
     return this.riparazioniService.findAllReparti();
   }
 
   /**
-   * GET /riparazioni/support/laboratori
+   * GET /riparazioni/laboratori
    * Get all laboratori
    */
-  @Get('support/laboratori')
+  @Get('laboratori')
   async getLaboratori() {
     return this.riparazioniService.findAllLaboratori();
   }
 
   /**
-   * GET /riparazioni/support/linee
+   * GET /riparazioni/linee
    * Get all linee
    */
-  @Get('support/linee')
+  @Get('linee')
   async getLinee() {
     return this.riparazioniService.findAllLinee();
   }
 
   /**
-   * GET /riparazioni/support/numerate
+   * GET /riparazioni/numerate
    * Get all numerate
    */
-  @Get('support/numerate')
+  @Get('numerate')
   async getNumerate() {
     return this.riparazioniService.findAllNumerate();
   }
 
   /**
-   * GET /riparazioni/support/numerate/:id
+   * GET /riparazioni/numerate/:id
    * Get numerata by ID
    */
-  @Get('support/numerate/:id')
+  @Get('numerate/:id(\\d+)')
   async getNumerata(@Param('id', ParseIntPipe) id: number) {
     return this.riparazioniService.findNumerata(id);
+  }
+
+  /**
+   * POST /riparazioni/laboratori
+   * Create laboratorio
+   */
+  @Post('laboratori')
+  async createLaboratorio(@Body() createDto: any) {
+    const data: Prisma.LaboratorioCreateInput = {
+      nome: createDto.nome,
+      attivo: createDto.attivo ?? true,
+    };
+    return this.riparazioniService.createLaboratorio(data);
+  }
+
+  /**
+   * PUT /riparazioni/laboratori/:id
+   * Update laboratorio
+   */
+  @Put('laboratori/:id(\\d+)')
+  async updateLaboratorio(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateDto: any,
+  ) {
+    const data: Prisma.LaboratorioUpdateInput = {};
+    if (updateDto.nome !== undefined) data.nome = updateDto.nome;
+    if (updateDto.attivo !== undefined) data.attivo = updateDto.attivo;
+    return this.riparazioniService.updateLaboratorio(id, data);
+  }
+
+  /**
+   * DELETE /riparazioni/laboratori/:id
+   * Delete laboratorio
+   */
+  @Delete('laboratori/:id(\\d+)')
+  async deleteLaboratorio(@Param('id', ParseIntPipe) id: number) {
+    await this.riparazioniService.deleteLaboratorio(id);
+    return { message: 'Laboratorio eliminato con successo' };
+  }
+
+  /**
+   * POST /riparazioni/reparti
+   * Create reparto
+   */
+  @Post('reparti')
+  async createReparto(@Body() createDto: any) {
+    const data: Prisma.RepartoCreateInput = {
+      nome: createDto.nome,
+      ordine: createDto.ordine ?? 0,
+      attivo: createDto.attivo ?? true,
+    };
+    return this.riparazioniService.createReparto(data);
+  }
+
+  /**
+   * PUT /riparazioni/reparti/:id
+   * Update reparto
+   */
+  @Put('reparti/:id(\\d+)')
+  async updateReparto(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateDto: any,
+  ) {
+    const data: Prisma.RepartoUpdateInput = {};
+    if (updateDto.nome !== undefined) data.nome = updateDto.nome;
+    if (updateDto.ordine !== undefined) data.ordine = updateDto.ordine;
+    if (updateDto.attivo !== undefined) data.attivo = updateDto.attivo;
+    return this.riparazioniService.updateReparto(id, data);
+  }
+
+  /**
+   * DELETE /riparazioni/reparti/:id
+   * Delete reparto
+   */
+  @Delete('reparti/:id(\\d+)')
+  async deleteReparto(@Param('id', ParseIntPipe) id: number) {
+    await this.riparazioniService.deleteReparto(id);
+    return { message: 'Reparto eliminato con successo' };
+  }
+
+  /**
+   * POST /riparazioni/numerate
+   * Create numerata
+   */
+  @Post('numerate')
+  async createNumerata(@Body() createDto: any) {
+    const idNumerata = (createDto.idNumerata ?? '').toString().trim();
+    if (!idNumerata || idNumerata.length > 2) {
+      throw new BadRequestException('idNumerata deve avere massimo 2 caratteri');
+    }
+
+    const data: Prisma.NumerataCreateInput = {
+      idNumerata,
+      n01: createDto.n01,
+      n02: createDto.n02,
+      n03: createDto.n03,
+      n04: createDto.n04,
+      n05: createDto.n05,
+      n06: createDto.n06,
+      n07: createDto.n07,
+      n08: createDto.n08,
+      n09: createDto.n09,
+      n10: createDto.n10,
+      n11: createDto.n11,
+      n12: createDto.n12,
+      n13: createDto.n13,
+      n14: createDto.n14,
+      n15: createDto.n15,
+      n16: createDto.n16,
+      n17: createDto.n17,
+      n18: createDto.n18,
+      n19: createDto.n19,
+      n20: createDto.n20,
+    };
+    return this.riparazioniService.createNumerata(data);
+  }
+
+  /**
+   * PUT /riparazioni/numerate/:id
+   * Update numerata
+   */
+  @Put('numerate/:id(\\d+)')
+  async updateNumerata(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateDto: any,
+  ) {
+    const data: Prisma.NumerataUpdateInput = {};
+    if (updateDto.idNumerata !== undefined) {
+      const idNumerata = updateDto.idNumerata?.toString().trim() ?? '';
+      if (!idNumerata || idNumerata.length > 2) {
+        throw new BadRequestException('idNumerata deve avere massimo 2 caratteri');
+      }
+      data.idNumerata = idNumerata;
+    }
+    for (let i = 1; i <= 20; i++) {
+      const field = `n${String(i).padStart(2, '0')}`;
+      if (updateDto[field] !== undefined) {
+        data[field] = updateDto[field];
+      }
+    }
+    return this.riparazioniService.updateNumerata(id, data);
+  }
+
+  /**
+   * DELETE /riparazioni/numerate/:id
+   * Delete numerata
+   */
+  @Delete('numerate/:id(\\d+)')
+  async deleteNumerata(@Param('id', ParseIntPipe) id: number) {
+    await this.riparazioniService.deleteNumerata(id);
+    return { message: 'Numerata eliminata con successo' };
   }
 }

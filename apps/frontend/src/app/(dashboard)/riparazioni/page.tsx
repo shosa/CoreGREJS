@@ -209,7 +209,7 @@ export default function RiparazioniPage() {
           className="flex flex-col gap-4 lg:row-span-2"
         >
           <Link
-            href="/riparazioni/support/laboratori"
+            href="/riparazioni/laboratori"
             className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-800/10"></div>
@@ -234,7 +234,7 @@ export default function RiparazioniPage() {
           </Link>
 
           <Link
-            href="/riparazioni/support/reparti"
+            href="/riparazioni/reparti"
             className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/10 dark:to-green-800/10"></div>
@@ -259,7 +259,7 @@ export default function RiparazioniPage() {
           </Link>
 
           <Link
-            href="/riparazioni/support/numerate"
+            href="/riparazioni/numerate"
             className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-800/10"></div>

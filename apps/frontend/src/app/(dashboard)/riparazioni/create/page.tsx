@@ -1,305 +1,532 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import PageHeader from "@/components/layout/PageHeader";
-import Breadcrumb from "@/components/layout/Breadcrumb";
-import TaglieGrid from "@/components/riparazioni/TaglieGrid";
-import { riparazioniApi } from "@/lib/api";
-import { showError, showSuccess } from "@/store/notifications";
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { riparazioniApi } from '@/lib/api';
+import { showError, showSuccess } from '@/store/notifications';
+import PageHeader from '@/components/layout/PageHeader';
+import Breadcrumb from '@/components/layout/Breadcrumb';
 
-type Numerata = { id: number; n01?: string; n02?: string; [key: string]: any };
-type Option = { id: number; nome: string };
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
+};
 
-export default function RiparazioniCreatePage() {
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+};
+
+interface Laboratorio {
+  id: number;
+  nome: string;
+}
+
+interface Reparto {
+  id: number;
+  nome: string;
+}
+
+interface Numerata {
+  id: number;
+  n01?: string;
+  n02?: string;
+  n03?: string;
+  n04?: string;
+  n05?: string;
+  n06?: string;
+  n07?: string;
+  n08?: string;
+  n09?: string;
+  n10?: string;
+  n11?: string;
+  n12?: string;
+  n13?: string;
+  n14?: string;
+  n15?: string;
+  n16?: string;
+  n17?: string;
+  n18?: string;
+  n19?: string;
+  n20?: string;
+}
+
+interface ArticleData {
+  codiceArticolo: string;
+  descrizione: string;
+  cartellino: string;
+  commessa: string;
+  ragioneSociale: string;
+  totale: number;
+  numerataId: number;
+}
+
+export default function CreateRiparazionePage() {
   const router = useRouter();
+
+  // Step 1: Input cartellino/commessa
   const [step, setStep] = useState<1 | 2>(1);
-  const [cartellino, setCartellino] = useState("");
-  const [nextId, setNextId] = useState<string>("");
-  const [numerate, setNumerate] = useState<Numerata[]>([]);
-  const [laboratori, setLaboratori] = useState<Option[]>([]);
-  const [reparti, setReparti] = useState<Option[]>([]);
-  const [linee, setLinee] = useState<Option[]>([]);
-  const [selectedNumerata, setSelectedNumerata] = useState<number | null>(null);
-  const [form, setForm] = useState<any>({
-    laboratorioId: null,
-    repartoId: null,
-    lineaId: null,
-    causale: "",
-  });
-  const [taglie, setTaglie] = useState<Record<string, number>>(() => {
-    const initial: Record<string, number> = {};
-    for (let i = 1; i <= 20; i++) initial[`p${String(i).padStart(2, "0")}`] = 0;
-    return initial;
-  });
-  const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [cartellinoInput, setCartellinoInput] = useState('');
+
+  // Step 2: Form data
+  const [articleData, setArticleData] = useState<ArticleData | null>(null);
+  const [numerata, setNumerata] = useState<Numerata | null>(null);
+  const [laboratori, setLaboratori] = useState<Laboratorio[]>([]);
+  const [reparti, setReparti] = useState<Reparto[]>([]);
+
+  const [laboratorioId, setLaboratorioId] = useState<number | null>(null);
+  const [repartoId, setRepartoId] = useState<number | null>(null);
+  const [causale, setCausale] = useState('');
+
+  // Taglie p01-p20
+  const [taglie, setTaglie] = useState<Record<string, number>>({});
+
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    loadSupport();
+    fetchSupportData();
   }, []);
 
-  const loadSupport = async () => {
+  const fetchSupportData = async () => {
     try {
-      const [idData, numerateData, labData, repData, lineeData] = await Promise.all([
-        riparazioniApi.getNextId(),
-        riparazioniApi.getNumerate(),
+      const [labData, repData] = await Promise.all([
         riparazioniApi.getLaboratori(),
         riparazioniApi.getReparti(),
-        riparazioniApi.getLinee(),
       ]);
-      setNextId(idData?.nextId || idData?.idRiparazione || "");
-      setNumerate(numerateData || []);
-      setLaboratori(labData || []);
-      setReparti(repData || []);
-      setLinee(lineeData || []);
+      setLaboratori(labData);
+      setReparti(repData);
     } catch (error) {
-      console.error("Errore caricamento dati supporto", error);
-      showError("Errore caricamento dati supporto");
+      showError('Errore nel caricamento dei dati');
     }
   };
 
-  const totalPairs = useMemo(() => {
-    return Object.values(taglie).reduce((sum, v) => sum + (Number(v) || 0), 0);
-  }, [taglie]);
-
-  const handleNext = () => {
-    if (!cartellino.trim()) {
-      showError("Inserisci il cartellino");
-      return;
-    }
-    setStep(2);
-  };
-
-  const handleSubmit = async () => {
-    if (!selectedNumerata) {
-      showError("Seleziona una numerata");
-      return;
-    }
-    if (!form.laboratorioId || !form.repartoId) {
-      showError("Seleziona laboratorio e reparto");
-      return;
-    }
-    if (totalPairs === 0) {
-      showError("Inserisci almeno una quantità");
+  const handleSearchCartellino = async () => {
+    if (!cartellinoInput.trim()) {
+      showError('Inserisci un cartellino o commessa');
       return;
     }
 
-    setLoading(true);
     try {
-      const payload: any = {
-        idRiparazione: nextId,
-        cartellino,
-        numerataId: selectedNumerata,
-        laboratorioId: form.laboratorioId,
-        repartoId: form.repartoId,
-        lineaId: form.lineaId,
-        causale: form.causale,
-        ...taglie,
+      setSearching(true);
+
+      // TODO: Chiamata API per recuperare dati articolo da core_dati
+      // Per ora simulo con dati fake - sostituire con vera chiamata API
+      // const response = await fetch(`/api/core-dati/${cartellinoInput}`);
+      // const data = await response.json();
+
+      // SIMULAZIONE - SOSTITUIRE CON VERA API
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      const mockData: ArticleData = {
+        codiceArticolo: 'ART123',
+        descrizione: 'Scarpa modello XYZ',
+        cartellino: cartellinoInput,
+        commessa: 'COM456',
+        ragioneSociale: 'Cliente Test S.r.l.',
+        totale: 120,
+        numerataId: 1, // ID della numerata da usare
       };
-      const result = await riparazioniApi.createRiparazione(payload);
-      showSuccess("Riparazione creata");
-      router.push(`/riparazioni/${result.id}`);
+
+      // Carica numerata
+      const numerataData = await riparazioniApi.getNumerata(mockData.numerataId);
+
+      setArticleData(mockData);
+      setNumerata(numerataData);
+
+      // Inizializza taglie a 0
+      const initialTaglie: Record<string, number> = {};
+      for (let i = 1; i <= 20; i++) {
+        const field = `p${String(i).padStart(2, '0')}`;
+        initialTaglie[field] = 0;
+      }
+      setTaglie(initialTaglie);
+
+      setStep(2);
     } catch (error) {
-      console.error("Errore creazione riparazione", error);
-      showError("Errore creazione riparazione");
+      showError('Articolo non trovato');
     } finally {
-      setLoading(false);
+      setSearching(false);
     }
   };
+
+  const handleTagliaChange = (field: string, value: string) => {
+    const numValue = parseInt(value) || 0;
+    setTaglie(prev => ({ ...prev, [field]: numValue }));
+  };
+
+  const handleCreate = async () => {
+    if (!articleData) return;
+
+    if (!laboratorioId) {
+      showError('Seleziona un laboratorio');
+      return;
+    }
+
+    try {
+      setCreating(true);
+
+      const nextId = await riparazioniApi.getNextId();
+
+      await riparazioniApi.createRiparazione({
+        idRiparazione: nextId.idRiparazione,
+        cartellino: articleData.cartellino,
+        numerataId: articleData.numerataId,
+        laboratorioId,
+        repartoId: repartoId || undefined,
+        causale: causale || undefined,
+        data: new Date().toISOString(),
+        ...taglie, // Spread p01-p20
+      });
+
+      showSuccess('Riparazione creata con successo!');
+      router.push('/riparazioni/list');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore nella creazione della riparazione');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const calculateTotal = () => {
+    return Object.values(taglie).reduce((sum, val) => sum + val, 0);
+  };
+
+  // Build taglie display array
+  const taglieArray: Array<{ field: string; nome: string; qta: number }> = [];
+  if (numerata) {
+    for (let i = 1; i <= 20; i++) {
+      const pField = `p${String(i).padStart(2, '0')}`;
+      const nField = `n${String(i).padStart(2, '0')}` as keyof Numerata;
+      const nome = numerata[nField] || `T${i}`;
+      const qta = taglie[pField] || 0;
+
+      if (nome && nome !== '') {
+        taglieArray.push({ field: pField, nome: String(nome), qta });
+      }
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-10 dark:bg-gray-900">
-      <PageHeader title="Nuova Riparazione" subtitle="Workflow a 2 step" />
+    <motion.div initial="hidden" animate="visible" variants={containerVariants}>
+      <PageHeader
+        title="Nuova Riparazione"
+        subtitle="Creazione riparazione esterna"
+      />
+
       <Breadcrumb
         items={[
-          { label: "Dashboard", href: "/", icon: "fa-home" },
-          { label: "Riparazioni", href: "/riparazioni" },
-          { label: "Nuova" },
+          { label: 'Dashboard', href: '/', icon: 'fa-home' },
+          { label: 'Riparazioni', href: '/riparazioni' },
+          { label: 'Nuova Riparazione' },
         ]}
       />
 
-      <div className="mx-auto max-w-5xl px-4">
-        <div className="mb-6 flex gap-2 text-sm">
-          <span className={`rounded-full px-3 py-1 ${step === 1 ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200"}`}>
-            1. Cartellino
-          </span>
-          <span className={`rounded-full px-3 py-1 ${step === 2 ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200"}`}>
-            2. Dettagli
-          </span>
-        </div>
-
-        {step === 1 && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/40">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
-              Cartellino
-            </label>
-            <input
-              value={cartellino}
-              onChange={(e) => setCartellino(e.target.value)}
-              placeholder="Inserisci numero cartellino"
-              className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 text-lg font-semibold tracking-widest text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-            />
-            <div className="mt-4 flex justify-end">
-              <button
-                onClick={handleNext}
-                className="rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm"
-              >
-                Continua
-              </button>
+      <AnimatePresence mode="wait">
+        {step === 1 ? (
+          /* STEP 1: Input Cartellino/Commessa */
+          <motion.div
+            key="step1"
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={itemVariants}
+            className="rounded-2xl border border-gray-200 bg-white p-8 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm max-w-2xl mx-auto"
+          >
+            <div className="text-center mb-8">
+              <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg mb-4">
+                <i className="fas fa-barcode text-white text-2xl"></i>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                Ricerca Articolo
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Inserisci il cartellino o la commessa per caricare i dettagli
+              </p>
             </div>
-          </div>
-        )}
 
-        {step === 2 && (
-          <div className="space-y-6">
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/40">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                    ID Riparazione
-                  </label>
-                  <input
-                    value={nextId}
-                    readOnly
-                    className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                    Cartellino
-                  </label>
-                  <input
-                    value={cartellino}
-                    readOnly
-                    className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                    Numerata
-                  </label>
-                  <select
-                    value={selectedNumerata || ""}
-                    onChange={(e) => setSelectedNumerata(e.target.value ? Number(e.target.value) : null)}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                  >
-                    <option value="">Seleziona</option>
-                    {numerate.map((n) => (
-                      <option key={n.id} value={n.id}>
-                        {n.id} - {n.n01 || "Numerata"}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                    Laboratorio
-                  </label>
-                  <select
-                    value={form.laboratorioId || ""}
-                    onChange={(e) =>
-                      setForm({ ...form, laboratorioId: e.target.value ? Number(e.target.value) : null })
-                    }
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                  >
-                    <option value="">Seleziona</option>
-                    {laboratori.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                    Reparto
-                  </label>
-                  <select
-                    value={form.repartoId || ""}
-                    onChange={(e) =>
-                      setForm({ ...form, repartoId: e.target.value ? Number(e.target.value) : null })
-                    }
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                  >
-                    <option value="">Seleziona</option>
-                    {reparti.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                    Linea
-                  </label>
-                  <select
-                    value={form.lineaId || ""}
-                    onChange={(e) =>
-                      setForm({ ...form, lineaId: e.target.value ? Number(e.target.value) : null })
-                    }
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                  >
-                    <option value="">Seleziona</option>
-                    {linee.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                  Causale
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Cartellino / Commessa *
                 </label>
-                <textarea
-                  value={form.causale}
-                  onChange={(e) => setForm({ ...form, causale: e.target.value })}
-                  rows={3}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                <input
+                  type="text"
+                  value={cartellinoInput}
+                  onChange={(e) => setCartellinoInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearchCartellino()}
+                  placeholder="Inserisci cartellino o commessa..."
+                  autoFocus
+                  className="w-full px-4 py-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-lg font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  <i className="fas fa-info-circle mr-1"></i>
+                  Premi Invio o clicca "Cerca" per continuare
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => router.push('/riparazioni/list')}
+                  className="flex-1 px-6 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
+                >
+                  <i className="fas fa-times mr-2"></i>
+                  Annulla
+                </button>
+
+                <button
+                  onClick={handleSearchCartellino}
+                  disabled={searching || !cartellinoInput.trim()}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  {searching ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin mr-2"></i>
+                      Ricerca...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-search mr-2"></i>
+                      Cerca
+                    </>
+                  )}
+                </button>
               </div>
             </div>
+          </motion.div>
+        ) : (
+          /* STEP 2: Form con dettagli e taglie */
+          <motion.div
+            key="step2"
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={containerVariants}
+            className="space-y-6 max-w-6xl mx-auto"
+          >
+            {/* Dettagli Articolo */}
+            <motion.div
+              variants={itemVariants}
+              className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
+                  <i className="fas fa-info-circle text-blue-500 mr-2"></i>
+                  Dettagli Articolo
+                </h3>
+                <button
+                  onClick={() => {
+                    setStep(1);
+                    setArticleData(null);
+                    setNumerata(null);
+                    setCartellinoInput('');
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                >
+                  <i className="fas fa-edit mr-1"></i>
+                  Cambia articolo
+                </button>
+              </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/40">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Taglie</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Totale paia: <span className="font-semibold">{totalPairs}</span>
-                  </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50">
+                  <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
+                    Codice Articolo
+                  </div>
+                  <div className="text-sm font-mono font-bold text-gray-900 dark:text-white">
+                    {articleData?.codiceArticolo}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50">
+                  <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
+                    Descrizione
+                  </div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    {articleData?.descrizione}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50">
+                  <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
+                    Cartellino
+                  </div>
+                  <div className="text-sm font-mono font-bold text-gray-900 dark:text-white">
+                    {articleData?.cartellino}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50">
+                  <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
+                    Commessa
+                  </div>
+                  <div className="text-sm font-mono text-gray-900 dark:text-white">
+                    {articleData?.commessa}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50">
+                  <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
+                    Ragione Sociale
+                  </div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    {articleData?.ragioneSociale}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
+                  <div className="text-xs uppercase tracking-wide text-blue-600 dark:text-blue-400 mb-1">
+                    Totale Paia
+                  </div>
+                  <div className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                    {articleData?.totale}
+                  </div>
                 </div>
               </div>
-              <TaglieGrid
-                numerata={numerate.find((n) => n.id === selectedNumerata)}
-                values={taglie}
-                onChange={(field, value) => setTaglie({ ...taglie, [field]: value })}
-              />
-            </div>
+            </motion.div>
 
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setStep(1)}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-              >
-                Indietro
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm disabled:opacity-50"
-              >
-                {loading ? "Salvataggio..." : "Salva riparazione"}
-              </button>
-            </div>
-          </div>
+            {/* Griglia Taglie */}
+            <motion.div
+              variants={itemVariants}
+              className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
+            >
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i className="fas fa-ruler text-blue-500 mr-2"></i>
+                Taglie da Riparare
+              </h3>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
+                {taglieArray.map((taglia) => (
+                  <div key={taglia.field} className="space-y-1">
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
+                      {taglia.nome}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={taglia.qta}
+                      onChange={(e) => handleTagliaChange(taglia.field, e.target.value)}
+                      className="w-full px-3 py-2 text-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="text-right pt-4 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Totale da riparare:</span>
+                <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                  {calculateTotal()} paia
+                </span>
+              </div>
+            </motion.div>
+
+            {/* Form Riparazione */}
+            <motion.div
+              variants={itemVariants}
+              className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
+            >
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i className="fas fa-cogs text-blue-500 mr-2"></i>
+                Dati Riparazione
+              </h3>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Laboratorio */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <i className="fas fa-flask text-blue-500 mr-1"></i>
+                      Laboratorio (Destinazione) *
+                    </label>
+                    <select
+                      value={laboratorioId || ''}
+                      onChange={(e) => setLaboratorioId(parseInt(e.target.value))}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Seleziona laboratorio...</option>
+                      {laboratori.map((lab) => (
+                        <option key={lab.id} value={lab.id}>
+                          {lab.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Reparto */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <i className="fas fa-industry text-blue-500 mr-1"></i>
+                      Reparto (Origine)
+                    </label>
+                    <select
+                      value={repartoId || ''}
+                      onChange={(e) => setRepartoId(parseInt(e.target.value))}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Seleziona reparto...</option>
+                      {reparti.map((rep) => (
+                        <option key={rep.id} value={rep.id}>
+                          {rep.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Causale */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <i className="fas fa-exclamation-circle text-orange-500 mr-1"></i>
+                    Causale
+                  </label>
+                  <textarea
+                    value={causale}
+                    onChange={(e) => setCausale(e.target.value)}
+                    placeholder="Descrivi il problema o la causale della riparazione..."
+                    rows={4}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="mt-6 flex gap-4 justify-end">
+                <button
+                  onClick={() => {
+                    setStep(1);
+                    setArticleData(null);
+                    setNumerata(null);
+                    setCartellinoInput('');
+                  }}
+                  className="px-6 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
+                >
+                  <i className="fas fa-arrow-left mr-2"></i>
+                  Indietro
+                </button>
+
+                <button
+                  onClick={handleCreate}
+                  disabled={creating || !laboratorioId || calculateTotal() === 0}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  {creating ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin mr-2"></i>
+                      Creazione...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-check-circle mr-2"></i>
+                      Crea Riparazione
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
-      </div>
-    </div>
+      </AnimatePresence>
+    </motion.div>
   );
 }
