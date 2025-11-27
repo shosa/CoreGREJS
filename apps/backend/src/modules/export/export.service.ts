@@ -1,8 +1,12 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
-import * as fs from 'fs';
-import * as path from 'path';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { Prisma } from "@prisma/client";
+import * as fs from "fs";
+import * as path from "path";
 
 @Injectable()
 export class ExportService {
@@ -23,7 +27,7 @@ export class ExportService {
 
     return this.prisma.exportArticleMaster.findMany({
       where,
-      orderBy: { codiceArticolo: 'asc' },
+      orderBy: { codiceArticolo: "asc" },
     });
   }
 
@@ -34,7 +38,7 @@ export class ExportService {
     });
 
     if (!article) {
-      throw new NotFoundException('Articolo non trovato');
+      throw new NotFoundException("Articolo non trovato");
     }
 
     return article;
@@ -56,7 +60,7 @@ export class ExportService {
     // Check duplicati
     const existing = await this.getArticleMasterByCode(data.codiceArticolo);
     if (existing) {
-      throw new BadRequestException('Codice articolo già esistente');
+      throw new BadRequestException("Codice articolo già esistente");
     }
 
     return this.prisma.exportArticleMaster.create({
@@ -70,20 +74,26 @@ export class ExportService {
     });
   }
 
-  async updateArticleMaster(id: number, data: Partial<{
-    codiceArticolo: string;
-    descrizione: string;
-    voceDoganale: string;
-    um: string;
-    prezzoUnitario: number;
-  }>) {
+  async updateArticleMaster(
+    id: number,
+    data: Partial<{
+      codiceArticolo: string;
+      descrizione: string;
+      voceDoganale: string;
+      um: string;
+      prezzoUnitario: number;
+    }>
+  ) {
     const existing = await this.getArticleMasterById(id);
 
     // Se cambio codice, verifica unicità
-    if (data.codiceArticolo && data.codiceArticolo !== existing.codiceArticolo) {
+    if (
+      data.codiceArticolo &&
+      data.codiceArticolo !== existing.codiceArticolo
+    ) {
       const duplicate = await this.getArticleMasterByCode(data.codiceArticolo);
       if (duplicate) {
-        throw new BadRequestException('Codice articolo già esistente');
+        throw new BadRequestException("Codice articolo già esistente");
       }
     }
 
@@ -101,12 +111,12 @@ export class ExportService {
     });
 
     if (!article) {
-      throw new NotFoundException('Articolo non trovato');
+      throw new NotFoundException("Articolo non trovato");
     }
 
     if (article.righe.length > 0) {
       throw new BadRequestException(
-        `Impossibile eliminare: articolo usato in ${article.righe.length} righe DDT`,
+        `Impossibile eliminare: articolo usato in ${article.righe.length} righe DDT`
       );
     }
 
@@ -120,7 +130,7 @@ export class ExportService {
   async getAllTerzisti(onlyActive = true) {
     return this.prisma.exportTerzista.findMany({
       where: onlyActive ? { attivo: true } : undefined,
-      orderBy: { ragioneSociale: 'asc' },
+      orderBy: { ragioneSociale: "asc" },
     });
   }
 
@@ -129,14 +139,14 @@ export class ExportService {
       where: { id },
       include: {
         documenti: {
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           take: 10, // ultimi 10 DDT
         },
       },
     });
 
     if (!terzista) {
-      throw new NotFoundException('Terzista non trovato');
+      throw new NotFoundException("Terzista non trovato");
     }
 
     return terzista;
@@ -156,16 +166,19 @@ export class ExportService {
     });
   }
 
-  async updateTerzista(id: number, data: Partial<{
-    ragioneSociale: string;
-    indirizzo1: string;
-    indirizzo2: string;
-    indirizzo3: string;
-    nazione: string;
-    consegna: string;
-    autorizzazione: string;
-    attivo: boolean;
-  }>) {
+  async updateTerzista(
+    id: number,
+    data: Partial<{
+      ragioneSociale: string;
+      indirizzo1: string;
+      indirizzo2: string;
+      indirizzo3: string;
+      nazione: string;
+      consegna: string;
+      autorizzazione: string;
+      attivo: boolean;
+    }>
+  ) {
     await this.getTerzistaById(id); // Check exists
 
     return this.prisma.exportTerzista.update({
@@ -182,12 +195,12 @@ export class ExportService {
     });
 
     if (!terzista) {
-      throw new NotFoundException('Terzista non trovato');
+      throw new NotFoundException("Terzista non trovato");
     }
 
     if (terzista.documenti.length > 0) {
       throw new BadRequestException(
-        `Impossibile eliminare: terzista usato in ${terzista.documenti.length} DDT`,
+        `Impossibile eliminare: terzista usato in ${terzista.documenti.length} DDT`
       );
     }
 
@@ -249,7 +262,7 @@ export class ExportService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
@@ -261,22 +274,23 @@ export class ExportService {
         righe: {
           include: { article: true },
           orderBy: [
-            { isMancante: 'asc' }, // Prima normali, poi mancanti
-            { createdAt: 'asc' },
+            { isMancante: "asc" }, // Prima normali, poi mancanti
+            { createdAt: "asc" },
           ],
         },
         piede: true,
         mancanti: {
-          orderBy: { codiceArticolo: 'asc' },
+          include: { article: true },
+          orderBy: { article: { codiceArticolo: "asc" } },
         },
         lanci: {
-          orderBy: { lancio: 'asc' },
+          orderBy: { lancio: "asc" },
         },
       },
     });
 
     if (!document) {
-      throw new NotFoundException('Documento non trovato');
+      throw new NotFoundException("Documento non trovato");
     }
 
     return document;
@@ -295,7 +309,7 @@ export class ExportService {
     });
 
     if (existing) {
-      throw new BadRequestException('Progressivo già esistente');
+      throw new BadRequestException("Progressivo già esistente");
     }
 
     // Check terzista exists
@@ -308,7 +322,7 @@ export class ExportService {
         data: new Date(data.data),
         autorizzazione: data.autorizzazione,
         commento: data.commento,
-        stato: 'Aperto',
+        stato: "Aperto",
         firstBoot: true,
       },
       include: {
@@ -317,14 +331,17 @@ export class ExportService {
     });
   }
 
-  async updateDocument(progressivo: string, data: Partial<{
-    terzistaId: number;
-    data: string;
-    stato: string;
-    autorizzazione: string;
-    commento: string;
-    firstBoot: boolean;
-  }>) {
+  async updateDocument(
+    progressivo: string,
+    data: Partial<{
+      terzistaId: number;
+      data: string;
+      stato: string;
+      autorizzazione: string;
+      commento: string;
+      firstBoot: boolean;
+    }>
+  ) {
     await this.getDocumentByProgressivo(progressivo); // Check exists
 
     const updateData: any = {};
@@ -371,7 +388,13 @@ export class ExportService {
     await this.getDocumentByProgressivo(progressivo); // Check exists
 
     // Delete Excel files directory
-    const srcDir = path.join(process.cwd(), 'storage', 'export', 'src', progressivo);
+    const srcDir = path.join(
+      process.cwd(),
+      "storage",
+      "export",
+      "src",
+      progressivo
+    );
     if (fs.existsSync(srcDir)) {
       fs.rmSync(srcDir, { recursive: true, force: true });
     }
@@ -382,11 +405,11 @@ export class ExportService {
   }
 
   async closeDocument(progressivo: string) {
-    return this.updateDocument(progressivo, { stato: 'Chiuso' });
+    return this.updateDocument(progressivo, { stato: "Chiuso" });
   }
 
   async reopenDocument(progressivo: string) {
-    return this.updateDocument(progressivo, { stato: 'Aperto' });
+    return this.updateDocument(progressivo, { stato: "Aperto" });
   }
 
   // ==================== RIGHE DOCUMENTO ====================
@@ -412,9 +435,9 @@ export class ExportService {
       data: {
         documentoId: data.documentoId,
         articleId: data.articleId,
-        qtaOriginale: data.qtaOriginale,
-        qtaReale: data.qtaReale || data.qtaOriginale,
-        tipoRiga: data.articleId ? 'articolo' : 'libera',
+        qtaOriginale: Number(data.qtaOriginale),
+        qtaReale: Number(data.qtaReale ?? data.qtaOriginale),
+        tipoRiga: data.articleId ? "articolo" : "libera",
         codiceLibero: data.codiceLibero,
         descrizioneLibera: data.descrizioneLibera,
         voceLibera: data.voceLibera,
@@ -427,20 +450,23 @@ export class ExportService {
     });
   }
 
-  async updateDocumentItem(id: number, data: {
-    qtaOriginale?: number;
-    qtaReale?: number;
-    // Per righe libere
-    codiceLibero?: string;
-    descrizioneLibera?: string;
-    voceLibera?: string;
-    umLibera?: string;
-    prezzoLibero?: number;
-    // Per aggiornare il master article
-    descrizione?: string;
-    voceDoganale?: string;
-    prezzoUnitario?: number;
-  }) {
+  async updateDocumentItem(
+    id: number,
+    data: {
+      qtaOriginale?: number;
+      qtaReale?: number;
+      // Per righe libere
+      codiceLibero?: string;
+      descrizioneLibera?: string;
+      voceLibera?: string;
+      umLibera?: string;
+      prezzoLibero?: number;
+      // Per aggiornare il master article
+      descrizione?: string;
+      voceDoganale?: string;
+      prezzoUnitario?: number;
+    }
+  ) {
     // Prima recupera l'item per sapere se è collegato a un master
     const item = await this.prisma.exportDocumentItem.findUnique({
       where: { id },
@@ -451,16 +477,24 @@ export class ExportService {
     });
 
     if (!item) {
-      throw new Error('Document item not found');
+      throw new Error("Document item not found");
     }
 
     // Se è un articolo master E ci sono campi master da aggiornare
-    if (item.articleId && (data.descrizione !== undefined || data.voceDoganale !== undefined || data.prezzoUnitario !== undefined)) {
+    if (
+      item.articleId &&
+      (data.descrizione !== undefined ||
+        data.voceDoganale !== undefined ||
+        data.prezzoUnitario !== undefined)
+    ) {
       // Aggiorna il master article
       const masterUpdateData: any = {};
-      if (data.descrizione !== undefined) masterUpdateData.descrizione = data.descrizione;
-      if (data.voceDoganale !== undefined) masterUpdateData.voceDoganale = data.voceDoganale;
-      if (data.prezzoUnitario !== undefined) masterUpdateData.prezzoUnitario = data.prezzoUnitario;
+      if (data.descrizione !== undefined)
+        masterUpdateData.descrizione = data.descrizione;
+      if (data.voceDoganale !== undefined)
+        masterUpdateData.voceDoganale = data.voceDoganale;
+      if (data.prezzoUnitario !== undefined)
+        masterUpdateData.prezzoUnitario = data.prezzoUnitario;
 
       await this.prisma.exportArticleMaster.update({
         where: { id: item.articleId },
@@ -470,13 +504,18 @@ export class ExportService {
 
     // Aggiorna l'item del documento (qtaReale, qtaOriginale, campi liberi)
     const itemUpdateData: any = {};
-    if (data.qtaOriginale !== undefined) itemUpdateData.qtaOriginale = data.qtaOriginale;
+    if (data.qtaOriginale !== undefined)
+      itemUpdateData.qtaOriginale = data.qtaOriginale;
     if (data.qtaReale !== undefined) itemUpdateData.qtaReale = data.qtaReale;
-    if (data.codiceLibero !== undefined) itemUpdateData.codiceLibero = data.codiceLibero;
-    if (data.descrizioneLibera !== undefined) itemUpdateData.descrizioneLibera = data.descrizioneLibera;
-    if (data.voceLibera !== undefined) itemUpdateData.voceLibera = data.voceLibera;
+    if (data.codiceLibero !== undefined)
+      itemUpdateData.codiceLibero = data.codiceLibero;
+    if (data.descrizioneLibera !== undefined)
+      itemUpdateData.descrizioneLibera = data.descrizioneLibera;
+    if (data.voceLibera !== undefined)
+      itemUpdateData.voceLibera = data.voceLibera;
     if (data.umLibera !== undefined) itemUpdateData.umLibera = data.umLibera;
-    if (data.prezzoLibero !== undefined) itemUpdateData.prezzoLibero = data.prezzoLibero;
+    if (data.prezzoLibero !== undefined)
+      itemUpdateData.prezzoLibero = data.prezzoLibero;
 
     const updatedItem = await this.prisma.exportDocumentItem.update({
       where: { id },
@@ -502,20 +541,16 @@ export class ExportService {
   private async syncMissingDataForItem(item: any) {
     const qtaDifference = item.qtaOriginale - item.qtaReale;
 
-    // Determina codice e descrizione articolo
-    const codiceArticolo = item.tipoRiga === 'articolo' && item.article
-      ? item.article.codiceArticolo
-      : item.codiceLibero || 'N/A';
-
-    const descrizione = item.tipoRiga === 'articolo' && item.article
-      ? item.article.descrizione
-      : item.descrizioneLibera;
+    // Solo per righe di tipo articolo possiamo creare mancanti
+    if (item.tipoRiga !== "articolo" || !item.articleId) {
+      return;
+    }
 
     // Cerca se esiste già un mancante per questo articolo
     const existingMissing = await this.prisma.exportMissingData.findFirst({
       where: {
         documentoId: item.documentoId,
-        codiceArticolo: codiceArticolo,
+        articleId: item.articleId,
       },
     });
 
@@ -526,16 +561,14 @@ export class ExportService {
           where: { id: existingMissing.id },
           data: {
             qtaMancante: qtaDifference,
-            descrizione: descrizione,
           },
         });
       } else {
         await this.prisma.exportMissingData.create({
           data: {
             documentoId: item.documentoId,
-            codiceArticolo: codiceArticolo,
+            articleId: item.articleId,
             qtaMancante: qtaDifference,
-            descrizione: descrizione,
           },
         });
       }
@@ -557,15 +590,18 @@ export class ExportService {
 
   // ==================== PIEDE DOCUMENTO ====================
 
-  async upsertDocumentFooter(documentoId: number, data: {
-    aspettoColli?: string;
-    nColli?: number;
-    totPesoLordo?: number;
-    totPesoNetto?: number;
-    trasportatore?: string;
-    consegnatoPer?: string;
-    vociDoganali?: Array<{ voce: string; peso: number }>;
-  }) {
+  async upsertDocumentFooter(
+    documentoId: number,
+    data: {
+      aspettoColli?: string;
+      nColli?: number;
+      totPesoLordo?: number;
+      totPesoNetto?: number;
+      trasportatore?: string;
+      consegnatoPer?: string;
+      vociDoganali?: Array<{ voce: string; peso: number }>;
+    }
+  ) {
     const existing = await this.prisma.exportDocumentFooter.findUnique({
       where: { documentoId },
     });
@@ -606,17 +642,18 @@ export class ExportService {
 
   // ==================== MANCANTI ====================
 
-  async addMissingData(documentoId: number, data: {
-    codiceArticolo: string;
-    qtaMancante: number;
-    descrizione?: string;
-  }) {
+  async addMissingData(
+    documentoId: number,
+    data: {
+      articleId: number;
+      qtaMancante: number;
+    }
+  ) {
     return this.prisma.exportMissingData.create({
       data: {
         documentoId,
-        codiceArticolo: data.codiceArticolo,
+        articleId: data.articleId,
         qtaMancante: data.qtaMancante,
-        descrizione: data.descrizione,
       },
     });
   }
@@ -624,8 +661,46 @@ export class ExportService {
   async getMissingDataForDocument(documentoId: number) {
     return this.prisma.exportMissingData.findMany({
       where: { documentoId },
-      orderBy: { codiceArticolo: 'asc' },
+      include: {
+        article: true,
+      },
+      orderBy: { article: { codiceArticolo: "asc" } },
     });
+  }
+
+  async getMissingDataFromClosedDocuments(terzistaId: number) {
+    // Trova tutti i documenti chiusi del terzista
+    const closedDocs = await this.prisma.exportDocument.findMany({
+      where: {
+        terzistaId,
+        stato: "Chiuso",
+      },
+      select: { id: true, progressivo: true, data: true },
+    });
+
+    const docIds = closedDocs.map((d) => d.id);
+
+    // Trova tutti i mancanti di questi documenti
+    const mancanti = await this.prisma.exportMissingData.findMany({
+      where: {
+        documentoId: { in: docIds },
+      },
+      include: {
+        documento: {
+          select: {
+            progressivo: true,
+            data: true,
+          },
+        },
+        article: true,
+      },
+      orderBy: [
+        { documento: { data: "desc" } },
+        { article: { codiceArticolo: "asc" } },
+      ],
+    });
+
+    return mancanti;
   }
 
   async deleteMissingData(id: number) {
@@ -636,12 +711,15 @@ export class ExportService {
 
   // ==================== LANCI ====================
 
-  async addLaunchData(documentoId: number, data: {
-    lancio: string;
-    articolo: string;
-    paia: number;
-    note?: string;
-  }) {
+  async addLaunchData(
+    documentoId: number,
+    data: {
+      lancio: string;
+      articolo: string;
+      paia: number;
+      note?: string;
+    }
+  ) {
     return this.prisma.exportLaunchData.create({
       data: {
         documentoId,
@@ -656,7 +734,7 @@ export class ExportService {
   async getLaunchDataForDocument(documentoId: number) {
     return this.prisma.exportLaunchData.findMany({
       where: { documentoId },
-      orderBy: { lancio: 'asc' },
+      orderBy: { lancio: "asc" },
     });
   }
 
@@ -677,7 +755,7 @@ export class ExportService {
     });
 
     if (allDocuments.length === 0) {
-      return '1';
+      return "1";
     }
 
     // Converte tutti i progressivi in numeri e trova il massimo

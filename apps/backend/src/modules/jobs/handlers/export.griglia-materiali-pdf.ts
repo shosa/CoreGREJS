@@ -159,7 +159,7 @@ const handler: JobHandler = async (payload, helpers) => {
 
     for (const mancante of document.mancanti) {
       ensureSpace(15);
-      doc.text(`${mancante.codiceArticolo}: ${mancante.descrizione || '-'} - Qta: ${mancante.qtaMancante}`, startX, doc.y);
+      doc.text(`${mancante.article?.codiceArticolo || '-'}: ${mancante.article?.descrizione || '-'} - Qta: ${mancante.qtaMancante}`, startX, doc.y);
       doc.moveDown(0.2);
     }
   }
@@ -178,9 +178,21 @@ const handler: JobHandler = async (payload, helpers) => {
 
       doc.fillColor('#333333').fontSize(8).font('Helvetica');
 
-      for (const voceData of voci) {
+      // Separa SOTTOPIEDI dalle altre voci
+      const sottopiedi = voci.find(v => v.voce === 'SOTTOPIEDI');
+      const altreVoci = voci.filter(v => v.voce !== 'SOTTOPIEDI');
+
+      // Stampa prima le voci normali
+      for (const voceData of altreVoci) {
         ensureSpace(15);
         doc.text(`${voceData.voce}: ${voceData.peso.toFixed(2)} kg`, startX, doc.y);
+        doc.moveDown(0.2);
+      }
+
+      // Stampa SOTTOPIEDI per ultimo con formato speciale
+      if (sottopiedi) {
+        ensureSpace(15);
+        doc.text(`SOTTOPIEDI N.C. 56031480 PESO NETTO KG ${sottopiedi.peso.toFixed(2)}`, startX, doc.y);
         doc.moveDown(0.2);
       }
     }

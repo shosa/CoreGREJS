@@ -259,9 +259,8 @@ export class ExportController {
   @Post('missing-data')
   async addMissingData(@Body() data: {
     documentoId: number;
-    codiceArticolo: string;
+    articleId: number;
     qtaMancante: number;
-    descrizione?: string;
   }) {
     return this.exportService.addMissingData(data.documentoId, data);
   }
@@ -269,6 +268,11 @@ export class ExportController {
   @Get('missing-data/:documentoId')
   async getMissingDataForDocument(@Param('documentoId') documentoId: string) {
     return this.exportService.getMissingDataForDocument(parseInt(documentoId));
+  }
+
+  @Get('missing-data-from-closed/:terzistaId')
+  async getMissingDataFromClosedDocuments(@Param('terzistaId') terzistaId: string) {
+    return this.exportService.getMissingDataFromClosedDocuments(parseInt(terzistaId));
   }
 
   @Delete('missing-data/:id')

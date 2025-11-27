@@ -184,7 +184,7 @@ export default function ArchivePage() {
             {/* Search */}
             <div className="md:col-span-6">
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                <i className="fas fa-search text-orange-500 mr-1"></i>
+                <i className="fas fa-search text-blue-500 mr-1"></i>
                 Ricerca
               </label>
               <div className="relative">
@@ -193,7 +193,7 @@ export default function ArchivePage() {
                   placeholder="Progressivo, terzista..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
                 {searchTerm && (
                   <button
@@ -209,14 +209,14 @@ export default function ArchivePage() {
             {/* Date From */}
             <div className="md:col-span-3">
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                <i className="fas fa-calendar text-orange-500 mr-1"></i>
+                <i className="fas fa-calendar text-blue-500 mr-1"></i>
                 Da
               </label>
               <input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full px-2 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full px-2 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
@@ -229,7 +229,7 @@ export default function ArchivePage() {
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="w-full px-2 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full px-2 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
           </div>
@@ -239,13 +239,13 @@ export default function ArchivePage() {
             {/* Terzista - stesso span della ricerca (6 colonne) */}
             <div className="md:col-span-6">
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                <i className="fas fa-building text-orange-500 mr-1"></i>
+                <i className="fas fa-building text-blue-500 mr-1"></i>
                 Terzista
               </label>
               <select
                 value={terzistaFilter}
                 onChange={(e) => setTerzistaFilter(e.target.value)}
-                className="w-full px-2 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full px-2 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Tutti</option>
                 {terzisti.map((t) => (
@@ -259,7 +259,7 @@ export default function ArchivePage() {
             {/* Documenti Chiusi */}
             <div className="md:col-span-4">
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                <i className="fas fa-lock text-orange-500 mr-1"></i>
+                <i className="fas fa-lock text-blue-500 mr-1"></i>
                 Documenti Chiusi
               </label>
               <div className="flex gap-1">
@@ -268,8 +268,8 @@ export default function ArchivePage() {
                     key={mode}
                     className={`flex-1 flex items-center justify-center px-3 py-2 text-xs font-medium rounded-lg border cursor-pointer transition-all whitespace-nowrap ${
                       chiusiFilter === mode
-                        ? 'bg-gradient-to-r from-orange-500 to-orange-600 border-orange-500 text-white shadow'
-                        : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-gray-600'
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 border-blue-500 text-white shadow'
+                        : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-gray-600'
                     }`}
                   >
                     <input
@@ -298,7 +298,7 @@ export default function ArchivePage() {
                   setDateFrom('');
                   setDateTo('');
                 }}
-                className="w-full px-4 py-2 text-xs font-medium rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:shadow-lg transition-all"
+                className="w-full px-4 py-2 text-xs font-medium rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-lg transition-all"
               >
                 <i className="fas fa-redo mr-1.5"></i>
                 Reset

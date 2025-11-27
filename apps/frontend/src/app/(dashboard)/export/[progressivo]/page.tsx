@@ -133,6 +133,13 @@ export default function DocumentDetailPage() {
   const [showVociDoganaliOffcanvas, setShowVociDoganaliOffcanvas] =
     useState(false);
   const [showMancantiOffcanvas, setShowMancantiOffcanvas] = useState(false); // Offcanvas mancanti da altri DDT
+  const [showActionsPopup, setShowActionsPopup] = useState(false); // Popup azioni nel footer
+  const [showGrigliaModal, setShowGrigliaModal] = useState(false);
+  const [availableArticles, setAvailableArticles] = useState<any[]>([]);
+  const [selectedArticles, setSelectedArticles] = useState<any[]>([]);
+  const [mancantiFromClosed, setMancantiFromClosed] = useState<any[]>([]);
+  const [selectedMancanti, setSelectedMancanti] = useState<Set<number>>(new Set());
+  const [loadingMancanti, setLoadingMancanti] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
   const [launchToDelete, setLaunchToDelete] = useState<number | null>(null);
@@ -218,6 +225,24 @@ export default function DocumentDetailPage() {
       fetchUploadedFiles();
     }
   }, [activeTab]);
+
+  // Carica mancanti da DDT chiusi quando si apre l'offcanvas
+  useEffect(() => {
+    const loadMancantiFromClosed = async () => {
+      if (showMancantiOffcanvas && document) {
+        setLoadingMancanti(true);
+        try {
+          const mancanti = await exportApi.getMissingDataFromClosedDocuments(document.terzistaId);
+          setMancantiFromClosed(mancanti);
+        } catch (error) {
+          showError('Errore nel caricamento dei mancanti da DDT chiusi');
+        } finally {
+          setLoadingMancanti(false);
+        }
+      }
+    };
+    loadMancantiFromClosed();
+  }, [showMancantiOffcanvas, document]);
 
   const fetchDocument = async () => {
     try {
@@ -471,24 +496,49 @@ export default function DocumentDetailPage() {
   const handleOpenVociDoganali = () => {
     if (!document) return;
 
-    // Ottieni le voci doganali uniche dalle righe del documento
-    const uniqueVoci = new Set<string>();
+    // Ottieni le voci doganali uniche dalle righe del documento e calcola somme per UM
+    const vociData = new Map<string, { peso: number; umSums: Map<string, number> }>();
+
     document.righe.forEach((riga) => {
       const voce =
         riga.tipoRiga === "articolo" && riga.article?.voceDoganale
           ? riga.article.voceDoganale
           : riga.voceLibera;
-      if (voce) uniqueVoci.add(voce);
+
+      if (voce) {
+        if (!vociData.has(voce)) {
+          vociData.set(voce, { peso: 0, umSums: new Map() });
+        }
+
+        const data = vociData.get(voce)!;
+        const um = riga.tipoRiga === "articolo" ? (riga.article?.um || "PZ") : "PZ";
+        const qtaReale = riga.qtaReale || 0;
+
+        data.umSums.set(um, (data.umSums.get(um) || 0) + qtaReale);
+      }
     });
 
-    // Inizializza con le voci esistenti o crea nuove entry per le voci uniche
+    // Inizializza con le voci esistenti o crea nuove entry
     const existingVoci = document.piede?.vociDoganali || [];
     const vociMap = new Map(existingVoci.map((v: any) => [v.voce, v.peso]));
 
-    const inizializzate = Array.from(uniqueVoci).map((voce) => ({
+    // Crea array con le voci dalle righe
+    const inizializzate = Array.from(vociData.entries()).map(([voce, data]) => ({
       voce,
       peso: vociMap.get(voce) || 0,
+      umSums: Object.fromEntries(data.umSums),
     }));
+
+    // Aggiungi voci salvate che non sono nelle righe (es. SOTTOPIEDI)
+    for (const existingVoce of existingVoci) {
+      if (!vociData.has(existingVoce.voce)) {
+        inizializzate.push({
+          voce: existingVoce.voce,
+          peso: existingVoce.peso || 0,
+          umSums: {},
+        });
+      }
+    }
 
     const sorted = inizializzate.sort((a, b) =>
       (a.voce || "").localeCompare(b.voce || "", undefined, { numeric: true })
@@ -864,7 +914,9 @@ export default function DocumentDetailPage() {
 
     try {
       if (type === "griglia") {
-        await exportApi.requestGrigliaMaterialiPdf(progressivo);
+        // Apri modale di selezione invece di generare subito
+        handleOpenGrigliaModal();
+        return;
       } else if (type === "segnacolli") {
         await exportApi.requestSegnacolliPdf(progressivo);
       } else {
@@ -900,6 +952,69 @@ export default function DocumentDetailPage() {
       (a.descrizione &&
         a.descrizione.toLowerCase().includes(searchArticle.toLowerCase()))
   );
+
+  // Integra mancanti selezionati nel documento corrente
+  const handleOpenGrigliaModal = () => {
+    if (!document) return;
+
+    // Estrai articoli unici dal documento (solo tipo 'articolo')
+    const uniqueArticles = new Map();
+    document.righe.forEach(riga => {
+      if (riga.tipoRiga === 'articolo' && riga.article) {
+        const key = riga.article.codiceArticolo;
+        if (!uniqueArticles.has(key)) {
+          uniqueArticles.set(key, {
+            codiceArticolo: riga.article.codiceArticolo,
+            descrizione: riga.article.descrizione,
+          });
+        }
+      }
+    });
+
+    setAvailableArticles(Array.from(uniqueArticles.values()));
+    setSelectedArticles([]);
+    setShowGrigliaModal(true);
+  };
+
+  const handleConfirmGriglia = async () => {
+    if (selectedArticles.length === 0) {
+      showError('Seleziona almeno un articolo');
+      return;
+    }
+
+    try {
+      await exportApi.requestGrigliaMaterialiPdf(progressivo, selectedArticles);
+      showSuccess('Griglia Materiali in generazione...');
+      setShowGrigliaModal(false);
+    } catch (error) {
+      showError('Errore nella generazione della griglia');
+    }
+  };
+
+  const handleIntegrateMancanti = async () => {
+    if (!document || selectedMancanti.size === 0) return;
+
+    try {
+      const mancantiDaIntegrare = mancantiFromClosed.filter(m => selectedMancanti.has(m.id));
+      
+      // Aggiungi ogni mancante come riga del documento
+      for (const mancante of mancantiDaIntegrare) {
+        await exportApi.addDocumentItem({
+          documentoId: document.id,
+          articleId: mancante.articleId,
+          qtaOriginale: mancante.qtaMancante,
+          qtaReale: mancante.qtaMancante,
+        });
+      }
+
+      showSuccess();
+      setShowMancantiOffcanvas(false);
+      setSelectedMancanti(new Set());
+      await fetchDocument();
+    } catch (error) {
+      showError('Errore durante integrazione dei mancanti');
+    }
+  };
 
   const isOpen = document?.stato === "Aperto";
 
@@ -1142,65 +1257,7 @@ export default function DocumentDetailPage() {
         initial="hidden"
         animate="visible"
       >
-        {/* Status Badge & Actions */}
-        <motion.div
-          variants={itemVariants}
-          className="mb-6 flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-800 dark:bg-gray-800/40"
-        >
-        <div className="flex items-center gap-4">
-          <span
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
-              isOpen
-                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-            }`}
-          >
-            {document.stato}
-          </span>
-          {document.autorizzazione && (
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              <i className="fas fa-key mr-2"></i>
-              {document.autorizzazione}
-            </span>
-          )}
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleGeneratePDF("ddt-completo")}
-            className="cursor-pointer rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
-          >
-            <i className="fas fa-file-pdf mr-2"></i>
-            DDT
-          </button>
-           <button
-            onClick={() => handleGenerateXLSX("ddt-completo")}
-            className="cursor-pointer rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
-          >
-            <i className="fas fa-file-excel mr-2"></i>
-            DDT
-          </button>
-
-          <button
-            onClick={() => handleGeneratePDF("griglia")}
-            className="cursor-pointer rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
-          >
-            <i className="fas fa-file-pdf mr-2"></i>
-            Griglia Materiali
-          </button>
-
-          <button
-            onClick={() => handleGeneratePDF("segnacolli")}
-            className="rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
-          >
-            <i className="fas fa-file-pdf mr-2"></i>
-            Segnacolli
-          </button>
-
-        </div>
-      </motion.div>
-
-      {/* Terzista Info */}
+        {/* Terzista Info */}
       <motion.div
         variants={itemVariants}
         className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-800 dark:bg-gray-800/40"
@@ -1714,10 +1771,10 @@ export default function DocumentDetailPage() {
                         className="border-b border-gray-100 dark:border-gray-700/50"
                       >
                         <td className="py-3 text-gray-900 dark:text-white">
-                          {item.codiceArticolo}
+                          {item.article?.codiceArticolo || '-'}
                         </td>
                         <td className="py-3 text-gray-600 dark:text-gray-400">
-                          {item.descrizione || "-"}
+                          {item.article?.descrizione || "-"}
                         </td>
                         <td className="py-3 text-right text-gray-900 dark:text-white">
                           {item.qtaMancante}
@@ -3051,6 +3108,23 @@ export default function DocumentDetailPage() {
             </div>
 
             <div className="p-6">
+              {/* Pulsante per aggiungere SOTTOPIEDI */}
+              <div className="mb-4">
+                <button
+                  onClick={() => {
+                    const hasSottopiedi = vociDoganaliEdit.some(v => v.voce === 'SOTTOPIEDI');
+                    if (!hasSottopiedi) {
+                      setVociDoganaliEdit([...vociDoganaliEdit, { voce: 'SOTTOPIEDI', peso: 0, umSums: {} }]);
+                    }
+                  }}
+                  disabled={vociDoganaliEdit.some(v => v.voce === 'SOTTOPIEDI')}
+                  className="rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <i className="fas fa-plus mr-2"></i>
+                  Aggiungi SOTTOPIEDI
+                </button>
+              </div>
+
               {vociDoganaliEdit.length === 0 ? (
                 <div className="py-12 text-center">
                   <i className="fas fa-inbox mb-4 text-5xl text-gray-400"></i>
@@ -3067,21 +3141,45 @@ export default function DocumentDetailPage() {
                           Voce Doganale
                         </th>
                         <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          Qtà per UM
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                           Peso (kg)
+                        </th>
+                        <th className="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          Azioni
                         </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                       {[...vociDoganaliEdit]
-                        .sort((a, b) =>
-                          (a.voce || "").localeCompare(b.voce || "", undefined, {
-                            numeric: true,
-                          })
-                        )
+                        .sort((a, b) => {
+                          // SOTTOPIEDI sempre per ultimo
+                          if (a.voce === 'SOTTOPIEDI') return 1;
+                          if (b.voce === 'SOTTOPIEDI') return -1;
+                          return (a.voce || "").localeCompare(b.voce || "", undefined, { numeric: true });
+                        })
                         .map((item, idx) => (
                           <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/60">
-                            <td className="px-4 py-2 font-mono text-sm text-gray-900 dark:text-white">
-                              {item.voce}
+                            <td className="px-4 py-2 font-mono text-sm font-bold text-gray-900 dark:text-white">
+                              {item.voce === 'SOTTOPIEDI' ? (
+                                <span className="text-purple-600 dark:text-purple-400">{item.voce}</span>
+                              ) : (
+                                item.voce
+                              )}
+                            </td>
+                            <td className="px-4 py-2">
+                              {item.umSums && Object.keys(item.umSums).length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                  {Object.entries(item.umSums).map(([um, qty]) => (
+                                    <span key={um} className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                                      {um}: {Number(qty).toFixed(2)}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-gray-400">-</span>
+                              )}
                             </td>
                             <td className="px-4 py-2">
                               <input
@@ -3090,11 +3188,25 @@ export default function DocumentDetailPage() {
                                 value={item.peso}
                                 onChange={(e) => {
                                   const newVoci = [...vociDoganaliEdit];
-                                  newVoci[idx].peso = parseFloat(e.target.value) || 0;
+                                  const actualIdx = newVoci.findIndex(v => v.voce === item.voce);
+                                  newVoci[actualIdx].peso = parseFloat(e.target.value) || 0;
                                   setVociDoganaliEdit(newVoci);
                                 }}
-                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                className="w-32 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                               />
+                            </td>
+                            <td className="px-4 py-2 text-center">
+                              {item.voce === 'SOTTOPIEDI' && (
+                                <button
+                                  onClick={() => {
+                                    setVociDoganaliEdit(vociDoganaliEdit.filter(v => v.voce !== 'SOTTOPIEDI'));
+                                  }}
+                                  className="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+                                  title="Rimuovi SOTTOPIEDI"
+                                >
+                                  <i className="fas fa-trash"></i>
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -3211,9 +3323,88 @@ export default function DocumentDetailPage() {
             </div>
 
             <div className="p-6">
-              <p className="text-center text-gray-500 dark:text-gray-400">
-                TODO: Implementare ricerca e selezione mancanti da DDT chiusi
-              </p>
+              {loadingMancanti ? (
+                <div className="flex justify-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+                </div>
+              ) : mancantiFromClosed.length === 0 ? (
+                <div className="text-center py-12">
+                  <i className="fas fa-inbox text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
+                  <p className="text-gray-500 dark:text-gray-400">
+                    Nessun mancante trovato in DDT chiusi di questo terzista
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="mb-4 flex items-center justify-between">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Trovati <span className="font-bold">{mancantiFromClosed.length}</span> mancanti da {new Set(mancantiFromClosed.map(m => m.documento.progressivo)).size} documenti
+                    </p>
+                    <button
+                      onClick={() => {
+                        if (selectedMancanti.size === mancantiFromClosed.length) {
+                          setSelectedMancanti(new Set());
+                        } else {
+                          setSelectedMancanti(new Set(mancantiFromClosed.map(m => m.id)));
+                        }
+                      }}
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      {selectedMancanti.size === mancantiFromClosed.length ? 'Deseleziona tutti' : 'Seleziona tutti'}
+                    </button>
+                  </div>
+
+                  {mancantiFromClosed.map((mancante) => (
+                    <label
+                      key={mancante.id}
+                      className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-all ${
+                        selectedMancanti.has(mancante.id)
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                          : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedMancanti.has(mancante.id)}
+                        onChange={(e) => {
+                          const newSet = new Set(selectedMancanti);
+                          if (e.target.checked) {
+                            newSet.add(mancante.id);
+                          } else {
+                            newSet.delete(mancante.id);
+                          }
+                          setSelectedMancanti(newSet);
+                        }}
+                        className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="font-mono text-sm font-bold text-gray-900 dark:text-white">
+                              {mancante.article.codiceArticolo}
+                            </span>
+                            {mancante.article.descrizione && (
+                              <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                                {mancante.article.descrizione}
+                              </span>
+                            )}
+                          </div>
+                          <span className="font-bold text-yellow-600 dark:text-yellow-400">
+                            {Number(mancante.qtaMancante).toFixed(3).replace('.', ',')}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                          <i className="fas fa-file-alt"></i>
+                          <span>DDT {mancante.documento.progressivo}</span>
+                          <span>-</span>
+                          <i className="fas fa-calendar"></i>
+                          <span>{new Date(mancante.documento.data).toLocaleDateString('it-IT')}</span>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="sticky bottom-0 border-t bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900/30">
@@ -3225,14 +3416,12 @@ export default function DocumentDetailPage() {
                   Annulla
                 </button>
                 <button
-                  onClick={() => {
-                    // TODO: Implementare integrazione mancanti
-                    setShowMancantiOffcanvas(false);
-                  }}
-                  className="flex-1 rounded-lg bg-gradient-to-r from-yellow-500 to-yellow-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:shadow-lg"
+                  onClick={handleIntegrateMancanti}
+                  disabled={selectedMancanti.size === 0 || loadingMancanti}
+                  className="flex-1 rounded-lg bg-gradient-to-r from-yellow-500 to-yellow-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <i className="fas fa-check mr-2"></i>
-                  Integra Selezionati
+                  Integra Selezionati ({selectedMancanti.size})
                 </button>
               </div>
             </div>
@@ -3243,46 +3432,8 @@ export default function DocumentDetailPage() {
       {/* Footer con statistiche */}
       <Footer show={!!document}>
         <div className="flex items-center justify-between gap-4 text-sm">
-          {/* Statistiche a sinistra */}
+          {/* Colli e Peso Netto a sinistra */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                <i className="fas fa-list text-blue-600 dark:text-blue-400"></i>
-              </div>
-              <span className="text-gray-600 dark:text-gray-400">Righe:</span>
-              <span className="font-bold text-gray-900 dark:text-white">
-                {footerStats?.totalRighe || 0}
-              </span>
-            </div>
-
-            <span className="text-gray-300 dark:text-gray-600">|</span>
-
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                <i className="fas fa-play text-green-600 dark:text-green-400"></i>
-              </div>
-              <span className="text-gray-600 dark:text-gray-400">Lanci:</span>
-              <span className="font-bold text-gray-900 dark:text-white">
-                {footerStats?.totaleLanci || 0}
-              </span>
-            </div>
-
-            <span className="text-gray-300 dark:text-gray-600">|</span>
-
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-100 dark:bg-yellow-900/30">
-                <i className="fas fa-exclamation-triangle text-yellow-600 dark:text-yellow-400"></i>
-              </div>
-              <span className="text-gray-600 dark:text-gray-400">
-                Mancanti:
-              </span>
-              <span className="font-bold text-gray-900 dark:text-white">
-                {footerStats?.totaleMancanti || 0}
-              </span>
-            </div>
-
-            <span className="text-gray-300 dark:text-gray-600">|</span>
-
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
                 <i className="fas fa-box text-purple-600 dark:text-purple-400"></i>
@@ -3308,37 +3459,96 @@ export default function DocumentDetailPage() {
             </div>
           </div>
 
-          {/* Totale e Pulsante Chiudi a destra */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-2 dark:from-green-900/20 dark:to-emerald-900/20">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                <i className="fas fa-euro-sign text-green-600 dark:text-green-400"></i>
-              </div>
-              <span className="text-gray-600 dark:text-gray-400">
-                Totale Materiali:
-              </span>
-              <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                € {footerStats?.totaleMateriali?.toFixed(2) || "0.00"}
-              </span>
-            </div>
+          {/* Popup Azioni a destra */}
+          <div className="relative">
+            <button
+              onClick={() => setShowActionsPopup(!showActionsPopup)}
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
+            >
+              <i className="fas fa-ellipsis-v"></i>
+              Azioni
+            </button>
 
-            {/* Pulsante Chiudi/Riapri */}
-            {isOpen ? (
-              <button
-                onClick={() => setShowCloseDocumentModal(true)}
-                className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-gray-500 to-gray-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
-              >
-                <i className="fas fa-lock"></i>
-                Chiudi
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowReopenDocumentModal(true)}
-                className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-yellow-500 to-yellow-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
-              >
-                <i className="fas fa-lock-open"></i>
-                Riapri
-              </button>
+            {/* Popup Menu */}
+            {showActionsPopup && (
+              <div className="absolute bottom-full right-0 mb-2 w-64 rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800">
+                <div className="p-2 space-y-1">
+                  {/* PDF DDT */}
+                  <button
+                    onClick={() => {
+                      handleGeneratePDF("ddt-completo");
+                      setShowActionsPopup(false);
+                    }}
+                    className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    <i className="fas fa-file-pdf text-red-500 w-5"></i>
+                    <span>DDT PDF</span>
+                  </button>
+
+                  {/* Excel DDT */}
+                  <button
+                    onClick={() => {
+                      handleGenerateXLSX("ddt-completo");
+                      setShowActionsPopup(false);
+                    }}
+                    className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                  >
+                    <i className="fas fa-file-excel text-green-500 w-5"></i>
+                    <span>DDT Excel</span>
+                  </button>
+
+                  {/* Griglia Materiali */}
+                  <button
+                    onClick={() => {
+                      handleGeneratePDF("griglia");
+                      setShowActionsPopup(false);
+                    }}
+                    className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                  >
+                    <i className="fas fa-file-pdf text-purple-500 w-5"></i>
+                    <span>Griglia Materiali</span>
+                  </button>
+
+                  {/* Segnacolli */}
+                  <button
+                    onClick={() => {
+                      handleGeneratePDF("segnacolli");
+                      setShowActionsPopup(false);
+                    }}
+                    className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                  >
+                    <i className="fas fa-file-pdf text-indigo-500 w-5"></i>
+                    <span>Segnacolli</span>
+                  </button>
+
+                  <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+
+                  {/* Chiudi/Riapri */}
+                  {isOpen ? (
+                    <button
+                      onClick={() => {
+                        setShowCloseDocumentModal(true);
+                        setShowActionsPopup(false);
+                      }}
+                      className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <i className="fas fa-lock text-gray-500 w-5"></i>
+                      <span>Chiudi Documento</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setShowReopenDocumentModal(true);
+                        setShowActionsPopup(false);
+                      }}
+                      className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors"
+                    >
+                      <i className="fas fa-lock-open text-yellow-500 w-5"></i>
+                      <span>Riapri Documento</span>
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/auth';
 import SpoolModal from './SpoolModal';
+import { jobsApi } from '@/lib/api';
 
 export default function Header() {
   const router = useRouter();
@@ -13,10 +14,58 @@ export default function Header() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSpool, setShowSpool] = useState(false);
+  const [newFilesCount, setNewFilesCount] = useState(0);
+  const [lastSeenJobIds, setLastSeenJobIds] = useState<Set<string>>(new Set());
 
   const handleLogout = () => {
     logout();
     router.push('/login');
+  };
+
+  // Polling per nuovi file nello spool
+  useEffect(() => {
+    const checkNewFiles = async () => {
+      try {
+        const jobs = await jobsApi.list();
+        const doneJobs = jobs.filter(j => j.status === 'done' && j.outputName);
+        const currentIds = new Set(doneJobs.map(j => j.id));
+
+        // Carica IDs visti dal localStorage
+        const stored = localStorage.getItem('lastSeenSpoolJobs');
+        const seenIds = stored ? new Set(JSON.parse(stored)) : new Set<string>();
+
+        // Calcola nuovi file (presenti ora ma non visti)
+        const newCount = doneJobs.filter(j => !seenIds.has(j.id)).length;
+        setNewFilesCount(newCount);
+        setLastSeenJobIds(seenIds);
+      } catch (err) {
+        // Ignora errori silenziosamente
+      }
+    };
+
+    checkNewFiles();
+    const interval = setInterval(checkNewFiles, 3000); // Poll ogni 3 secondi
+    return () => clearInterval(interval);
+  }, []);
+
+  // Quando si apre lo spool, marca tutti i file come visti
+  const handleOpenSpool = () => {
+    setShowSpool(true);
+
+    // Dopo un piccolo delay per permettere allo SpoolModal di caricare i dati
+    setTimeout(async () => {
+      try {
+        const jobs = await jobsApi.list();
+        const doneJobs = jobs.filter(j => j.status === 'done' && j.outputName);
+        const allIds = doneJobs.map(j => j.id);
+
+        localStorage.setItem('lastSeenSpoolJobs', JSON.stringify(allIds));
+        setLastSeenJobIds(new Set(allIds));
+        setNewFilesCount(0);
+      } catch (err) {
+        // Ignora errori
+      }
+    }, 500);
   };
 
   return (
@@ -66,14 +115,54 @@ export default function Header() {
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            onClick={() => setShowSpool(true)}
-            className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
+            onClick={handleOpenSpool}
+            className={`relative flex h-9 w-9 items-center justify-center rounded-full border transition-all ${
+              newFilesCount > 0
+                ? 'border-blue-500 bg-blue-50 hover:bg-blue-100 dark:border-blue-400 dark:bg-blue-900/30 dark:hover:bg-blue-900/50'
+                : 'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700'
+            }`}
           >
+            {/* Animazione pulsante se ci sono nuovi file */}
+            {newFilesCount > 0 && (
+              <motion.span
+                className="absolute inset-0 rounded-full bg-blue-500 opacity-30"
+                animate={{
+                  scale: [1, 1.3, 1],
+                  opacity: [0.3, 0, 0.3],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
+            )}
+
             <motion.i
-              animate={{ rotate: [0, -8, 8, -8, 8, 0] }}
-              transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 6 }}
-              className="fas fa-file-alt text-gray-600 dark:text-gray-300"
+              animate={
+                newFilesCount > 0
+                  ? { rotate: [0, -8, 8, -8, 8, 0] }
+                  : { rotate: [0, -8, 8, -8, 8, 0] }
+              }
+              transition={
+                newFilesCount > 0
+                  ? { duration: 0.5, repeat: Infinity, repeatDelay: 2 }
+                  : { duration: 0.5, repeat: Infinity, repeatDelay: 6 }
+              }
+              className={newFilesCount > 0 ? "fas fa-file-alt text-blue-600 dark:text-blue-400" : "fas fa-file-alt text-gray-600 dark:text-gray-300"}
             />
+
+            {/* Badge con conteggio */}
+            {newFilesCount > 0 && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+                className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white"
+              >
+                {newFilesCount}
+              </motion.span>
+            )}
           </motion.button>
         </div>
 

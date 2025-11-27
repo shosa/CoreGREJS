@@ -294,6 +294,12 @@ function handlePageBreak(
 
   currentY += rowHeight;
 
+  // SAFETY CHECK: Se dopo l'header siamo già oltre il limite, forza una posizione sicura
+  if (currentY > pageHeight - 150) {
+    console.warn('Header troppo grande dopo page break, forzando posizione sicura');
+    currentY = marginY + 400; // Posizione fissa dopo header
+  }
+
   return currentY;
 }
 
@@ -576,7 +582,7 @@ const handler: JobHandler = async (payload, helpers) => {
     totalValue += subtotal;
 
     // Check spazio per nuova pagina con chiusura tabella
-    if (currentY + rowHeight > pageHeight - 80) {
+    if (currentY + rowHeight > pageHeight - 120) {
       currentY = handlePageBreak(
         doc,
         currentY,
@@ -674,7 +680,7 @@ const handler: JobHandler = async (payload, helpers) => {
 
   // Se ci sono sia prioritari che altri, aggiungi riga "COMPLETE DI ACCESSORI:"
   if (priority.length > 0 && others.length > 0) {
-    if (currentY + rowHeight > pageHeight - 80) {
+    if (currentY + rowHeight > pageHeight - 120) {
       currentY = handlePageBreak(
         doc,
         currentY,
@@ -729,7 +735,7 @@ const handler: JobHandler = async (payload, helpers) => {
     const subtotal = qta * Number(prezzo);
     totalValue += subtotal;
 
-    if (currentY + rowHeight > pageHeight - 80) {
+    if (currentY + rowHeight > pageHeight - 120) {
       currentY = handlePageBreak(
         doc,
         currentY,
@@ -871,7 +877,7 @@ const handler: JobHandler = async (payload, helpers) => {
 
   for (const [rif, mancanti] of Object.entries(mancantiGrouped)) {
     // Riga header "MANCANTI SU ..."
-    if (currentY + rowHeight > pageHeight - 80) {
+    if (currentY + rowHeight > pageHeight - 120) {
       currentY = handlePageBreak(
         doc,
         currentY,
@@ -918,7 +924,7 @@ const handler: JobHandler = async (payload, helpers) => {
       const subtotal = qta * Number(prezzo);
       totalValue += subtotal;
 
-      if (currentY + rowHeight > pageHeight - 80) {
+      if (currentY + rowHeight > pageHeight - 120) {
         currentY = handlePageBreak(
           doc,
           currentY,
@@ -1032,7 +1038,7 @@ const handler: JobHandler = async (payload, helpers) => {
     const missingSectionStartY = currentY;
 
     // Riga vuota
-    if (currentY + rowHeight > pageHeight - 80) {
+    if (currentY + rowHeight > pageHeight - 120) {
       currentY = handlePageBreak(
         doc,
         currentY,
@@ -1062,7 +1068,7 @@ const handler: JobHandler = async (payload, helpers) => {
     currentY += rowHeight;
 
     // Header "MATERIALI MANCANTI"
-    if (currentY + rowHeight > pageHeight - 80) {
+    if (currentY + rowHeight > pageHeight - 120) {
       currentY = handlePageBreak(
         doc,
         currentY,
@@ -1097,7 +1103,7 @@ const handler: JobHandler = async (payload, helpers) => {
     currentY += rowHeight;
 
     for (const mancante of document.mancanti) {
-      if (currentY + rowHeight > pageHeight - 80) {
+      if (currentY + rowHeight > pageHeight - 120) {
         currentY = handlePageBreak(
           doc,
           currentY,
@@ -1159,11 +1165,11 @@ const handler: JobHandler = async (payload, helpers) => {
         .lineTo(marginX + usableWidth, currentY + rowHeight)
         .stroke();
 
-      doc.text(mancante.codiceArticolo || '', marginX + 2, currentY + 3, {
+      doc.text(mancante.article?.codiceArticolo || '', marginX + 2, currentY + 3, {
         width: colArticolo - 4,
         lineBreak: false,
       });
-      doc.text(mancante.descrizione || '', marginX + colArticolo + 2, currentY + 3, {
+      doc.text(mancante.article?.descrizione || '', marginX + colArticolo + 2, currentY + 3, {
         width: colDescrizione - 4,
         lineBreak: false,
       });
@@ -1192,9 +1198,13 @@ const handler: JobHandler = async (payload, helpers) => {
     }
 
     // Separatore e bordi laterali esterni sezione materiali mancanti
-    if (currentY + 2 > pageHeight - 100) {
-      doc.addPage();
-      currentY = marginY + 20;
+    if (currentY + 2 > pageHeight - 120) {
+      currentY = handlePageBreak(
+        doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
+        colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
+        document.progressivo, document.terzista, document.data.toISOString(), document.stato,
+        document.piede, logoPath, hasLogo
+      );
     }
     doc.save();
     doc.lineWidth(1);
@@ -1206,17 +1216,25 @@ const handler: JobHandler = async (payload, helpers) => {
 
   // Separatore finale materiali mancanti (document.mancanti)
   if (document.mancanti && document.mancanti.length > 0) {
-    if (currentY + 2 > pageHeight - 100) {
-      doc.addPage();
-      currentY = marginY + 20;
+    if (currentY + 2 > pageHeight - 120) {
+      currentY = handlePageBreak(
+        doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
+        colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
+        document.progressivo, document.terzista, document.data.toISOString(), document.stato,
+        document.piede, logoPath, hasLogo
+      );
     }
     doc.moveTo(marginX, currentY).lineTo(marginX + usableWidth, currentY).stroke();
   }
 
   // Riga vuota
-  if (currentY + rowHeight > pageHeight - 100) {
-    doc.addPage();
-    currentY = marginY + 20;
+  if (currentY + rowHeight > pageHeight - 120) {
+    currentY = handlePageBreak(
+      doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
+      colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
+      document.progressivo, document.terzista, document.data.toISOString(), document.stato,
+      document.piede, logoPath, hasLogo
+    );
   }
   doc
     .moveTo(marginX, currentY)
@@ -1229,9 +1247,13 @@ const handler: JobHandler = async (payload, helpers) => {
   currentY += rowHeight;
 
   // ========== RIEPILOGO PESI ==========
-  if (currentY + rowHeight > pageHeight - 100) {
-    doc.addPage();
-    currentY = marginY + 20;
+  if (currentY + rowHeight > pageHeight - 120) {
+    currentY = handlePageBreak(
+      doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
+      colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
+      document.progressivo, document.terzista, document.data.toISOString(), document.stato,
+      document.piede, logoPath, hasLogo
+    );
   }
 
   doc
@@ -1261,9 +1283,13 @@ const handler: JobHandler = async (payload, helpers) => {
       const voceData = voci[i];
       if (!voceData.voce || !voceData.peso) continue;
 
-      if (currentY + rowHeight > pageHeight - 100) {
-        doc.addPage();
-        currentY = marginY + 20;
+      if (currentY + rowHeight > pageHeight - 120) {
+        currentY = handlePageBreak(
+          doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
+          colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
+          document.progressivo, document.terzista, document.data.toISOString(), document.stato,
+          document.piede, logoPath, hasLogo
+        );
       }
 
       const colVoce1 = usableWidth * 0.1;
@@ -1315,7 +1341,10 @@ const handler: JobHandler = async (payload, helpers) => {
 
       // Quarta cella: box totali (solo prima riga con rowspan)
       if (i === 0) {
-        const totBoxHeight = vociCount * rowHeight;
+        // Altezza minima garantita di 7 righe anche se c'è una sola voce
+        const minRows = 7;
+        const actualRows = Math.max(vociCount, minRows);
+        const totBoxHeight = actualRows * rowHeight;
         doc.rect(marginX + colVoce1 + colVoce2 + colVoce3, currentY, colVoce4, totBoxHeight).stroke();
 
         doc.fontSize(8).fillColor('#000000').font('Helvetica-Bold');
@@ -1345,12 +1374,50 @@ const handler: JobHandler = async (payload, helpers) => {
 
       currentY += rowHeight;
     }
+
+    // Aggiungi righe vuote se ci sono meno del minimo (7 righe)
+    const minRows = 7;
+    const emptyRowsNeeded = Math.max(0, minRows - vociCount);
+
+    for (let j = 0; j < emptyRowsNeeded; j++) {
+      const colVoce1 = usableWidth * 0.1;
+      const colVoce2 = usableWidth * 0.5;
+      const colVoce3 = usableWidth * 0.1;
+
+      // Bordi laterali per righe vuote
+      doc
+        .moveTo(marginX, currentY)
+        .lineTo(marginX, currentY + rowHeight)
+        .stroke();
+      doc
+        .moveTo(marginX + colVoce1, currentY)
+        .lineTo(marginX + colVoce1, currentY + rowHeight)
+        .stroke();
+      doc
+        .moveTo(marginX + colVoce1 + colVoce2, currentY)
+        .lineTo(marginX + colVoce1 + colVoce2, currentY + rowHeight)
+        .stroke();
+      doc
+        .moveTo(marginX + colVoce1 + colVoce2 + colVoce3, currentY)
+        .lineTo(marginX + colVoce1 + colVoce2 + colVoce3, currentY + rowHeight)
+        .stroke();
+      doc
+        .moveTo(marginX + usableWidth, currentY)
+        .lineTo(marginX + usableWidth, currentY + rowHeight)
+        .stroke();
+
+      currentY += rowHeight;
+    }
   }
 
   // ========== LANCI E AUTORIZZAZIONE ==========
-  if (currentY + rowHeight * 2 > pageHeight - 100) {
-    doc.addPage();
-    currentY = marginY + 20;
+  if (currentY + rowHeight * 2 > pageHeight - 120) {
+    currentY = handlePageBreak(
+      doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
+      colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
+      document.progressivo, document.terzista, document.data.toISOString(), document.stato,
+      document.piede, logoPath, hasLogo
+    );
   }
 
   // Lanci
@@ -1389,9 +1456,13 @@ const handler: JobHandler = async (payload, helpers) => {
   currentY += lanciHeight;
 
   // Autorizzazione
-  if (currentY + rowHeight > pageHeight - 100) {
-    doc.addPage();
-    currentY = marginY + 20;
+  if (currentY + rowHeight > pageHeight - 120) {
+    currentY = handlePageBreak(
+      doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
+      colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
+      document.progressivo, document.terzista, document.data.toISOString(), document.stato,
+      document.piede, logoPath, hasLogo
+    );
   }
 
   doc.rect(marginX, currentY, usableWidth, rowHeight).stroke();
@@ -1402,9 +1473,13 @@ const handler: JobHandler = async (payload, helpers) => {
   currentY += rowHeight;
 
   // ========== TOTALE ==========
-  if (currentY + rowHeight > pageHeight - 100) {
-    doc.addPage();
-    currentY = marginY + 20;
+  if (currentY + rowHeight > pageHeight - 120) {
+    currentY = handlePageBreak(
+      doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
+      colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
+      document.progressivo, document.terzista, document.data.toISOString(), document.stato,
+      document.piede, logoPath, hasLogo
+    );
   }
 
   doc.rect(marginX, currentY, usableWidth, rowHeight).fillAndStroke('#e0e0e0', '#000000');

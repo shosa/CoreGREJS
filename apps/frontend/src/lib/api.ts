@@ -637,15 +637,18 @@ export const exportApi = {
   // ==================== MISSING DATA ====================
   addMissingData: async (data: {
     documentoId: number;
-    codiceArticolo: string;
+    articleId: number;
     qtaMancante: number;
-    descrizione?: string;
   }) => {
     const response = await api.post('/export/missing-data', data);
     return response.data;
   },
   getMissingDataForDocument: async (documentoId: number) => {
     const response = await api.get(`/export/missing-data/${documentoId}`);
+    return response.data;
+  },
+  getMissingDataFromClosedDocuments: async (terzistaId: number) => {
+    const response = await api.get(`/export/missing-data-from-closed/${terzistaId}`);
     return response.data;
   },
   deleteMissingData: async (id: number) => {

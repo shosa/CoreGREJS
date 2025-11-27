@@ -341,7 +341,8 @@ model ExportArticleMaster {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  righe ExportDocumentItem[]
+  righe    ExportDocumentItem[]
+  mancanti ExportMissingData[]
 
   @@index([codiceArticolo])
   @@map("exp_articoli_master")
@@ -442,17 +443,17 @@ model ExportDocumentFooter {
 
 // Dati mancanti da altri DDT (per tracciare merce non ancora spedita)
 model ExportMissingData {
-  id             Int      @id @default(autoincrement())
-  documentoId    Int      @map("documento_id")
-  codiceArticolo String   @map("codice_articolo") @db.VarChar(255)
-  qtaMancante    Int      @map("qta_mancante")
-  descrizione    String?  @db.VarChar(255)
-  createdAt      DateTime @default(now()) @map("created_at")
+  id          Int      @id @default(autoincrement())
+  documentoId Int      @map("documento_id")
+  articleId   Int      @map("article_id") // FK a master articoli
+  qtaMancante Decimal? @map("qta_mancante") @db.Decimal(10, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
 
   documento ExportDocument @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  article   ExportArticleMaster  @relation(fields: [articleId], references: [id], onDelete: Restrict)
 
   @@index([documentoId])
-  @@index([codiceArticolo])
+  @@index([articleId])
   @@map("exp_dati_mancanti")
 }
 
