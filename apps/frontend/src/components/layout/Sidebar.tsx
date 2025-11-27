@@ -148,6 +148,7 @@ export default function Sidebar() {
   const [popupMenu, setPopupMenu] = useState<string | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const sidebarRef = useRef<HTMLElement>(null);
+  const popupRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -177,7 +178,14 @@ export default function Sidebar() {
   // Close popup when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        (sidebarRef.current && sidebarRef.current.contains(target)) ||
+        (popupRef.current && popupRef.current.contains(target as Node))
+      ) {
+        return;
+      }
+      if (sidebarRef.current && !sidebarRef.current.contains(target)) {
         setPopupMenu(null);
       }
     };
@@ -275,6 +283,7 @@ export default function Sidebar() {
                   transition={{ duration: 0.15 }}
                   className="fixed z-[9999]"
                   style={{ top: popupPosition.top, left: popupPosition.left }}
+                  ref={(el) => (popupRef.current = el)}
                 >
                   <div className="rounded-lg bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 p-2 min-w-[180px]">
                     <div className="px-2.5 py-1.5 mb-1 border-b border-gray-100 dark:border-gray-700">
