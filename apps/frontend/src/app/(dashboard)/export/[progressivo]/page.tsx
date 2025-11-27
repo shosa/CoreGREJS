@@ -310,6 +310,7 @@ export default function DocumentDetailPage() {
       await exportApi.addDocumentItem({
         documentoId: document.id,
         ...newItem,
+        articleId: newItem.articleId ?? undefined,
       });
       showSuccess("Riga aggiunta");
       setShowAddItemModal(false);
@@ -1017,10 +1018,10 @@ export default function DocumentDetailPage() {
 
     try {
       await exportApi.requestGrigliaMaterialiPdf(progressivo, selectedArticles);
-      showSuccess('Griglia Materiali in generazione...');
+      showSuccess('Etichette Materiali in generazione...');
       setShowGrigliaModal(false);
     } catch (error) {
-      showError('Errore nella generazione della griglia');
+      showError('Errore nella generazione delle etichette');
     }
   };
 
@@ -1043,7 +1044,7 @@ export default function DocumentDetailPage() {
         });
       }
 
-      showSuccess();
+      showSuccess('Mancanti integrati con successo');
       setShowMancantiOffcanvas(false);
       setSelectedMancanti(new Set());
       await fetchDocument();
@@ -3452,6 +3453,202 @@ export default function DocumentDetailPage() {
         </div>
       )}
 
+      {/* Modal Selezione Articoli per Etichette Materiali */}
+      {showGrigliaModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-5xl rounded-2xl bg-white shadow-2xl dark:bg-gray-800 overflow-hidden"
+          >
+            {/* Header */}
+            <div className="border-b bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-white">
+                    Seleziona Articoli per Etichette
+                  </h3>
+                  <p className="text-sm text-purple-100 mt-1">
+                    Scegli gli articoli da includere nelle etichette materiali
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowGrigliaModal(false)}
+                  className="rounded-lg p-2 text-white hover:bg-white/20 transition-colors"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+
+            {/* Contenuto a due colonne */}
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-6 h-[600px]">
+                {/* Colonna Sinistra - Articoli Disponibili */}
+                <div className="flex flex-col border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                    <h4 className="font-semibold text-gray-900 dark:text-white">
+                      Articoli Disponibili
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {availableArticles.length} articoli nel documento
+                    </p>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                    {availableArticles.map((article) => {
+                      const isSelected = selectedArticles.some(
+                        (a) => a.codiceArticolo === article.codiceArticolo
+                      );
+                      return (
+                        <button
+                          key={article.codiceArticolo}
+                          onClick={() => {
+                            if (!isSelected) {
+                              setSelectedArticles([...selectedArticles, article]);
+                            }
+                          }}
+                          disabled={isSelected}
+                          className={`w-full text-left p-3 rounded-lg border transition-all ${
+                            isSelected
+                              ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 opacity-50 cursor-not-allowed'
+                              : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-purple-500 hover:shadow-md'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0 ${
+                              isSelected
+                                ? 'bg-gray-200 dark:bg-gray-700'
+                                : 'bg-purple-100 dark:bg-purple-900/30'
+                            }`}>
+                              <i className={`fas fa-cube text-sm ${
+                                isSelected
+                                  ? 'text-gray-400'
+                                  : 'text-purple-600 dark:text-purple-400'
+                              }`}></i>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-medium ${
+                                isSelected
+                                  ? 'text-gray-400 dark:text-gray-500'
+                                  : 'text-gray-900 dark:text-white'
+                              }`}>
+                                {article.descrizione || 'Senza descrizione'}
+                              </p>
+                              <p className={`text-xs mt-0.5 ${
+                                isSelected
+                                  ? 'text-gray-400 dark:text-gray-600'
+                                  : 'text-gray-500 dark:text-gray-400'
+                              }`}>
+                                {article.codiceArticolo}
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <i className="fas fa-check text-gray-400 text-sm flex-shrink-0"></i>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Colonna Destra - Articoli Selezionati */}
+                <div className="flex flex-col border border-purple-200 dark:border-purple-800 rounded-lg overflow-hidden bg-purple-50/30 dark:bg-purple-900/10">
+                  <div className="bg-purple-100 dark:bg-purple-900/30 px-4 py-3 border-b border-purple-200 dark:border-purple-800">
+                    <h4 className="font-semibold text-purple-900 dark:text-purple-100">
+                      Selezionati per Etichette
+                    </h4>
+                    <p className="text-xs text-purple-700 dark:text-purple-300 mt-1">
+                      {selectedArticles.length} {selectedArticles.length === 1 ? 'articolo selezionato' : 'articoli selezionati'}
+                    </p>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                    {selectedArticles.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center p-6">
+                        <div className="h-16 w-16 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4">
+                          <i className="fas fa-arrow-left text-2xl text-purple-400 dark:text-purple-500"></i>
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Seleziona articoli dalla colonna a sinistra
+                        </p>
+                      </div>
+                    ) : (
+                      selectedArticles.map((article) => (
+                        <div
+                          key={article.codiceArticolo}
+                          className="p-3 rounded-lg border border-purple-200 dark:border-purple-800 bg-white dark:bg-gray-900 shadow-sm"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30 flex-shrink-0">
+                              <i className="fas fa-tag text-sm text-purple-600 dark:text-purple-400"></i>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                {article.descrizione || 'Senza descrizione'}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                {article.codiceArticolo}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setSelectedArticles(
+                                  selectedArticles.filter(
+                                    (a) => a.codiceArticolo !== article.codiceArticolo
+                                  )
+                                );
+                              }}
+                              className="rounded-lg p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex-shrink-0"
+                            >
+                              <i className="fas fa-times text-sm"></i>
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer con azioni */}
+            <div className="border-t bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900/30">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {selectedArticles.length > 0 ? (
+                    <>
+                      Verranno generate{' '}
+                      <span className="font-bold text-purple-600 dark:text-purple-400">
+                        {selectedArticles.length}
+                      </span>{' '}
+                      {selectedArticles.length === 1 ? 'etichetta' : 'etichette'}
+                    </>
+                  ) : (
+                    'Seleziona almeno un articolo per procedere'
+                  )}
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowGrigliaModal(false)}
+                    className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    onClick={handleConfirmGriglia}
+                    disabled={selectedArticles.length === 0}
+                    className="rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 px-5 py-2.5 text-sm font-medium text-white transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <i className="fas fa-file-pdf mr-2"></i>
+                    Genera Etichette PDF
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* Footer con statistiche */}
       <Footer show={!!document}>
         <div className="flex items-center justify-between gap-4 text-sm">
@@ -3520,7 +3717,7 @@ export default function DocumentDetailPage() {
                     <span>DDT Excel</span>
                   </button>
 
-                  {/* Griglia Materiali */}
+                  {/* Etichette Materiali */}
                   <button
                     onClick={() => {
                       handleGeneratePDF("griglia");
@@ -3528,8 +3725,8 @@ export default function DocumentDetailPage() {
                     }}
                     className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
                   >
-                    <i className="fas fa-file-pdf text-purple-500 w-5"></i>
-                    <span>Griglia Materiali</span>
+                    <i className="fas fa-tags text-purple-500 w-5"></i>
+                    <span>Etichette Materiali</span>
                   </button>
 
                   {/* Segnacolli */}

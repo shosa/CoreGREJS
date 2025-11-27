@@ -724,10 +724,13 @@ export const exportApi = {
     });
     return response.data;
   },
-  requestGrigliaMaterialiPdf: async (progressivo: string) => {
+  requestGrigliaMaterialiPdf: async (progressivo: string, selectedArticles: any[]) => {
     const response = await api.post('/jobs', {
       type: 'export.griglia-materiali-pdf',
-      payload: { progressivo }
+      payload: {
+        progressivo,
+        selectedArticles: selectedArticles.map(a => a.codiceArticolo)
+      }
     });
     return response.data;
   },
@@ -751,6 +754,174 @@ export const exportApi = {
       type: 'export.download-excel',
       payload: { progressivo, fileName }
     });
+    return response.data;
+  },
+};
+
+// ==================== RIPARAZIONI API ====================
+
+export const riparazioniApi = {
+  // ==================== RIPARAZIONI ESTERNE ====================
+
+  // Get stats
+  getStats: async () => {
+    const response = await api.get('/riparazioni/stats');
+    return response.data;
+  },
+
+  // Get all riparazioni with pagination
+  getRiparazioni: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    completa?: boolean;
+    laboratorioId?: number;
+    repartoId?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.completa !== undefined) queryParams.append('completa', params.completa.toString());
+    if (params?.laboratorioId) queryParams.append('laboratorioId', params.laboratorioId.toString());
+    if (params?.repartoId) queryParams.append('repartoId', params.repartoId.toString());
+
+    const response = await api.get(`/riparazioni?${queryParams.toString()}`);
+    return response.data;
+  },
+
+  // Get next idRiparazione
+  getNextId: async () => {
+    const response = await api.get('/riparazioni/next-id');
+    return response.data;
+  },
+
+  // Get riparazione by numeric ID
+  getRiparazione: async (id: number) => {
+    const response = await api.get(`/riparazioni/${id}`);
+    return response.data;
+  },
+
+  // Get riparazione by custom idRiparazione
+  getRiparazioneByCode: async (idRiparazione: string) => {
+    const response = await api.get(`/riparazioni/id/${idRiparazione}`);
+    return response.data;
+  },
+
+  // Create riparazione
+  createRiparazione: async (data: any) => {
+    const response = await api.post('/riparazioni', data);
+    return response.data;
+  },
+
+  // Update riparazione
+  updateRiparazione: async (id: number, data: any) => {
+    const response = await api.put(`/riparazioni/${id}`, data);
+    return response.data;
+  },
+
+  // Complete riparazione
+  completeRiparazione: async (id: number) => {
+    const response = await api.put(`/riparazioni/${id}/complete`);
+    return response.data;
+  },
+
+  // Delete riparazione
+  deleteRiparazione: async (id: number) => {
+    const response = await api.delete(`/riparazioni/${id}`);
+    return response.data;
+  },
+
+  // ==================== RIPARAZIONI INTERNE ====================
+
+  // Get stats interne
+  getStatsInterne: async () => {
+    const response = await api.get('/riparazioni/interne/stats');
+    return response.data;
+  },
+
+  // Get all riparazioni interne
+  getRiparazioniInterne: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    completa?: boolean;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.completa !== undefined) queryParams.append('completa', params.completa.toString());
+
+    const response = await api.get(`/riparazioni/interne?${queryParams.toString()}`);
+    return response.data;
+  },
+
+  // Get next idRiparazione for interne
+  getNextIdInterna: async () => {
+    const response = await api.get('/riparazioni/interne/next-id');
+    return response.data;
+  },
+
+  // Get riparazione interna by ID
+  getRiparazioneInterna: async (id: number) => {
+    const response = await api.get(`/riparazioni/interne/${id}`);
+    return response.data;
+  },
+
+  // Create riparazione interna
+  createRiparazioneInterna: async (data: any) => {
+    const response = await api.post('/riparazioni/interne', data);
+    return response.data;
+  },
+
+  // Update riparazione interna
+  updateRiparazioneInterna: async (id: number, data: any) => {
+    const response = await api.put(`/riparazioni/interne/${id}`, data);
+    return response.data;
+  },
+
+  // Complete riparazione interna
+  completeRiparazioneInterna: async (id: number, operatoreChiusura?: string) => {
+    const response = await api.put(`/riparazioni/interne/${id}/complete`, { operatoreChiusura });
+    return response.data;
+  },
+
+  // Delete riparazione interna
+  deleteRiparazioneInterna: async (id: number) => {
+    const response = await api.delete(`/riparazioni/interne/${id}`);
+    return response.data;
+  },
+
+  // ==================== SUPPORT DATA ====================
+
+  // Get all reparti
+  getReparti: async () => {
+    const response = await api.get('/riparazioni/support/reparti');
+    return response.data;
+  },
+
+  // Get all laboratori
+  getLaboratori: async () => {
+    const response = await api.get('/riparazioni/support/laboratori');
+    return response.data;
+  },
+
+  // Get all linee
+  getLinee: async () => {
+    const response = await api.get('/riparazioni/support/linee');
+    return response.data;
+  },
+
+  // Get all numerate
+  getNumerate: async () => {
+    const response = await api.get('/riparazioni/support/numerate');
+    return response.data;
+  },
+
+  // Get numerata by ID
+  getNumerata: async (id: number) => {
+    const response = await api.get(`/riparazioni/support/numerate/${id}`);
     return response.data;
   },
 };
