@@ -3,10 +3,11 @@ import { JobHandler } from '../types';
 import * as fs from 'fs';
 
 const handler: JobHandler = async (payload, helpers) => {
-  const { progressivo, userId, jobId } = payload as {
+  const { progressivo, userId, jobId, selectedArticles } = payload as {
     progressivo: string;
     userId: number;
     jobId: string;
+    selectedArticles?: string[];
   };
   const { exportService, ensureOutputPath, waitForPdf } = helpers;
 
@@ -17,203 +18,131 @@ const handler: JobHandler = async (payload, helpers) => {
     throw new Error(`Documento ${progressivo} non trovato`);
   }
 
-  const fileName = `griglia_materiali_${progressivo}.pdf`;
+  // Filter items based on selected articles
+  const articlesToPrint = document.righe.filter(item => {
+    if (!selectedArticles || selectedArticles.length === 0) {
+      return true; // If no selection, print all
+    }
+    const codice = item.article?.codiceArticolo || item.codiceLibero;
+    return codice && selectedArticles.includes(codice);
+  });
+
+  if (articlesToPrint.length === 0) {
+    throw new Error('Nessun articolo selezionato trovato nel documento');
+  }
+
+  const fileName = `etichette_materiali_${progressivo}.pdf`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
 
   const doc = new PDFDocument({
-    margin: 30,
+    margin: 40,
     size: 'A4',
-    layout: 'landscape'
+    layout: 'portrait'
   });
 
-  const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const startX = doc.page.margins.left;
+  const pageWidth = doc.page.width;
+  const pageHeight = doc.page.height;
+  const margin = doc.page.margins.left;
 
-  const ensureSpace = (needed = 60) => {
-    if (doc.y + needed > doc.page.height - doc.page.margins.bottom) {
-      doc.addPage();
-    }
-  };
+  // Layout: 2 etichette per riga
+  // Ogni etichetta: [QUADRATO][CODICE+DESCRIZIONE]
+  const usableWidth = pageWidth - (margin * 2);
+  const gapBetweenLabels = 20; // Spazio tra le due etichette
+  const labelWidth = (usableWidth - gapBetweenLabels) / 2; // Larghezza di ogni etichetta
 
-  // Header
-  doc.fillColor('#0066cc').fontSize(16).font('Helvetica-Bold')
-    .text('GRIGLIA MATERIALI', startX, doc.y, { align: 'center' });
-  doc.moveDown(0.5);
+  const squareSize = 80; // Dimensione quadrato materiale
+  const textWidth = labelWidth - squareSize; // Larghezza rettangolo testo
+  const labelHeight = squareSize + 20; // Altezza etichetta + padding
 
-  // Document info
-  doc.fillColor('#333333').fontSize(10).font('Helvetica');
-  doc.text(`DDT: ${document.progressivo} | Data: ${new Date(document.data).toLocaleDateString('it-IT')} | Terzista: ${document.terzista.ragioneSociale}`, startX, doc.y, { align: 'center' });
-  doc.moveDown(1.5);
+  let currentY = margin;
+  let labelIndex = 0;
 
-  // Table header - wider columns for landscape
-  const colWidths = [
-    usableWidth * 0.15, // Codice
-    usableWidth * 0.35, // Descrizione
-    usableWidth * 0.12, // Voce Doganale
-    usableWidth * 0.08, // UM
-    usableWidth * 0.1,  // Qta Orig
-    usableWidth * 0.1,  // Qta Reale
-    usableWidth * 0.1   // Prezzo
-  ];
-
-  let currentX = startX;
-
-  doc.fillColor('#0066cc').fontSize(9).font('Helvetica-Bold');
-  doc.text('CODICE', currentX, doc.y, { width: colWidths[0], align: 'left' });
-  currentX += colWidths[0];
-  doc.text('DESCRIZIONE', currentX, doc.y, { width: colWidths[1], align: 'left' });
-  currentX += colWidths[1];
-  doc.text('VOCE DOG.', currentX, doc.y, { width: colWidths[2], align: 'center' });
-  currentX += colWidths[2];
-  doc.text('UM', currentX, doc.y, { width: colWidths[3], align: 'center' });
-  currentX += colWidths[3];
-  doc.text('QTA ORIG', currentX, doc.y, { width: colWidths[4], align: 'center' });
-  currentX += colWidths[4];
-  doc.text('QTA REALE', currentX, doc.y, { width: colWidths[5], align: 'center' });
-  currentX += colWidths[5];
-  doc.text('PREZZO', currentX, doc.y, { width: colWidths[6], align: 'right' });
-
-  doc.moveDown(0.3);
-
-  // Horizontal line
-  doc.strokeColor('#0066cc').lineWidth(1)
-    .moveTo(startX, doc.y)
-    .lineTo(startX + usableWidth, doc.y)
-    .stroke();
-
-  doc.moveDown(0.3);
-
-  // Table rows
-  doc.fillColor('#333333').fontSize(8).font('Helvetica');
-
-  let totalQtaOriginale = 0;
-  let totalQtaReale = 0;
-  let totalValue = 0;
-
-  for (const item of document.righe) {
-    if (item.isMancante) continue; // Skip missing items
-
-    ensureSpace(18);
-
+  for (const item of articlesToPrint) {
     const codice = item.article?.codiceArticolo || item.codiceLibero || '-';
-    const descrizione = item.article?.descrizione || item.descrizioneLibera || '-';
-    const voce = item.article?.voceDoganale || item.voceLibera || '-';
-    const um = item.article?.um || item.umLibera || '-';
-    const qtaOrig = Number(item.qtaOriginale ?? 0);
-    const qtaReale = Number(item.qtaReale ?? item.qtaOriginale ?? 0);
-    const prezzo = Number(item.article?.prezzoUnitario ?? item.prezzoLibero ?? 0);
+    const descrizione = item.article?.descrizione || item.descrizioneLibera || 'Nessuna descrizione';
 
-    totalQtaOriginale += qtaOrig;
-    totalQtaReale += qtaReale;
-    totalValue += qtaReale * prezzo;
-
-    currentX = startX;
-    const rowY = doc.y;
-
-    doc.text(codice, currentX, rowY, { width: colWidths[0], align: 'left' });
-    currentX += colWidths[0];
-    doc.text(descrizione, currentX, rowY, { width: colWidths[1], align: 'left' });
-    currentX += colWidths[1];
-    doc.text(voce, currentX, rowY, { width: colWidths[2], align: 'center' });
-    currentX += colWidths[2];
-    doc.text(um, currentX, rowY, { width: colWidths[3], align: 'center' });
-    currentX += colWidths[3];
-    doc.text(String(qtaOrig), currentX, rowY, { width: colWidths[4], align: 'center' });
-    currentX += colWidths[4];
-    doc.text(String(qtaReale), currentX, rowY, { width: colWidths[5], align: 'center' });
-    currentX += colWidths[5];
-    doc.text(`€ ${Number(prezzo).toFixed(2)}`, currentX, rowY, { width: colWidths[6], align: 'right' });
-
-    doc.moveDown(0.3);
-  }
-
-  // Separator line
-  doc.moveDown(0.3);
-  doc.strokeColor('#cccccc').lineWidth(0.5)
-    .moveTo(startX, doc.y)
-    .lineTo(startX + usableWidth, doc.y)
-    .stroke();
-  doc.moveDown(0.5);
-
-  // Totals row
-  doc.fillColor('#0066cc').fontSize(9).font('Helvetica-Bold');
-  currentX = startX;
-  doc.text('TOTALI', currentX, doc.y, { width: colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], align: 'right' });
-  currentX += colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3];
-  doc.text(String(totalQtaOriginale), currentX, doc.y, { width: colWidths[4], align: 'center' });
-  currentX += colWidths[4];
-  doc.text(String(totalQtaReale), currentX, doc.y, { width: colWidths[5], align: 'center' });
-  currentX += colWidths[5];
-  doc.text(`€ ${totalValue.toFixed(2)}`, currentX, doc.y, { width: colWidths[6], align: 'right' });
-
-  // Missing items section if any
-  if (document.mancanti && document.mancanti.length > 0) {
-    doc.moveDown(2);
-    ensureSpace(80);
-
-    doc.fillColor('#cc0000').fontSize(12).font('Helvetica-Bold')
-      .text('ARTICOLI MANCANTI', startX, doc.y);
-    doc.moveDown(0.5);
-
-    doc.fillColor('#333333').fontSize(8).font('Helvetica');
-
-    for (const mancante of document.mancanti) {
-      ensureSpace(15);
-      doc.text(`${mancante.article?.codiceArticolo || '-'}: ${mancante.article?.descrizione || '-'} - Qta: ${mancante.qtaMancante}`, startX, doc.y);
-      doc.moveDown(0.2);
+    // Check if we need a new page
+    if (currentY + labelHeight > pageHeight - margin) {
+      doc.addPage();
+      currentY = margin;
+      labelIndex = 0;
     }
-  }
 
-  // Customs codes section if available
-  if (document.piede && document.piede.vociDoganali) {
-    const voci = document.piede.vociDoganali as Array<{ voce: string; peso: number }>;
+    // Posizione nell'etichetta (0 = sinistra, 1 = destra)
+    const position = labelIndex % 2;
 
-    if (voci.length > 0) {
-      doc.moveDown(2);
-      ensureSpace(80);
+    if (position === 0) {
+      // Etichetta SINISTRA: [QUADRATO][TESTO]
+      const squareX = margin;
+      const textX = squareX + squareSize;
 
-      doc.fillColor('#0066cc').fontSize(11).font('Helvetica-Bold')
-        .text('VOCI DOGANALI', startX, doc.y);
-      doc.moveDown(0.5);
+      // Draw square (for material sticker)
+      doc.rect(squareX, currentY, squareSize, squareSize)
+        .lineWidth(2)
+        .stroke('#333333');
 
-      doc.fillColor('#333333').fontSize(8).font('Helvetica');
+      // Draw text rectangle
+      doc.rect(textX, currentY, textWidth, squareSize)
+        .lineWidth(1)
+        .stroke('#cccccc');
 
-      // Separa SOTTOPIEDI dalle altre voci
-      const sottopiedi = voci.find(v => v.voce === 'SOTTOPIEDI');
-      const altreVoci = voci.filter(v => v.voce !== 'SOTTOPIEDI');
+      // Draw codice
+      doc.fillColor('#333333')
+        .fontSize(11)
+        .font('Helvetica-Bold')
+        .text(codice, textX + 8, currentY + 10, {
+          width: textWidth - 16,
+          align: 'left'
+        });
 
-      // Stampa prima le voci normali
-      for (const voceData of altreVoci) {
-        ensureSpace(15);
-        doc.text(`${voceData.voce}: ${voceData.peso.toFixed(2)} kg`, startX, doc.y);
-        doc.moveDown(0.2);
-      }
+      // Draw descrizione
+      doc.fontSize(9)
+        .font('Helvetica')
+        .text(descrizione, textX + 8, currentY + 30, {
+          width: textWidth - 16,
+          height: squareSize - 40,
+          align: 'left',
+          ellipsis: true
+        });
+    } else {
+      // Etichetta DESTRA: [TESTO][QUADRATO]
+      const textX = margin + labelWidth + gapBetweenLabels;
+      const squareX = textX + textWidth;
 
-      // Stampa SOTTOPIEDI per ultimo con formato speciale
-      if (sottopiedi) {
-        ensureSpace(15);
-        doc.text(`SOTTOPIEDI N.C. 56031480 PESO NETTO KG ${sottopiedi.peso.toFixed(2)}`, startX, doc.y);
-        doc.moveDown(0.2);
-      }
+      // Draw text rectangle
+      doc.rect(textX, currentY, textWidth, squareSize)
+        .lineWidth(1)
+        .stroke('#cccccc');
+
+      // Draw codice
+      doc.fillColor('#333333')
+        .fontSize(11)
+        .font('Helvetica-Bold')
+        .text(codice, textX + 8, currentY + 10, {
+          width: textWidth - 16,
+          align: 'left'
+        });
+
+      // Draw descrizione
+      doc.fontSize(9)
+        .font('Helvetica')
+        .text(descrizione, textX + 8, currentY + 30, {
+          width: textWidth - 16,
+          height: squareSize - 40,
+          align: 'left',
+          ellipsis: true
+        });
+
+      // Draw square (for material sticker)
+      doc.rect(squareX, currentY, squareSize, squareSize)
+        .lineWidth(2)
+        .stroke('#333333');
+
+      // Move to next row after right label
+      currentY += labelHeight;
     }
-  }
 
-  // Launch data section if any
-  if (document.lanci && document.lanci.length > 0) {
-    doc.moveDown(2);
-    ensureSpace(80);
-
-    doc.fillColor('#0066cc').fontSize(11).font('Helvetica-Bold')
-      .text('LANCI DI PRODUZIONE', startX, doc.y);
-    doc.moveDown(0.5);
-
-    doc.fillColor('#333333').fontSize(8).font('Helvetica');
-
-    for (const lancio of document.lanci) {
-      ensureSpace(15);
-      doc.text(`Lancio ${lancio.lancio}: ${lancio.articolo} - ${lancio.paia} paia${lancio.note ? ' (' + lancio.note + ')' : ''}`, startX, doc.y);
-      doc.moveDown(0.2);
-    }
+    labelIndex++;
   }
 
   await waitForPdf(doc, fullPath);

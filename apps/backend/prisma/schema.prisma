@@ -34,6 +34,10 @@ model User {
   productionRecordsCreated ProductionRecord[] @relation("ProductionCreator")
   productionRecordsUpdated ProductionRecord[] @relation("ProductionUpdater")
 
+  // Repairs
+  riparazioni        Riparazione[]
+  riparazioniInterne RiparazioneInterna[]
+
   @@map("auth_users")
 }
 
@@ -141,24 +145,58 @@ model CoreAnagrafica {
 
 model Riparazione {
   id            Int       @id @default(autoincrement())
+  idRiparazione String    @unique @map("id_riparazione") @db.VarChar(10)
+
+  // Riferimenti
   cartellino    String?   @db.VarChar(50)
-  commessa      String?   @db.VarChar(100)
-  modello       String?   @db.VarChar(100)
-  colore        String?   @db.VarChar(100)
-  taglia        String?   @db.VarChar(20)
-  difetto       String?   @db.Text
-  laboratorioId Int?      @map("laboratorio_id")
-  repartoId     Int?      @map("reparto_id")
+  userId        Int?      @map("user_id")
+  numerataId    Int?      @map("numerata_id")
+
+  // 20 colonne taglie (quantità per ogni taglia)
+  p01           Int       @default(0)
+  p02           Int       @default(0)
+  p03           Int       @default(0)
+  p04           Int       @default(0)
+  p05           Int       @default(0)
+  p06           Int       @default(0)
+  p07           Int       @default(0)
+  p08           Int       @default(0)
+  p09           Int       @default(0)
+  p10           Int       @default(0)
+  p11           Int       @default(0)
+  p12           Int       @default(0)
+  p13           Int       @default(0)
+  p14           Int       @default(0)
+  p15           Int       @default(0)
+  p16           Int       @default(0)
+  p17           Int       @default(0)
+  p18           Int       @default(0)
+  p19           Int       @default(0)
+  p20           Int       @default(0)
+
+  qtaTotale     Int       @default(0) @map("qta_totale")
+
+  // Info riparazione
+  causale       String?   @db.Text
+  laboratorioId Int?      @map("laboratorio_id")  // Destinazione
+  repartoId     Int?      @map("reparto_id")      // Provenienza
   lineaId       Int?      @map("linea_id")
-  stato         String    @default("aperta") @db.VarChar(20)
-  priorita      Int       @default(0)
-  dataApertura  DateTime  @default(now()) @map("data_apertura")
+
+  // Stato e date
+  data          DateTime  @default(now())
+  completa      Boolean   @default(false)
   dataChiusura  DateTime? @map("data_chiusura")
-  operatore     String?   @db.VarChar(100)
+
+  // Note aggiuntive
   note          String?   @db.Text
+
+  // Timestamp
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
+  // Relazioni
+  user        User?        @relation(fields: [userId], references: [id])
+  numerata    Numerata?    @relation(fields: [numerataId], references: [id])
   laboratorio Laboratorio? @relation(fields: [laboratorioId], references: [id])
   reparto     Reparto?     @relation(fields: [repartoId], references: [id])
   linea       Linea?       @relation(fields: [lineaId], references: [id])
@@ -167,27 +205,64 @@ model Riparazione {
 }
 
 model RiparazioneInterna {
-  id                Int       @id @default(autoincrement())
-  cartellino        String?   @db.VarChar(50)
-  commessa          String?   @db.VarChar(100)
-  modello           String?   @db.VarChar(100)
-  colore            String?   @db.VarChar(100)
-  taglia            String?   @db.VarChar(20)
-  quantita          Int       @default(1)
-  difetto           String?   @db.Text
-  causaDifetto      String?   @map("causa_difetto") @db.Text
-  repartoOrigine    String?   @map("reparto_origine") @db.VarChar(100)
-  repartoDestino    String?   @map("reparto_destino") @db.VarChar(100)
-  stato             String    @default("in_attesa") @db.VarChar(30)
-  priorita          Int       @default(0)
-  operatoreApertura String?   @map("operatore_apertura") @db.VarChar(100)
-  operatoreChiusura String?   @map("operatore_chiusura") @db.VarChar(100)
-  dataApertura      DateTime  @default(now()) @map("data_apertura")
-  dataChiusura      DateTime? @map("data_chiusura")
-  note              String?   @db.Text
-  foto              String?   @db.VarChar(255)
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  id            Int       @id @default(autoincrement())
+  idRiparazione String    @unique @map("id_riparazione") @db.VarChar(10)
+
+  // Riferimenti
+  cartellino    String?   @db.VarChar(50)
+  userId        Int?      @map("user_id")
+  numerataId    Int?      @map("numerata_id")
+
+  // 20 colonne taglie (quantità per ogni taglia)
+  p01           Int       @default(0)
+  p02           Int       @default(0)
+  p03           Int       @default(0)
+  p04           Int       @default(0)
+  p05           Int       @default(0)
+  p06           Int       @default(0)
+  p07           Int       @default(0)
+  p08           Int       @default(0)
+  p09           Int       @default(0)
+  p10           Int       @default(0)
+  p11           Int       @default(0)
+  p12           Int       @default(0)
+  p13           Int       @default(0)
+  p14           Int       @default(0)
+  p15           Int       @default(0)
+  p16           Int       @default(0)
+  p17           Int       @default(0)
+  p18           Int       @default(0)
+  p19           Int       @default(0)
+  p20           Int       @default(0)
+
+  qtaTotale     Int       @default(0) @map("qta_totale")
+
+  // Info riparazione interna
+  causale          String? @db.Text
+  causaDifetto     String? @map("causa_difetto") @db.Text
+  repartoOrigine   String? @map("reparto_origine") @db.VarChar(100)
+  repartoDestino   String? @map("reparto_destino") @db.VarChar(100)
+
+  // Stato e date
+  data             DateTime  @default(now())
+  completa         Boolean   @default(false)
+  dataChiusura     DateTime? @map("data_chiusura")
+
+  // Operatori
+  operatoreApertura String? @map("operatore_apertura") @db.VarChar(100)
+  operatoreChiusura String? @map("operatore_chiusura") @db.VarChar(100)
+
+  // Note e allegati
+  note          String?   @db.Text
+  foto          String?   @db.VarChar(255)
+
+  // Timestamp
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relazioni
+  user     User?     @relation(fields: [userId], references: [id])
+  numerata Numerata? @relation(fields: [numerataId], references: [id])
 
   @@map("rip_interne")
 }
@@ -236,6 +311,40 @@ model Laboratorio {
   riparazioni Riparazione[]
 
   @@map("rip_laboratori")
+}
+
+model Numerata {
+  id  Int @id @default(autoincrement())
+
+  // 20 colonne per i nomi delle taglie
+  n01 String? @db.VarChar(10)
+  n02 String? @db.VarChar(10)
+  n03 String? @db.VarChar(10)
+  n04 String? @db.VarChar(10)
+  n05 String? @db.VarChar(10)
+  n06 String? @db.VarChar(10)
+  n07 String? @db.VarChar(10)
+  n08 String? @db.VarChar(10)
+  n09 String? @db.VarChar(10)
+  n10 String? @db.VarChar(10)
+  n11 String? @db.VarChar(10)
+  n12 String? @db.VarChar(10)
+  n13 String? @db.VarChar(10)
+  n14 String? @db.VarChar(10)
+  n15 String? @db.VarChar(10)
+  n16 String? @db.VarChar(10)
+  n17 String? @db.VarChar(10)
+  n18 String? @db.VarChar(10)
+  n19 String? @db.VarChar(10)
+  n20 String? @db.VarChar(10)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  riparazioni        Riparazione[]
+  riparazioniInterne RiparazioneInterna[]
+
+  @@map("rip_idnumerate")
 }
 
 // ==================== QUALITY CONTROL ====================

@@ -51,7 +51,7 @@ export class WidgetsService {
       ddtBozze,
       scmLanciAttivi,
     ] = await Promise.all([
-      this.prisma.riparazione.count({ where: { stato: 'aperta' } }),
+      this.prisma.riparazione.count({ where: { completa: false } }),
       this.prisma.qualityRecord.count({
         where: {
           dataControllo: {
