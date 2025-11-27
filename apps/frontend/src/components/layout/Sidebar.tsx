@@ -321,11 +321,11 @@ export default function Sidebar() {
             <motion.div
               whileHover={{ scale: 1.02, y: -1 }}
               whileTap={{ scale: 0.98 }}
-              className={`sidebar-item flex items-center rounded-lg px-2.5 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-gradient-to-r ${item.hoverGradient} dark:text-gray-300 shadow-sm hover:shadow-md group ${isActive(item.href) ? 'bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 shadow-md' : 'text-gray-700'} ${sidebarCollapsed ? 'justify-center' : 'gap-2.5'}`}
+              className={`sidebar-item flex items-center rounded-lg px-2.5 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-white/70 hover:shadow-lg ${item.hoverGradient} dark:text-gray-300 shadow-sm group ${isActive(item.href) ? 'bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/30 dark:to-gray-800 shadow-md ring-1 ring-blue-100/60 dark:ring-blue-900/30' : 'text-gray-700'} ${sidebarCollapsed ? 'justify-center' : 'gap-2.5'}`}
             >
               <motion.div
-                className={`flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-r ${item.gradient} shadow-sm flex-shrink-0`}
-                whileHover={{ scale: 1.1 }}
+                className={`flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-r ${item.gradient} shadow-sm flex-shrink-0 ring-1 ring-white/40 dark:ring-black/20`}
+                whileHover={{ scale: 1.08 }}
               >
                 <i className={`fas ${item.icon} text-sm text-white`}></i>
               </motion.div>
@@ -350,10 +350,10 @@ export default function Sidebar() {
         initial={false}
         animate={{ width: sidebarCollapsed ? 72 : 260 }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
-        className="fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-visible bg-white border-r border-gray-200 dark:border-gray-700 dark:bg-gray-800"
+        className="fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-visible border-r border-gray-200 bg-gradient-to-b from-white via-gray-50 to-white shadow-xl dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
       >
         {/* Header */}
-        <div className={`flex items-center border-b border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-r from-blue-50 dark:from-gray-800 dark:to-gray-900 py-4 px-3 ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+        <div className={`flex items-center border-b border-gray-200/60 dark:border-gray-700/60 bg-gradient-to-r from-gray-50 via-white to-white dark:from-gray-800 dark:via-gray-800 dark:to-gray-900 py-4 px-3 shadow-sm ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
           {sidebarCollapsed ? (
             <motion.button
               onClick={toggleSidebar}
