@@ -82,6 +82,7 @@ export default function CreateRiparazionePage() {
   const [causale, setCausale] = useState('');
 
   // Taglie p01-p20
+  const [taglieCartellino, setTaglieCartellino] = useState<Record<string, number>>({});
   const [taglie, setTaglie] = useState<Record<string, number>>({});
 
   const [creating, setCreating] = useState(false);
@@ -112,31 +113,36 @@ export default function CreateRiparazionePage() {
     try {
       setSearching(true);
 
-      // TODO: Chiamata API per recuperare dati articolo da core_dati
-      // Per ora simulo con dati fake - sostituire con vera chiamata API
-      // const response = await fetch(`/api/core-dati/${cartellinoInput}`);
-      // const data = await response.json();
+      // Carica dati del cartellino da core_dati
+      const cartellinoData = await riparazioniApi.getCartellinoData(cartellinoInput);
 
-      // SIMULAZIONE - SOSTITUIRE CON VERA API
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      const mockData: ArticleData = {
-        codiceArticolo: 'ART123',
-        descrizione: 'Scarpa modello XYZ',
-        cartellino: cartellinoInput,
-        commessa: 'COM456',
-        ragioneSociale: 'Cliente Test S.r.l.',
-        totale: 120,
-        numerataId: 1, // ID della numerata da usare
+      const articleData: ArticleData = {
+        codiceArticolo: cartellinoData.codiceArticolo,
+        descrizione: cartellinoData.descrizione,
+        cartellino: cartellinoData.cartellino,
+        commessa: cartellinoData.commessa,
+        ragioneSociale: cartellinoData.ragioneSociale,
+        totale: cartellinoData.totale,
+        numerataId: cartellinoData.numerataId,
       };
 
-      // Carica numerata
-      const numerataData = await riparazioniApi.getNumerata(mockData.numerataId);
+      setArticleData(articleData);
 
-      setArticleData(mockData);
-      setNumerata(numerataData);
+      // Carica numerata se presente
+      if (cartellinoData.numerataId) {
+        const numerataData = await riparazioniApi.getNumerata(cartellinoData.numerataId);
+        setNumerata(numerataData);
+      }
 
-      // Inizializza taglie a 0
+      // Salva le quantità del cartellino (per visualizzazione)
+      const qtaCartellino: Record<string, number> = {};
+      for (let i = 1; i <= 20; i++) {
+        const field = `p${String(i).padStart(2, '0')}`;
+        qtaCartellino[field] = cartellinoData[field] || 0;
+      }
+      setTaglieCartellino(qtaCartellino);
+
+      // Inizializza taglie da riparare a 0
       const initialTaglie: Record<string, number> = {};
       for (let i = 1; i <= 20; i++) {
         const field = `p${String(i).padStart(2, '0')}`;
@@ -145,8 +151,8 @@ export default function CreateRiparazionePage() {
       setTaglie(initialTaglie);
 
       setStep(2);
-    } catch (error) {
-      showError('Articolo non trovato');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Cartellino non trovato');
     } finally {
       setSearching(false);
     }
@@ -397,26 +403,71 @@ export default function CreateRiparazionePage() {
                 Taglie da Riparare
               </h3>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
-                {taglieArray.map((taglia) => (
-                  <div key={taglia.field} className="space-y-1">
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
-                      {taglia.nome}
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={taglia.qta}
-                      onChange={(e) => handleTagliaChange(taglia.field, e.target.value)}
-                      className="w-full px-3 py-2 text-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                ))}
+              {/* Tabella Taglie - 3 righe: ID Taglia, Qta Cartellino, Input Riparazione */}
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse table-fixed">
+                  <colgroup>
+                    <col className="w-28" />
+                    {taglieArray.map((taglia) => (
+                      <col key={`col-${taglia.field}`} className="w-12" />
+                    ))}
+                  </colgroup>
+                  <tbody>
+                    {/* Riga 1: ID Taglia */}
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <td className="py-2 px-2 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 sticky left-0 z-10">
+                        ID Taglia
+                      </td>
+                      {taglieArray.map((taglia) => (
+                        <td
+                          key={`nome-${taglia.field}`}
+                          className="py-2 px-1 text-center text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50"
+                        >
+                          {taglia.nome}
+                        </td>
+                      ))}
+                    </tr>
+
+                    {/* Riga 2: Qta Cartellino */}
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <td className="py-2 px-2 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 sticky left-0 z-10">
+                        Qta Cartellino
+                      </td>
+                      {taglieArray.map((taglia) => (
+                        <td
+                          key={`cart-${taglia.field}`}
+                          className="py-2 px-1 text-center text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                        >
+                          {taglieCartellino[taglia.field] || 0}
+                        </td>
+                      ))}
+                    </tr>
+
+                    {/* Riga 3: Input Riparazione */}
+                    <tr>
+                      <td className="py-2 px-2 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-orange-50 dark:bg-orange-900/20 sticky left-0 z-10">
+                        Qta Riparazione
+                      </td>
+                      {taglieArray.map((taglia) => (
+                        <td key={`input-${taglia.field}`} className="py-2 px-1">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={taglia.qta || ''}
+                            onChange={(e) => handleTagliaChange(taglia.field, e.target.value)}
+                            className="w-full px-1 py-1 text-center text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-semibold focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
-              <div className="text-right pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="text-right pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
                 <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Totale da riparare:</span>
-                <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                <span className="text-xl font-bold text-orange-600 dark:text-orange-400">
                   {calculateTotal()} paia
                 </span>
               </div>

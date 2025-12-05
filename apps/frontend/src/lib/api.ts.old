@@ -796,12 +796,6 @@ export const riparazioniApi = {
     return response.data;
   },
 
-  // Get cartellino data from core_dati
-  getCartellinoData: async (cartellino: string) => {
-    const response = await api.get(`/riparazioni/cartellino/${cartellino}`);
-    return response.data;
-  },
-
   // Get riparazione by numeric ID
   getRiparazione: async (id: number) => {
     const response = await api.get(`/riparazioni/${id}`);

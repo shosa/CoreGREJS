@@ -45,6 +45,10 @@ export class AuthService {
       },
     });
 
+    // Normalizza i permessi
+    const permessi = user.permissions?.permessi || {};
+    const normalized = this.normalizePermissions(permessi);
+
     return {
       access_token: this.jwtService.sign(payload),
       user: {
@@ -54,7 +58,7 @@ export class AuthService {
         mail: user.mail,
         adminType: user.adminType,
         themeColor: user.themeColor,
-        permissions: user.permissions?.permessi || {},
+        permissions: normalized,
       },
     };
   }
@@ -69,11 +73,36 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
+    // Normalizza i permessi
+    const permessi = user.permissions?.permessi || {};
+    const normalized = this.normalizePermissions(permessi);
+
     const { password: _, ...result } = user;
     return {
       ...result,
-      permissions: user.permissions?.permessi || {},
+      permissions: normalized,
     };
+  }
+
+  // Helper per normalizzare le chiavi dei permessi
+  private normalizePermissions(permessi: any): any {
+    const normalized = { ...permessi };
+
+    // Converti chiavi vecchie in nuove
+    if ('quality' in normalized) {
+      normalized.qualita = normalized.quality;
+      delete normalized.quality;
+    }
+    if ('scm' in normalized) {
+      normalized.scm_admin = normalized.scm;
+      delete normalized.scm;
+    }
+    if ('utenti' in normalized) {
+      normalized.users = normalized.utenti;
+      delete normalized.utenti;
+    }
+
+    return normalized;
   }
 
   async updateProfile(userId: number, data: { nome?: string; mail?: string; themeColor?: string }) {

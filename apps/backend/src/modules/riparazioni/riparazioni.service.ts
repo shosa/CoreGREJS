@@ -106,6 +106,64 @@ export class RiparazioniService {
   }
 
   /**
+   * Get cartellino data from core_dati
+   */
+  async getCartellinoData(cartellino: string) {
+    const cartelNum = parseInt(cartellino);
+    if (isNaN(cartelNum)) {
+      throw new NotFoundException('Cartellino non valido');
+    }
+
+    const record = await this.prisma.coreData.findFirst({
+      where: { cartel: cartelNum },
+    });
+
+    if (!record) {
+      throw new NotFoundException('Cartellino non trovato');
+    }
+
+    // Trova la numerata corrispondente al campo nu (se presente)
+    let numerata = null;
+    if (record.nu) {
+      numerata = await this.prisma.numerata.findUnique({
+        where: { idNumerata: record.nu },
+      });
+    }
+
+    return {
+      codiceArticolo: record.articolo,
+      descrizione: record.descrizioneArticolo,
+      cartellino: record.cartel?.toString(),
+      commessa: record.commessaCli,
+      ragioneSociale: record.ragioneSociale,
+      totale: record.tot,
+      numerataId: numerata?.id || null,
+      linea: record.ln,
+      // Include le quantità per taglia dal core_dati
+      p01: record.p01 || 0,
+      p02: record.p02 || 0,
+      p03: record.p03 || 0,
+      p04: record.p04 || 0,
+      p05: record.p05 || 0,
+      p06: record.p06 || 0,
+      p07: record.p07 || 0,
+      p08: record.p08 || 0,
+      p09: record.p09 || 0,
+      p10: record.p10 || 0,
+      p11: record.p11 || 0,
+      p12: record.p12 || 0,
+      p13: record.p13 || 0,
+      p14: record.p14 || 0,
+      p15: record.p15 || 0,
+      p16: record.p16 || 0,
+      p17: record.p17 || 0,
+      p18: record.p18 || 0,
+      p19: record.p19 || 0,
+      p20: record.p20 || 0,
+    };
+  }
+
+  /**
    * Create new riparazione
    */
   async create(data: Prisma.RiparazioneCreateInput) {

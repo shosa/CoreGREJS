@@ -13,10 +13,13 @@ import {
 } from '@nestjs/common';
 import { RiparazioniService } from './riparazioni.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Prisma } from '@prisma/client';
 
 @Controller('riparazioni')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions('riparazioni')
 export class RiparazioniController {
   constructor(private readonly riparazioniService: RiparazioniService) {}
 
@@ -100,6 +103,15 @@ export class RiparazioniController {
   async getNextId() {
     const nextId = await this.riparazioniService.generateNextIdRiparazione();
     return { idRiparazione: nextId };
+  }
+
+  /**
+   * GET /riparazioni/cartellino/:cartellino
+   * Get cartellino data from core_dati
+   */
+  @Get('cartellino/:cartellino')
+  async getCartellinoData(@Param('cartellino') cartellino: string) {
+    return this.riparazioniService.getCartellinoData(cartellino);
   }
 
   /**

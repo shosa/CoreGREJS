@@ -9,6 +9,7 @@ const handler: JobHandler = async (payload, helpers) => {
   const { id, userId, jobId } = payload as { id: number; userId: number; jobId: string };
   const { ensureOutputPath, waitForPdf } = helpers;
 
+  // Include user relation
   const rip = await prisma.riparazione.findUnique({
     where: { id },
     include: {
@@ -16,125 +17,359 @@ const handler: JobHandler = async (payload, helpers) => {
       laboratorio: true,
       reparto: true,
       linea: true,
+      user: true,
     },
   });
   if (!rip) {
     throw new Error(`Riparazione ${id} non trovata`);
   }
 
-  const fileName = `RIPARAZIONE_${rip.idRiparazione}.pdf`;
+  // Fetch cartellino data from core_dati for COMMESSA, ARTICOLO, URGENZA
+  let commessa = '-';
+  let articolo = '-';
+  let urgenza = 'NORMALE';
+
+  if (rip.cartellino) {
+    const cartelNum = parseInt(rip.cartellino);
+    if (!isNaN(cartelNum)) {
+      const coreData = await prisma.coreData.findFirst({
+        where: { cartel: cartelNum },
+      });
+      if (coreData) {
+        commessa = coreData.commessaCli || '-';
+        articolo = coreData.descrizioneArticolo || '-';
+        // Default urgenza (can be enhanced with additional fields if available)
+        urgenza = 'NORMALE';
+      }
+    }
+  }
+
+  const date = new Date();
+  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+  const timeStr = date.toTimeString().slice(0, 8).replace(/:/g, '');
+  const fileName = `CEDOLA_${rip.idRiparazione}_${dateStr}_${timeStr}.pdf`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
 
-  const doc = new PDFDocument({ size: 'A4', margin: 8, bufferPages: true });
-  const black = '#000';
-  const gray = '#333';
-  const light = '#f5f5f5';
-
-  const commessa = '-';
-  const articolo = 'MOCASSINO LOAFER DONNA NERO';
-  const urgenza = 'ALTA';
-  const barcodeVal = rip.idRiparazione;
-
-  // Barcode stile legacy (placeholder): rettangolo + barre finte
-  doc.rect(12, 10, 120, 30).stroke(black);
-  for (let i = 0; i < 30; i++) {
-    const x = 12 + 4 + i * 3;
-    const w = (i % 3 === 0 ? 2 : 1);
-    doc.rect(x, 12, w, 24).fill(i % 2 === 0 ? black : '#fff');
-  }
-  doc.fillColor(black).font('Helvetica').fontSize(8).text(barcodeVal, 12, 34, { width: 120, align: 'center' });
-
-  // Titolo
-  doc.rect(140, 10, 430, 30).stroke(black);
-  doc.font('Helvetica-Bold').fontSize(20).fillColor(black).text('CEDOLA DI RIPARAZIONE', 145, 18, { width: 420, align: 'center' });
-
-  // Barra aziendale
-  doc.rect(12, 42, 560, 10).fillAndStroke(gray, black);
-  doc.fillColor('#fff').font('Helvetica-Bold').fontSize(8).text('CALZATURIFICIO EMMEGIEMME SHOES S.R.L.', 12, 43, {
-    width: 560,
-    align: 'center',
+  // TCPDF margins: 7mm = ~20pt (1mm = 2.83465pt)
+  const doc = new PDFDocument({
+    size: 'A4',
+    margin: 20,
+    bufferPages: true
   });
 
-  // Box info principali
-  let y = 56;
-  doc.rect(12, y, 560, 86).stroke(black);
-  doc.font('Helvetica-Bold').fontSize(9).fillColor(black);
-  doc.text('LABORATORIO:', 16, y + 6);
-  doc.text('REPARTO:', 320, y + 6);
-  doc.font('Helvetica-Bold').fontSize(18).text((rip.laboratorio?.nome || '').toUpperCase(), 16, y + 18);
-  doc.font('Helvetica-Bold').fontSize(14).text((rip.reparto?.nome || '-').toUpperCase(), 320, y + 20);
+  // Colors
+  const headerFill = '#d6dce5';  // RGB(214, 220, 229)
+  const black = '#000000';
+  const white = '#ffffff';
+  const grayText = '#737373';    // RGB(115, 115, 115)
+  const lightGray = '#f0f0f0';   // RGB(240, 240, 240)
+  const urgentGray = '#b4b4b4';  // RGB(180, 180, 180)
 
-  doc.font('Helvetica-Bold').fontSize(9);
-  doc.text('CARTELLINO:', 16, y + 44);
-  doc.text('COMMESSA:', 160, y + 44);
-  doc.text('QTA:', 300, y + 44);
-  doc.text('LINEA:', 360, y + 44);
-  doc.text('URGENZA:', 430, y + 44);
+  // Measurements (converting mm to pt)
+  const mm = 2.83465;
+  const pageWidth = 210 * mm; // A4 width
+  const margin = 7 * mm;
+  const contentWidth = 196 * mm;
 
-  doc.font('Helvetica-Bold').fontSize(12);
-  doc.text(String(rip.cartellino || '-'), 16, y + 58);
-  doc.text(commessa, 160, y + 58);
-  doc.text(String(rip.qtaTotale || 0), 300, y + 58);
-  doc.text(rip.linea?.nome || '-', 360, y + 58);
-  doc.text(urgenza, 430, y + 58);
+  let y = margin;
 
-  // Articolo banner
-  doc.rect(12, y + 88, 560, 18).fillAndStroke(black, black);
-  doc.fillColor('#fff').font('Helvetica-Bold').fontSize(12).text(articolo, 16, y + 92, { width: 552, align: 'center' });
+  // ==================== HEADER ====================
+  // Main header box (196mm x 25mm) with light blue fill
+  doc.rect(margin, y, contentWidth, 25 * mm)
+    .fillAndStroke(headerFill, black);
 
-  // Numerata
-  let tableY = y + 112;
-  doc.font('Helvetica-Bold').fontSize(10).fillColor(black).text('NUMERATA DA RIPARARE:', 12, tableY);
-  tableY += 8;
-  const colWidth = 27;
+  // Left box for barcode (46mm x 25mm)
+  doc.rect(margin, y, 46 * mm, 25 * mm)
+    .stroke();
+
+  // Barcode simulation (C39 style) - centered in left box
+  const barcodeX = margin + 3 * mm;
+  const barcodeY = y + 3 * mm;
+  const barcodeWidth = 40 * mm;
+  const barcodeHeight = 15 * mm;
+
+  // Draw barcode bars (simplified)
+  doc.fillColor(black);
+  for (let i = 0; i < 25; i++) {
+    const x = barcodeX + (i * barcodeWidth / 25);
+    const w = (i % 3 === 0) ? 2.5 : 1.2;
+    if (i % 2 === 0) {
+      doc.rect(x, barcodeY, w, barcodeHeight).fill();
+    }
+  }
+
+  // Barcode text
+  doc.fillColor(black)
+    .font('Helvetica', 10)
+    .text(rip.idRiparazione, margin, barcodeY + barcodeHeight + 2, {
+      width: 46 * mm,
+      align: 'center'
+    });
+
+  // Title text "CEDOLA DI RIPARAZIONE"
+  doc.fillColor(black)
+    .font('Helvetica-Bold', 30)
+    .text('CEDOLA DI RIPARAZIONE', margin + 50 * mm, y + 8 * mm, {
+      width: 140 * mm,
+      align: 'left'
+    });
+
+  y += 27 * mm;
+
+  // ==================== COMPANY BANNER ====================
+  doc.rect(margin, y, contentWidth, 3 * mm)
+    .fillAndStroke(white, black);
+
+  doc.fillColor(black)
+    .font('Helvetica-Bold', 10)
+    .text('CALZATURIFICIO EMMEGIEMME SHOES S.R.L', margin, y + 0.5 * mm, {
+      width: contentWidth,
+      align: 'center'
+    });
+
+  y += 4 * mm;
+
+  // ==================== INFO BOX ====================
+  const infoBoxY = y;
+  doc.rect(margin, infoBoxY, contentWidth, 60 * mm)
+    .stroke();
+
+  y += 2 * mm;
+  const leftCol = margin + 2 * mm;
+  const rightCol = margin + 110 * mm;
+
+  // LABORATORIO and REPARTO labels
+  doc.fillColor(black)
+    .font('Helvetica', 12)
+    .text('LABORATORIO:', leftCol, y)
+    .text('REPARTO:', rightCol, y);
+
+  y += 5 * mm;
+
+  // LABORATORIO and REPARTO values (bold, large)
+  doc.font('Helvetica-Bold', 25)
+    .text((rip.laboratorio?.nome || '').toUpperCase(), leftCol, y, {
+      width: 100 * mm
+    });
+
+  doc.font('Helvetica-Bold', 16)
+    .text((rip.reparto?.nome || '-').toUpperCase(), rightCol, y);
+
+  y += 12 * mm;
+
+  // CARTELLINO, COMMESSA, QTA, LINEA labels
+  doc.font('Helvetica', 12)
+    .text('CARTELLINO:', leftCol, y)
+    .text('COMMESSA:', leftCol + 50 * mm, y)
+    .text('QTA:', leftCol + 120 * mm, y)
+    .text('LINEA:', leftCol + 155 * mm, y);
+
+  y += 5 * mm;
+
+  // Values
+  doc.font('Helvetica-Bold', 16)
+    .text(String(rip.cartellino || '-'), leftCol, y)
+    .text(commessa, leftCol + 50 * mm, y)
+    .text(String(rip.qtaTotale || 0), leftCol + 120 * mm, y)
+    .text(rip.linea?.nome || '-', leftCol + 155 * mm, y);
+
+  y += 10 * mm;
+
+  // ARTICOLO and URGENZA
+  doc.font('Helvetica', 12)
+    .text('ARTICOLO:', leftCol, y)
+    .text('URGENZA:', leftCol + 120 * mm, y);
+
+  y += 5 * mm;
+
+  doc.font('Helvetica-Bold', 16)
+    .text(urgenza, leftCol + 120 * mm, y);
+
+  y += 6 * mm;
+
+  // Black ARTICOLO banner
+  doc.rect(margin, y, contentWidth, 10 * mm)
+    .fillAndStroke(black, black);
+
+  doc.fillColor(white)
+    .font('Helvetica-Bold', 20)
+    .text(articolo.toUpperCase(), margin, y + 2 * mm, {
+      width: contentWidth,
+      align: 'center'
+    });
+
+  y += 13 * mm;
+
+  // ==================== NUMERATA TABLE ====================
+  const numerataBoxY = y;
+  doc.rect(margin, numerataBoxY, contentWidth, 35 * mm)
+    .stroke();
+
+  y += 5 * mm;
+
+  doc.fillColor(black)
+    .font('Helvetica-Bold', 15)
+    .text('NUMERATA DA RIPARARE:', leftCol, y);
+
+  y += 8 * mm;
+
+  // Build arrays for numerata names and quantities
   const names: string[] = [];
-  const qty: number[] = [];
+  const quantities: number[] = [];
+
   for (let i = 1; i <= 20; i++) {
     const nField = `n${String(i).padStart(2, '0')}` as keyof typeof rip.numerata;
-    names.push(String(rip.numerata?.[nField] || `T${i}`));
     const pField = `p${String(i).padStart(2, '0')}` as keyof typeof rip;
-    qty.push((rip[pField] as number) || 0);
+    names.push(String(rip.numerata?.[nField] || ''));
+    quantities.push((rip[pField] as number) || 0);
   }
 
-  names.forEach((n, idx) => {
-    doc.rect(12 + idx * colWidth, tableY + 6, colWidth, 18).stroke(black);
-    doc.font('Helvetica-Bold').fontSize(9).text(n, 12 + idx * colWidth, tableY + 10, { width: colWidth, align: 'center' });
-  });
-  qty.forEach((q, idx) => {
-    doc.rect(12 + idx * colWidth, tableY + 24, colWidth, 18).stroke(black);
-    doc.font('Helvetica-Bold').fontSize(10).text(String(q), 12 + idx * colWidth, tableY + 28, { width: colWidth, align: 'center' });
-  });
+  // Draw 20-column table with HTML-like rendering
+  const colWidth = (contentWidth - 10 * mm) / 20;
+  const tableX = leftCol;
 
-  // Motivo riparazione
-  let motivoY = tableY + 50;
-  doc.rect(12, motivoY, 560, 96).stroke(black);
-  doc.font('Helvetica-Bold').fontSize(11).fillColor(black).text('MOTIVO RIPARAZIONE', 16, motivoY + 6);
-  doc.font('Helvetica').fontSize(10).fillColor(black).text(rip.causale || '-', 16, motivoY + 20, { width: 552 });
+  // Row 1: Size names (gray background)
+  doc.fillColor(lightGray);
+  for (let i = 0; i < 20; i++) {
+    doc.rect(tableX + (i * colWidth), y, colWidth, 7 * mm)
+      .fillAndStroke(lightGray, black);
+  }
 
-  // URGENTE watermark
-  doc.font('Helvetica-Bold').fontSize(28).fillColor('#bbbbbb').text('URGENTE', 16, motivoY + 88);
+  doc.fillColor(black).font('Helvetica-Bold', 10);
+  for (let i = 0; i < 20; i++) {
+    if (names[i]) {
+      doc.text(names[i], tableX + (i * colWidth), y + 1.5 * mm, {
+        width: colWidth,
+        align: 'center'
+      });
+    }
+  }
 
-  // Codice centrale
-  const codeY = motivoY + 120;
-  doc.rect(12, codeY, 560, 28).stroke(black);
-  doc.font('Helvetica-Bold').fontSize(13).fillColor(black).text(`${rip.idRiparazione.padEnd(12, '_')}`, 16, codeY + 8);
+  y += 7 * mm;
 
-  // Footer info
-  const footerY = codeY + 34;
-  doc.font('Helvetica-Bold').fontSize(10).fillColor(gray).text('RIPARAZIONE N°:', 12, footerY);
-  doc.rect(120, footerY - 4, 80, 20).stroke(black);
-  doc.font('Helvetica-Bold').fontSize(13).fillColor(black).text(rip.idRiparazione, 120, footerY, { width: 80, align: 'center' });
+  // Row 2: Quantities
+  for (let i = 0; i < 20; i++) {
+    doc.rect(tableX + (i * colWidth), y, colWidth, 7 * mm)
+      .stroke();
+  }
 
-  doc.rect(210, footerY - 4, 120, 20).stroke(black);
-  doc.font('Helvetica-Bold').fontSize(13).fillColor(black).text((rip.reparto?.nome || 'TAGLIO').toUpperCase(), 210, footerY, {
-    width: 120,
-    align: 'center',
-  });
+  doc.fillColor(black).font('Helvetica-Bold', 10);
+  for (let i = 0; i < 20; i++) {
+    if (quantities[i] > 0) {
+      doc.text(String(quantities[i]), tableX + (i * colWidth), y + 1.5 * mm, {
+        width: colWidth,
+        align: 'center'
+      });
+    }
+  }
 
-  doc.font('Helvetica-Bold').fontSize(9).fillColor(gray).text('CEDOLA CREATA IL:', 350, footerY);
-  doc.font('Helvetica-Bold').fontSize(10).fillColor(black).text(new Date().toISOString().slice(0, 10), 460, footerY);
-  doc.font('Helvetica-Bold').fontSize(9).fillColor(gray).text('OPERATORE:', 350, footerY + 14);
-  doc.font('Helvetica-Bold').fontSize(10).fillColor(black).text('-', 430, footerY + 14);
+  y += 12 * mm;
+
+  // ==================== MOTIVO RIPARAZIONE ====================
+  const motivoBoxY = y;
+  doc.rect(margin, motivoBoxY, contentWidth, 77 * mm)
+    .stroke();
+
+  y += 5 * mm;
+
+  doc.fillColor(black)
+    .font('Helvetica-Bold', 15)
+    .text('MOTIVO RIPARAZIONE', leftCol, y);
+
+  y += 8 * mm;
+
+  // Show URGENTE watermark if urgency is ALTA
+  if (urgenza === 'ALTA') {
+    doc.fillColor(urgentGray)
+      .font('Helvetica-Bold', 30)
+      .text('URGENTE', leftCol, motivoBoxY + 65 * mm);
+  }
+
+  // Causale text
+  doc.fillColor(black)
+    .font('Helvetica', 13)
+    .text(rip.causale || '-', leftCol, y, {
+      width: 150 * mm,
+      height: 60 * mm
+    });
+
+  y = motivoBoxY + 82 * mm;
+
+  // ==================== CENTRAL CODE BAR ====================
+  doc.rect(margin, y, contentWidth, 10 * mm)
+    .fillAndStroke(black, black);
+
+  // Display idRiparazione centered with underscores
+  const codePadded = rip.idRiparazione.padEnd(12, '_');
+  doc.fillColor(white)
+    .font('Helvetica-Bold', 20)
+    .text(codePadded, margin, y + 2 * mm, {
+      width: contentWidth,
+      align: 'center'
+    });
+
+  y += 15 * mm;
+
+  // ==================== FOOTER ====================
+  doc.fillColor(grayText)
+    .font('Helvetica-Bold', 16)
+    .text('RIPARAZIONE N°:', leftCol, y);
+
+  // Box for ID
+  const idBoxX = leftCol + 60 * mm;
+  doc.rect(idBoxX, y - 2 * mm, 30 * mm, 10 * mm)
+    .stroke();
+
+  doc.fillColor(black)
+    .font('Helvetica', 25)
+    .text(rip.idRiparazione, idBoxX, y, {
+      width: 30 * mm,
+      align: 'center'
+    });
+
+  // Box for REPARTO
+  const repartoBoxX = idBoxX + 40 * mm;
+  doc.rect(repartoBoxX, y - 2 * mm, 60 * mm, 10 * mm)
+    .fillAndStroke('#dedede', black);
+
+  doc.fillColor(black)
+    .font('Helvetica-Bold', 16)
+    .text((rip.reparto?.nome || '-').toUpperCase(), repartoBoxX, y + 1 * mm, {
+      width: 60 * mm,
+      align: 'center'
+    });
+
+  y += 15 * mm;
+
+  // Date and operator
+  const footerRightX = margin + 100 * mm;
+
+  doc.fillColor(black)
+    .font('Helvetica', 12)
+    .text('CEDOLA CREATA IL:', footerRightX, y, {
+      align: 'right',
+      width: 50 * mm
+    })
+    .text(date.toISOString().slice(0, 10), footerRightX + 50 * mm, y, {
+      align: 'right',
+      width: 40 * mm
+    });
+
+  // Horizontal line
+  doc.moveTo(margin + 3 * mm, y + 8 * mm)
+    .lineTo(margin + contentWidth - 3 * mm, y + 8 * mm)
+    .stroke();
+
+  y += 10 * mm;
+
+  // Operator name
+  const operatorName = rip.user?.userName || rip.user?.nome || '-';
+  doc.fillColor(black)
+    .font('Helvetica-Bold', 12)
+    .text(operatorName, footerRightX + 50 * mm, y, {
+      align: 'right',
+      width: 40 * mm
+    });
 
   await waitForPdf(doc as any, fullPath);
   const stat = fs.statSync(fullPath);

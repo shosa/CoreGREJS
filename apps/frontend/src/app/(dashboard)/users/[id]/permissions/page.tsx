@@ -18,12 +18,12 @@ interface PermissionItem {
 const permissionsList: PermissionItem[] = [
   { key: 'riparazioni', name: 'Riparazioni', description: 'Gestione delle riparazioni e ordini di lavoro', icon: 'fa-hammer', color: 'blue' },
   { key: 'produzione', name: 'Produzione', description: 'Gestione della produzione', icon: 'fa-industry', color: 'yellow' },
-  { key: 'quality', name: 'Controllo Qualità', description: 'Sistema di controllo e verifica qualità', icon: 'fa-check-circle', color: 'green' },
+  { key: 'qualita', name: 'Controllo Qualità', description: 'Sistema di controllo e verifica qualità', icon: 'fa-check-circle', color: 'green' },
   { key: 'export', name: 'Export', description: 'Gestione esportazioni e documenti', icon: 'fa-file-export', color: 'purple' },
-  { key: 'scm', name: 'SCM', description: 'Supply Chain Management', icon: 'fa-shipping-fast', color: 'indigo' },
+  { key: 'scm_admin', name: 'SCM', description: 'Supply Chain Management', icon: 'fa-shipping-fast', color: 'indigo' },
   { key: 'tracking', name: 'Tracking', description: 'Tracciabilità materiali', icon: 'fa-map-marker-alt', color: 'red' },
   { key: 'mrp', name: 'MRP', description: 'Gestione Ordini e Fabbisogni', icon: 'fa-box', color: 'orange' },
-  { key: 'utenti', name: 'Gestione Utenti', description: 'Gestione Utenti COREGRE', icon: 'fa-users', color: 'teal' },
+  { key: 'users', name: 'Gestione Utenti', description: 'Gestione Utenti COREGRE', icon: 'fa-users', color: 'teal' },
   { key: 'log', name: 'Log Attività', description: 'Gestione del registro attività', icon: 'fa-chart-line', color: 'gray' },
   { key: 'etichette', name: 'Etichette DYMO', description: 'Stampa e Crea liste', icon: 'fa-barcode', color: 'blue' },
   { key: 'dbsql', name: 'Database e Migrazioni', description: 'Modifiche Database, SQL e sistema migrazioni', icon: 'fa-database', color: 'indigo' },
@@ -58,7 +58,25 @@ export default function UserPermissionsPage() {
           usersApi.getPermissions(userId),
         ]);
         setUser(userData);
-        setPermissions(permsData || {});
+
+        // Normalizza le chiavi dei permessi (converte vecchie chiavi in nuove)
+        const normalizedPerms: Record<string, boolean> = { ...permsData };
+
+        // Migra chiavi vecchie se presenti
+        if ('quality' in normalizedPerms) {
+          normalizedPerms.qualita = normalizedPerms.quality;
+          delete normalizedPerms.quality;
+        }
+        if ('scm' in normalizedPerms) {
+          normalizedPerms.scm_admin = normalizedPerms.scm;
+          delete normalizedPerms.scm;
+        }
+        if ('utenti' in normalizedPerms) {
+          normalizedPerms.users = normalizedPerms.utenti;
+          delete normalizedPerms.utenti;
+        }
+
+        setPermissions(normalizedPerms || {});
       } catch (error) {
         showError('Errore nel caricamento dei permessi');
         router.push('/users');

@@ -13,11 +13,14 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { TrackingService } from './tracking.service';
 import { JobsQueueService } from '../jobs/jobs.queue';
 
 @Controller('tracking')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions('tracking')
 export class TrackingController {
   constructor(
     private readonly trackingService: TrackingService,

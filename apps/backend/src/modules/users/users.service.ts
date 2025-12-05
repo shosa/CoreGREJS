@@ -149,12 +149,12 @@ export class UsersService {
       return {
         riparazioni: false,
         produzione: false,
-        quality: false,
+        qualita: false,
         export: false,
-        scm: false,
+        scm_admin: false,
         tracking: false,
         mrp: false,
-        utenti: false,
+        users: false,
         log: false,
         etichette: false,
         dbsql: false,
@@ -163,14 +163,61 @@ export class UsersService {
       };
     }
 
-    return permission.permessi;
+    // Normalizza le chiavi dei permessi (converte vecchie chiavi in nuove)
+    const permessi = permission.permessi as any;
+    const normalized = { ...permessi };
+
+    // Migra chiavi vecchie se presenti
+    if ('quality' in permessi) {
+      normalized.qualita = permessi.quality;
+      delete normalized.quality;
+    }
+    if ('scm' in permessi) {
+      normalized.scm_admin = permessi.scm;
+      delete normalized.scm;
+    }
+    if ('utenti' in permessi) {
+      normalized.users = permessi.utenti;
+      delete normalized.utenti;
+    }
+
+    // Aggiorna il database con le chiavi normalizzate se ci sono state modifiche
+    if (
+      'quality' in permessi ||
+      'scm' in permessi ||
+      'utenti' in permessi
+    ) {
+      await this.prisma.permission.update({
+        where: { userId },
+        data: { permessi: normalized },
+      });
+    }
+
+    return normalized;
   }
 
   async updatePermissions(userId: number, permessi: any) {
+    // Normalizza le chiavi prima di salvare
+    const normalized = { ...permessi };
+
+    // Converti chiavi vecchie in nuove se presenti
+    if ('quality' in normalized) {
+      normalized.qualita = normalized.quality;
+      delete normalized.quality;
+    }
+    if ('scm' in normalized) {
+      normalized.scm_admin = normalized.scm;
+      delete normalized.scm;
+    }
+    if ('utenti' in normalized) {
+      normalized.users = normalized.utenti;
+      delete normalized.utenti;
+    }
+
     return this.prisma.permission.upsert({
       where: { userId },
-      update: { permessi },
-      create: { userId, permessi },
+      update: { permessi: normalized },
+      create: { userId, permessi: normalized },
     });
   }
 }

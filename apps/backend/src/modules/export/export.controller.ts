@@ -13,12 +13,15 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { ExportService } from './export.service';
 import { ExcelProcessorService } from './excel-processor.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Controller('export')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions('export')
 export class ExportController {
   constructor(
     private exportService: ExportService,

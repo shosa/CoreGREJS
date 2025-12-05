@@ -11,11 +11,14 @@ import {
   Request,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { ProduzioneService } from './produzione.service';
 import { JobsQueueService } from '../jobs/jobs.queue';
 
 @Controller('produzione')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions('produzione')
 export class ProduzioneController {
   constructor(
     private produzioneService: ProduzioneService,
