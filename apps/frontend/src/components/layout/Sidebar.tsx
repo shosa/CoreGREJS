@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/auth';
+import { useModulesStore } from '@/store/modules';
 
 interface SubMenuItem {
   name: string;
@@ -132,7 +133,6 @@ const menuItems: MenuItem[] = [
 
 const adminItems: MenuItem[] = [
   { name: 'Database', href: '/database', icon: 'fa-database', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50' },
-  { name: 'System', href: '/system', icon: 'fa-server', gradient: 'from-purple-500 to-purple-600', hoverGradient: 'hover:from-purple-50 hover:to-purple-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50' },
   { name: 'Cron Jobs', href: '/cron', icon: 'fa-clock', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50' },
 ];
 
@@ -144,6 +144,7 @@ const toolItems: MenuItem[] = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, sidebarCollapsed, toggleSidebar, hasPermission } = useAuthStore();
+  const { fetchModules, isModuleActive, lastFetched } = useModulesStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [popupMenu, setPopupMenu] = useState<string | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
@@ -153,7 +154,15 @@ export default function Sidebar() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    fetchModules();
+  }, [fetchModules]);
+
+  // Ricarica quando lastFetched cambia (cache invalidata)
+  useEffect(() => {
+    if (lastFetched === null && mounted) {
+      fetchModules();
+    }
+  }, [lastFetched, mounted, fetchModules]);
 
   const isActive = (href: string) => pathname === href;
   const toggleMenu = (name: string, event?: React.MouseEvent) => {
@@ -204,7 +213,11 @@ export default function Sidebar() {
     const isOpen = activeMenu === item.name;
     const isPopupOpen = popupMenu === item.name;
 
+    // Filter by permissions
     if (item.permission && !hasPermission(item.permission)) return null;
+
+    // Filter by active modules
+    if (item.permission && !isModuleActive(item.permission)) return null;
 
     return (
       <motion.li

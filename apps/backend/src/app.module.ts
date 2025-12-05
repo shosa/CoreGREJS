@@ -23,6 +23,7 @@ import { EtichetteModule } from './modules/etichette/etichette.module';
 import { InworkModule } from './modules/inwork/inwork.module';
 import { MobileApiModule } from './modules/mobile-api/mobile-api.module';
 import { JobsModule } from './modules/jobs/jobs.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { JobsModule } from './modules/jobs/jobs.module';
     }),
     ScheduleModule.forRoot(),
     PrismaModule,
+    HealthModule,
     AuthModule,
     UsersModule,
     RiparazioniModule,

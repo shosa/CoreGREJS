@@ -9,6 +9,26 @@ export const api = axios.create({
   },
 });
 
+// Helper per verificare se è un errore di database o server
+async function checkErrorType(): Promise<'server' | 'database' | 'ok'> {
+  try {
+    // Prova prima l'health check base (senza database)
+    await axios.get(`${API_URL}/health`, { timeout: 3000 });
+    // Se arriviamo qui, il server risponde
+    return 'ok';
+  } catch (error: any) {
+    // Server non raggiungibile
+    if (!error.response && error.code === 'ERR_NETWORK') {
+      return 'server';
+    }
+    // Server raggiungibile ma database offline
+    if (error.response?.status === 503 || error.response?.status === 500) {
+      return 'database';
+    }
+    return 'server';
+  }
+}
+
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
@@ -32,10 +52,56 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle auth errors
+// Response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    // Evita redirect se siamo già nelle pagine di errore
+    const isOnErrorPage = typeof window !== 'undefined' &&
+      (window.location.pathname.includes('/db-error') ||
+       window.location.pathname.includes('/server-error') ||
+       window.location.pathname.includes('/login'));
+
+    // Database connection error (controlla prima il database, poi il network)
+    // 503 Service Unavailable o 500 con messaggio database
+    if (error.response?.status === 503) {
+      if (!isOnErrorPage) {
+        window.location.replace('/db-error');
+      }
+      return Promise.reject(error);
+    }
+
+    if (error.response?.status === 500) {
+      const errorMessage = error.response?.data?.message || '';
+      const errorDetails = JSON.stringify(error.response?.data || '').toLowerCase();
+
+      // Controlla se l'errore è relativo al database
+      if (errorMessage.toLowerCase().includes('database') ||
+          errorMessage.includes('Can\'t reach database') ||
+          errorDetails.includes('prisma') ||
+          errorDetails.includes('database')) {
+        if (!isOnErrorPage) {
+          window.location.replace('/db-error');
+        }
+        return Promise.reject(error);
+      }
+    }
+
+    // Network error - Verifica se è server o database offline
+    if (!error.response && error.code === 'ERR_NETWORK') {
+      if (!isOnErrorPage) {
+        // Usa health check per determinare il tipo di errore
+        const errorType = await checkErrorType();
+        if (errorType === 'database') {
+          window.location.replace('/db-error');
+        } else {
+          window.location.replace('/server-error');
+        }
+      }
+      return Promise.reject(error);
+    }
+
+    // Auth error - non autorizzato
     if (error.response?.status === 401) {
       // Pulisci lo store Zustand
       localStorage.removeItem('coregre-auth');
@@ -44,6 +110,7 @@ api.interceptors.response.use(
         window.location.replace('/login');
       }
     }
+
     return Promise.reject(error);
   }
 );
@@ -407,6 +474,19 @@ export const settingsApi = {
   },
   getImportProgress: async () => {
     const response = await api.get('/settings/import-progress');
+    return response.data;
+  },
+  // Module management
+  getActiveModules: async () => {
+    const response = await api.get('/settings/modules');
+    return response.data;
+  },
+  updateModuleStatus: async (moduleName: string, enabled: boolean) => {
+    const response = await api.put(`/settings/modules/${moduleName}`, { enabled });
+    return response.data;
+  },
+  updateMultipleModules: async (modules: Record<string, boolean>) => {
+    const response = await api.put('/settings/modules', modules);
     return response.data;
   },
 };

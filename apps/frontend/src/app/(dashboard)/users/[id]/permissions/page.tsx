@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { usersApi } from '@/lib/api';
 import { showSuccess, showError } from '@/store/notifications';
+import Footer from '@/components/layout/Footer';
 
 interface PermissionItem {
   key: string;
@@ -25,7 +26,6 @@ const permissionsList: PermissionItem[] = [
   { key: 'mrp', name: 'MRP', description: 'Gestione Ordini e Fabbisogni', icon: 'fa-box', color: 'orange' },
   { key: 'users', name: 'Gestione Utenti', description: 'Gestione Utenti COREGRE', icon: 'fa-users', color: 'teal' },
   { key: 'log', name: 'Log Attività', description: 'Gestione del registro attività', icon: 'fa-chart-line', color: 'gray' },
-  { key: 'etichette', name: 'Etichette DYMO', description: 'Stampa e Crea liste', icon: 'fa-barcode', color: 'blue' },
   { key: 'dbsql', name: 'Database e Migrazioni', description: 'Modifiche Database, SQL e sistema migrazioni', icon: 'fa-database', color: 'indigo' },
   { key: 'settings', name: 'Impostazioni', description: 'Accesso alle impostazioni e import Dati', icon: 'fa-cog', color: 'orange' },
 ];
@@ -282,51 +282,69 @@ export default function UserPermissionsPage() {
           </motion.div>
         </motion.div>
 
-        {/* Actions */}
-        <motion.div variants={itemVariants} className="mt-8 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+      </form>
+
+      {/* Sticky Footer */}
+      <Footer>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
             <motion.button
               type="button"
               onClick={selectAll}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="inline-flex items-center px-4 py-2 border border-green-300 rounded-lg text-sm font-medium text-green-700 bg-white hover:bg-green-50 dark:bg-gray-700 dark:text-green-300"
+              className="inline-flex items-center px-4 py-2.5 border border-green-300 rounded-lg text-sm font-medium text-green-700 bg-white hover:bg-green-50 transition-colors dark:bg-gray-700 dark:text-green-300 dark:hover:bg-gray-600"
             >
-              <i className="fas fa-check-double mr-2"></i>Seleziona Tutto
+              <i className="fas fa-check-double mr-2"></i>Attiva Tutti
             </motion.button>
             <motion.button
               type="button"
               onClick={clearAll}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="inline-flex items-center px-4 py-2 border border-red-300 rounded-lg text-sm font-medium text-red-700 bg-white hover:bg-red-50 dark:bg-gray-700 dark:text-red-300"
+              className="inline-flex items-center px-4 py-2.5 border border-red-300 rounded-lg text-sm font-medium text-red-700 bg-white hover:bg-red-50 transition-colors dark:bg-gray-700 dark:text-red-300 dark:hover:bg-gray-600"
             >
-              <i className="fas fa-times mr-2"></i>Deseleziona Tutto
+              <i className="fas fa-times mr-2"></i>Disattiva Tutti
             </motion.button>
           </div>
 
           <div className="flex items-center space-x-3">
             <Link href="/users">
-              <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300">
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="inline-flex items-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              >
                 <i className="fas fa-times mr-2"></i>Annulla
               </motion.button>
             </Link>
             <motion.button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               disabled={saving}
-              whileHover={{ scale: saving ? 1 : 1.02, y: saving ? 0 : -2 }}
+              whileHover={{ scale: saving ? 1 : 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md disabled:opacity-50"
+              className="inline-flex items-center px-5 py-2.5 border border-transparent rounded-lg text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {saving ? (
-                <><motion.i animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity }} className="fas fa-spinner mr-2" />Salvataggio...</>
+                <>
+                  <motion.i
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    className="fas fa-spinner mr-2"
+                  />
+                  Salvataggio...
+                </>
               ) : (
-                <><i className="fas fa-save mr-2"></i>Salva Permessi</>
+                <>
+                  <i className="fas fa-save mr-2"></i>Salva
+                </>
               )}
             </motion.button>
           </div>
-        </motion.div>
-      </form>
+        </div>
+      </Footer>
     </motion.div>
   );
 }

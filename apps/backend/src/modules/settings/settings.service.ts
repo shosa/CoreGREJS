@@ -279,4 +279,53 @@ export class SettingsService {
     const num = parseInt(String(value), 10);
     return isNaN(num) ? null : num;
   }
+
+  // ==================== MODULE MANAGEMENT ====================
+
+  async getActiveModules(): Promise<Record<string, boolean>> {
+    const settings = await this.prisma.setting.findMany({
+      where: {
+        key: {
+          startsWith: 'module.',
+        },
+      },
+    });
+
+    const modules: Record<string, boolean> = {};
+
+    for (const setting of settings) {
+      const moduleName = setting.key.replace('module.', '').replace('.enabled', '');
+      modules[moduleName] = setting.value === 'true';
+    }
+
+    return modules;
+  }
+
+  async updateModuleStatus(moduleName: string, enabled: boolean): Promise<{ success: boolean }> {
+    const key = `module.${moduleName}.enabled`;
+
+    await this.prisma.setting.upsert({
+      where: { key },
+      update: {
+        value: enabled ? 'true' : 'false',
+        updatedAt: new Date(),
+      },
+      create: {
+        key,
+        value: enabled ? 'true' : 'false',
+        type: 'boolean',
+        group: 'modules',
+      },
+    });
+
+    return { success: true };
+  }
+
+  async updateMultipleModules(modules: Record<string, boolean>): Promise<{ success: boolean }> {
+    for (const [moduleName, enabled] of Object.entries(modules)) {
+      await this.updateModuleStatus(moduleName, enabled);
+    }
+
+    return { success: true };
+  }
 }

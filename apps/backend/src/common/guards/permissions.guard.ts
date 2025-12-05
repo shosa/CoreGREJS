@@ -11,6 +11,8 @@ import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 @Injectable()
 export class PermissionsGuard implements CanActivate {
   private prisma = new PrismaClient();
+  private moduleCache: Map<string, { value: boolean; timestamp: number }> = new Map();
+  private readonly CACHE_TTL = 60000; // 1 minute cache
 
   constructor(private reflector: Reflector) {}
 
@@ -48,6 +50,16 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
+    // Check if modules are enabled
+    for (const permission of requiredPermissions) {
+      const isModuleEnabled = await this.isModuleEnabled(permission);
+      if (!isModuleEnabled) {
+        throw new ForbiddenException(
+          `Modulo "${permission}" non attivo. Contatta l'amministratore.`,
+        );
+      }
+    }
+
     // Check if user has required permissions
     const userPermissions =
       userWithPermissions.permissions?.permessi || {};
@@ -64,5 +76,27 @@ export class PermissionsGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  private async isModuleEnabled(moduleName: string): Promise<boolean> {
+    const now = Date.now();
+    const cached = this.moduleCache.get(moduleName);
+
+    // Return cached value if still valid
+    if (cached && now - cached.timestamp < this.CACHE_TTL) {
+      return cached.value;
+    }
+
+    // Fetch from database
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: `module.${moduleName}.enabled` },
+    });
+
+    const isEnabled = setting?.value === 'true';
+
+    // Update cache
+    this.moduleCache.set(moduleName, { value: isEnabled, timestamp: now });
+
+    return isEnabled;
   }
 }

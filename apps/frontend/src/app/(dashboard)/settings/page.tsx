@@ -4,10 +4,11 @@ import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { settingsApi } from '@/lib/api';
 import { showSuccess, showError } from '@/store/notifications';
+import { useModulesStore } from '@/store/modules';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
-type Section = 'import' | 'general' | 'users' | 'system';
+type Section = 'import' | 'modules' | 'general' | 'users' | 'system';
 type ImportStep = 'select' | 'analyzing' | 'confirm' | 'importing' | 'completed';
 
 interface ImportAnalysis {
@@ -36,6 +37,140 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
+const moduleConfigs: Record<string, {
+  label: string;
+  description: string;
+  icon: string;
+  borderColor: string;
+  bgColor: string;
+  iconBg: string;
+  badgeBg: string;
+  badgeText: string;
+  toggleBg: string;
+}> = {
+  riparazioni: {
+    label: 'Riparazioni',
+    description: 'Gestione riparazioni interne ed esterne',
+    icon: 'fa-hammer',
+    borderColor: 'border-blue-500',
+    bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+    iconBg: 'bg-blue-500',
+    badgeBg: 'bg-blue-100 dark:bg-blue-900/30',
+    badgeText: 'text-blue-700 dark:text-blue-300',
+    toggleBg: 'bg-blue-500',
+  },
+  produzione: {
+    label: 'Produzione',
+    description: 'Monitoraggio produzione giornaliera',
+    icon: 'fa-industry',
+    borderColor: 'border-green-500',
+    bgColor: 'bg-green-50 dark:bg-green-900/20',
+    iconBg: 'bg-green-500',
+    badgeBg: 'bg-green-100 dark:bg-green-900/30',
+    badgeText: 'text-green-700 dark:text-green-300',
+    toggleBg: 'bg-green-500',
+  },
+  qualita: {
+    label: 'Controllo Qualità',
+    description: 'Controllo qualità e difetti',
+    icon: 'fa-clipboard-check',
+    borderColor: 'border-yellow-500',
+    bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
+    iconBg: 'bg-yellow-500',
+    badgeBg: 'bg-yellow-100 dark:bg-yellow-900/30',
+    badgeText: 'text-yellow-700 dark:text-yellow-300',
+    toggleBg: 'bg-yellow-500',
+  },
+  export: {
+    label: 'Export/DDT',
+    description: 'Gestione DDT e export documenti',
+    icon: 'fa-file-export',
+    borderColor: 'border-indigo-500',
+    bgColor: 'bg-indigo-50 dark:bg-indigo-900/20',
+    iconBg: 'bg-indigo-500',
+    badgeBg: 'bg-indigo-100 dark:bg-indigo-900/30',
+    badgeText: 'text-indigo-700 dark:text-indigo-300',
+    toggleBg: 'bg-indigo-500',
+  },
+  scm_admin: {
+    label: 'SCM',
+    description: 'Gestione subfornitori e lanci',
+    icon: 'fa-truck',
+    borderColor: 'border-orange-500',
+    bgColor: 'bg-orange-50 dark:bg-orange-900/20',
+    iconBg: 'bg-orange-500',
+    badgeBg: 'bg-orange-100 dark:bg-orange-900/30',
+    badgeText: 'text-orange-700 dark:text-orange-300',
+    toggleBg: 'bg-orange-500',
+  },
+  tracking: {
+    label: 'Tracking',
+    description: 'Tracciabilità cartellini e lotti',
+    icon: 'fa-barcode',
+    borderColor: 'border-purple-500',
+    bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+    iconBg: 'bg-purple-500',
+    badgeBg: 'bg-purple-100 dark:bg-purple-900/30',
+    badgeText: 'text-purple-700 dark:text-purple-300',
+    toggleBg: 'bg-purple-500',
+  },
+  mrp: {
+    label: 'MRP',
+    description: 'Material Requirements Planning',
+    icon: 'fa-boxes',
+    borderColor: 'border-teal-500',
+    bgColor: 'bg-teal-50 dark:bg-teal-900/20',
+    iconBg: 'bg-teal-500',
+    badgeBg: 'bg-teal-100 dark:bg-teal-900/30',
+    badgeText: 'text-teal-700 dark:text-teal-300',
+    toggleBg: 'bg-teal-500',
+  },
+  users: {
+    label: 'Utenti',
+    description: 'Gestione utenti e permessi',
+    icon: 'fa-users',
+    borderColor: 'border-pink-500',
+    bgColor: 'bg-pink-50 dark:bg-pink-900/20',
+    iconBg: 'bg-pink-500',
+    badgeBg: 'bg-pink-100 dark:bg-pink-900/30',
+    badgeText: 'text-pink-700 dark:text-pink-300',
+    toggleBg: 'bg-pink-500',
+  },
+  settings: {
+    label: 'Impostazioni',
+    description: 'Configurazione sistema',
+    icon: 'fa-cog',
+    borderColor: 'border-gray-500',
+    bgColor: 'bg-gray-50 dark:bg-gray-900/20',
+    iconBg: 'bg-gray-500',
+    badgeBg: 'bg-gray-100 dark:bg-gray-900/30',
+    badgeText: 'text-gray-700 dark:text-gray-300',
+    toggleBg: 'bg-gray-500',
+  },
+  log: {
+    label: 'Log Attività',
+    description: 'Registro attività sistema',
+    icon: 'fa-history',
+    borderColor: 'border-cyan-500',
+    bgColor: 'bg-cyan-50 dark:bg-cyan-900/20',
+    iconBg: 'bg-cyan-500',
+    badgeBg: 'bg-cyan-100 dark:bg-cyan-900/30',
+    badgeText: 'text-cyan-700 dark:text-cyan-300',
+    toggleBg: 'bg-cyan-500',
+  },
+  dbsql: {
+    label: 'Database SQL',
+    description: 'Query e gestione database',
+    icon: 'fa-database',
+    borderColor: 'border-slate-500',
+    bgColor: 'bg-slate-50 dark:bg-slate-900/20',
+    iconBg: 'bg-slate-500',
+    badgeBg: 'bg-slate-100 dark:bg-slate-900/30',
+    badgeText: 'text-slate-700 dark:text-slate-300',
+    toggleBg: 'bg-slate-500',
+  },
+};
+
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<Section>('import');
   const [importStep, setImportStep] = useState<ImportStep>('select');
@@ -47,6 +182,12 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Modules state
+  const [modules, setModules] = useState<Record<string, boolean>>({});
+  const [modulesLoading, setModulesLoading] = useState(false);
+  const [modulesSaving, setModulesSaving] = useState(false);
+  const { clearCache: clearModulesCache } = useModulesStore();
+
   // Cleanup interval on unmount
   useEffect(() => {
     return () => {
@@ -55,6 +196,80 @@ export default function SettingsPage() {
       }
     };
   }, []);
+
+  // Load modules when switching to modules section
+  useEffect(() => {
+    if (activeSection === 'modules') {
+      loadModules();
+    }
+  }, [activeSection]);
+
+  const loadModules = async () => {
+    setModulesLoading(true);
+    try {
+      const data = await settingsApi.getActiveModules();
+      setModules(data);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento moduli');
+    } finally {
+      setModulesLoading(false);
+    }
+  };
+
+  const handleModuleToggle = async (moduleName: string, enabled: boolean) => {
+    const oldModules = { ...modules };
+    setModules({ ...modules, [moduleName]: enabled });
+
+    try {
+      await settingsApi.updateModuleStatus(moduleName, enabled);
+      // Invalida cache moduli per ricaricare sidebar
+      clearModulesCache();
+      showSuccess(`Modulo ${moduleName} ${enabled ? 'attivato' : 'disattivato'}`);
+    } catch (error: any) {
+      setModules(oldModules);
+      showError(error.response?.data?.message || 'Errore aggiornamento modulo');
+    }
+  };
+
+  const handleEnableAll = async () => {
+    setModulesSaving(true);
+    const allEnabled = Object.keys(modules).reduce((acc, key) => {
+      acc[key] = true;
+      return acc;
+    }, {} as Record<string, boolean>);
+
+    try {
+      await settingsApi.updateMultipleModules(allEnabled);
+      setModules(allEnabled);
+      // Invalida cache moduli per ricaricare sidebar
+      clearModulesCache();
+      showSuccess('Tutti i moduli attivati');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore attivazione moduli');
+    } finally {
+      setModulesSaving(false);
+    }
+  };
+
+  const handleDisableAll = async () => {
+    setModulesSaving(true);
+    const allDisabled = Object.keys(modules).reduce((acc, key) => {
+      acc[key] = false;
+      return acc;
+    }, {} as Record<string, boolean>);
+
+    try {
+      await settingsApi.updateMultipleModules(allDisabled);
+      setModules(allDisabled);
+      // Invalida cache moduli per ricaricare sidebar
+      clearModulesCache();
+      showSuccess('Tutti i moduli disattivati');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore disattivazione moduli');
+    } finally {
+      setModulesSaving(false);
+    }
+  };
 
   const handleFileSelect = async (file: File) => {
     if (!file.name.endsWith('.xlsx')) {
@@ -145,9 +360,9 @@ export default function SettingsPage() {
 
   const sections = [
     { id: 'import' as Section, label: 'Import Dati', icon: 'fa-file-import', color: 'blue' },
+    { id: 'modules' as Section, label: 'Moduli Attivi', icon: 'fa-puzzle-piece', color: 'purple' },
     { id: 'general' as Section, label: 'Generali', icon: 'fa-cog', color: 'gray', disabled: true },
-    { id: 'users' as Section, label: 'Utenti', icon: 'fa-users', color: 'purple', disabled: true },
-    { id: 'system' as Section, label: 'Sistema', icon: 'fa-server', color: 'green', disabled: true },
+    { id: 'users' as Section, label: 'Utenti', icon: 'fa-users', color: 'orange', disabled: true },
   ];
 
   const progressPercent = progress && progress.total > 0
@@ -465,8 +680,153 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* Modules Section */}
+          {activeSection === 'modules' && (
+            <div className="space-y-6">
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-purple-500 to-pink-600 shadow-lg">
+                        <i className="fas fa-puzzle-piece text-white text-2xl"></i>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                          Gestione Moduli Sistema
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-400">
+                          Attiva o disattiva i moduli disponibili
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleEnableAll}
+                        disabled={modulesSaving}
+                        className="px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition disabled:opacity-50 text-sm font-medium"
+                      >
+                        <i className="fas fa-check-double mr-2"></i>Attiva Tutti
+                      </button>
+                      <button
+                        onClick={handleDisableAll}
+                        disabled={modulesSaving}
+                        className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
+                      >
+                        <i className="fas fa-times mr-2"></i>Disattiva Tutti
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  {modulesLoading ? (
+                    <div className="text-center py-12">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        className="mx-auto h-16 w-16 rounded-full border-4 border-purple-500 border-t-transparent mb-4"
+                      />
+                      <p className="text-lg font-medium text-purple-600 dark:text-purple-400">
+                        Caricamento moduli...
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {Object.entries(moduleConfigs).map(([key, config]) => {
+                        const isEnabled = modules[key] || false;
+                        return (
+                          <motion.div
+                            key={key}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className={`p-4 rounded-lg border-2 transition-all ${
+                              isEnabled
+                                ? `${config.borderColor} ${config.bgColor}`
+                                : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`flex h-10 w-10 items-center justify-center rounded-lg text-white ${
+                                    isEnabled
+                                      ? config.iconBg
+                                      : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
+                                  }`}
+                                >
+                                  <i className={`fas ${config.icon}`}></i>
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-gray-900 dark:text-white">
+                                    {config.label}
+                                  </h4>
+                                  <p className="text-xs text-gray-500">{config.description}</p>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span
+                                className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                  isEnabled
+                                    ? `${config.badgeBg} ${config.badgeText}`
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                                }`}
+                              >
+                                {isEnabled ? 'Attivo' : 'Disattivato'}
+                              </span>
+                              <button
+                                onClick={() => handleModuleToggle(key, !isEnabled)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                                  isEnabled
+                                    ? config.toggleBg
+                                    : 'bg-gray-300 dark:bg-gray-600'
+                                }`}
+                              >
+                                <span
+                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                    isEnabled ? 'translate-x-6' : 'translate-x-1'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Info Card */}
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow p-6">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <i className="fas fa-info-circle text-purple-500"></i>
+                  Informazioni sui Moduli
+                </h4>
+                <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+                  <p className="flex items-start gap-2">
+                    <i className="fas fa-shield-alt text-purple-500 mt-1"></i>
+                    <span>Solo gli amministratori possono gestire l'attivazione dei moduli</span>
+                  </p>
+                  <p className="flex items-start gap-2">
+                    <i className="fas fa-eye-slash text-blue-500 mt-1"></i>
+                    <span>I moduli disattivati non saranno visibili nella sidebar</span>
+                  </p>
+                  <p className="flex items-start gap-2">
+                    <i className="fas fa-users text-green-500 mt-1"></i>
+                    <span>Gli utenti non potranno accedere ai moduli disattivati anche se hanno i permessi</span>
+                  </p>
+                  <p className="flex items-start gap-2">
+                    <i className="fas fa-sync-alt text-yellow-500 mt-1"></i>
+                    <span>Le modifiche sono immediate e non richiedono riavvio del sistema</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Placeholder for other sections */}
-          {activeSection !== 'import' && (
+          {activeSection !== 'import' && activeSection !== 'modules' && (
             <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow p-12 text-center">
               <div className="mx-auto h-20 w-20 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4">
                 <i className="fas fa-tools text-4xl text-gray-400 dark:text-gray-500"></i>

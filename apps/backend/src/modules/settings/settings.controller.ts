@@ -2,16 +2,20 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Delete,
   UseGuards,
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Body,
+  Param,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AdminGuard } from '../../common/guards/admin.guard';
 import { SettingsService, ImportProgress, ImportAnalysis } from './settings.service';
 
 @Controller('settings')
@@ -57,5 +61,31 @@ export class SettingsController {
   @Get('import-progress')
   getImportProgress(): ImportProgress {
     return this.settingsService.getImportProgress();
+  }
+
+  // ==================== MODULE MANAGEMENT ====================
+
+  // Get all active modules
+  @Get('modules')
+  @UseGuards(AdminGuard)
+  async getActiveModules() {
+    return this.settingsService.getActiveModules();
+  }
+
+  // Update single module status
+  @Put('modules/:moduleName')
+  @UseGuards(AdminGuard)
+  async updateModuleStatus(
+    @Param('moduleName') moduleName: string,
+    @Body('enabled') enabled: boolean,
+  ) {
+    return this.settingsService.updateModuleStatus(moduleName, enabled);
+  }
+
+  // Update multiple modules at once
+  @Put('modules')
+  @UseGuards(AdminGuard)
+  async updateMultipleModules(@Body() modules: Record<string, boolean>) {
+    return this.settingsService.updateMultipleModules(modules);
   }
 }

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
-export default function NotFound() {
+export default function Forbidden() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <motion.div
@@ -19,7 +19,7 @@ export default function NotFound() {
           transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
           className="mb-8"
         >
-          <h1 className="text-9xl font-bold text-gray-200 dark:text-gray-800">404</h1>
+          <h1 className="text-9xl font-bold text-gray-200 dark:text-gray-800">403</h1>
         </motion.div>
 
         {/* Icon */}
@@ -27,9 +27,9 @@ export default function NotFound() {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
-          className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-orange-500 shadow-lg"
+          className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 shadow-lg"
         >
-          <i className="fas fa-search text-4xl text-white"></i>
+          <i className="fas fa-lock text-4xl text-white"></i>
         </motion.div>
 
         {/* Message */}
@@ -39,10 +39,10 @@ export default function NotFound() {
           transition={{ delay: 0.4 }}
         >
           <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
-            Pagina non trovata
+            Accesso negato
           </h2>
           <p className="mb-8 text-gray-600 dark:text-gray-400">
-            La risorsa che stai cercando non esiste o è stata spostata.
+            Non hai i permessi necessari per accedere a questa risorsa.
           </p>
 
           {/* Actions */}
@@ -51,7 +51,7 @@ export default function NotFound() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="inline-flex items-center rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-3 text-sm font-medium text-white shadow-md transition-all hover:from-blue-600 hover:to-blue-700"
+                className="inline-flex items-center rounded-lg bg-gradient-to-r from-yellow-500 to-orange-500 px-6 py-3 text-sm font-medium text-white shadow-md transition-all hover:from-yellow-600 hover:to-orange-600"
               >
                 <i className="fas fa-home mr-2"></i>
                 Torna alla Home
