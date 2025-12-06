@@ -4,6 +4,7 @@ import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { LogActivity } from '../../common/decorators/log-activity.decorator';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -28,6 +29,7 @@ export class UsersController {
   }
 
   @Post()
+  @LogActivity({ module: 'users', action: 'create', entity: 'User', description: 'Creazione nuovo utente' })
   async create(@Body() data: any) {
     try {
       return await this.usersService.create(data);
@@ -40,6 +42,7 @@ export class UsersController {
   }
 
   @Put(':id')
+  @LogActivity({ module: 'users', action: 'update', entity: 'User', description: 'Modifica utente' })
   async update(@Param('id') id: string, @Body() data: any) {
     try {
       return await this.usersService.update(+id, data);
@@ -52,11 +55,13 @@ export class UsersController {
   }
 
   @Delete(':id')
+  @LogActivity({ module: 'users', action: 'delete', entity: 'User', description: 'Eliminazione utente' })
   delete(@Param('id') id: string) {
     return this.usersService.delete(+id);
   }
 
   @Post('delete-bulk')
+  @LogActivity({ module: 'users', action: 'delete_bulk', entity: 'User', description: 'Eliminazione multipla utenti' })
   deleteBulk(@Body() data: { ids: number[] }) {
     return this.usersService.deleteBulk(data.ids);
   }
@@ -67,6 +72,7 @@ export class UsersController {
   }
 
   @Put(':id/permissions')
+  @LogActivity({ module: 'users', action: 'update_permissions', entity: 'User', description: 'Modifica permessi utente' })
   updatePermissions(@Param('id') id: string, @Body() data: any) {
     return this.usersService.updatePermissions(+id, data);
   }

@@ -14,6 +14,7 @@ import {
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { LogActivity } from '../../common/decorators/log-activity.decorator';
 import { ProduzioneService } from './produzione.service';
 import { JobsQueueService } from '../jobs/jobs.queue';
 import { JobsService } from '../jobs/jobs.service';
@@ -46,18 +47,21 @@ export class ProduzioneController {
 
   // POST /produzione/phases
   @Post('phases')
+  @LogActivity({ module: 'produzione', action: 'create', entity: 'ProductionPhase', description: 'Creazione nuova fase produzione' })
   async createPhase(@Body() data: any) {
     return this.produzioneService.createPhase(data);
   }
 
   // PUT /produzione/phases/:id
   @Put('phases/:id')
+  @LogActivity({ module: 'produzione', action: 'update', entity: 'ProductionPhase', description: 'Aggiornamento fase produzione' })
   async updatePhase(@Param('id') id: string, @Body() data: any) {
     return this.produzioneService.updatePhase(parseInt(id), data);
   }
 
   // DELETE /produzione/phases/:id
   @Delete('phases/:id')
+  @LogActivity({ module: 'produzione', action: 'delete', entity: 'ProductionPhase', description: 'Eliminazione fase produzione' })
   async deletePhase(@Param('id') id: string) {
     return this.produzioneService.deletePhase(parseInt(id));
   }
@@ -95,6 +99,13 @@ export class ProduzioneController {
   }
 
   // ==================== CALENDAR & DATA ====================
+
+  // GET /produzione/recent?limit=15
+  @Get('recent')
+  async getRecentRecords(@Query('limit') limit: string) {
+    const numLimit = limit ? parseInt(limit) : 15;
+    return this.produzioneService.getRecentRecords(numLimit);
+  }
 
   // GET /produzione/calendar?month=1&year=2025
   @Get('calendar')
@@ -180,6 +191,7 @@ export class ProduzioneController {
 
   // POST /produzione/email/:date - send PDF via email
   @Post('email/:date')
+  @LogActivity({ module: 'produzione', action: 'send_email', entity: 'ProductionRecord', description: 'Invio email cedola produzione' })
   async sendPdfEmail(@Param('date') date: string, @Request() req: any) {
     const userId = req.user?.userId || req.user?.id;
 
@@ -225,6 +237,7 @@ export class ProduzioneController {
 
   // POST /produzione/date/:date
   @Post('date/:date')
+  @LogActivity({ module: 'produzione', action: 'upsert', entity: 'ProductionRecord', description: 'Registrazione/aggiornamento produzione giornaliera' })
   async upsertByDate(
     @Param('date') date: string,
     @Body() data: any,

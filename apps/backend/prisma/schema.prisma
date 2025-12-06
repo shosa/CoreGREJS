@@ -32,8 +32,7 @@ model User {
   productionRecordsUpdated ProductionRecord[] @relation("ProductionUpdater")
 
   // Repairs
-  riparazioni        Riparazione[]
-  riparazioniInterne RiparazioneInterna[]
+  riparazioni Riparazione[]
 
   @@map("auth_users")
 }
@@ -53,14 +52,22 @@ model Permission {
 model ActivityLog {
   id          Int      @id @default(autoincrement())
   userId      Int?     @map("user_id")
-  action      String   @db.VarChar(100)
+  module      String   @default("system") @db.VarChar(50)  // produzione, riparazioni, users, etc.
+  action      String   @db.VarChar(100) // create, update, delete, view, login, etc.
+  entity      String?  @db.VarChar(100) // Nome entità (User, ProductionRecord, etc.)
+  entityId    String?  @map("entity_id") @db.VarChar(100) // ID dell'entità modificata
   description String?  @db.Text
+  metadata    Json?    // Dati aggiuntivi (before/after values, etc.)
   ipAddress   String?  @map("ip_address") @db.VarChar(45)
   userAgent   String?  @map("user_agent") @db.VarChar(255)
   createdAt   DateTime @default(now()) @map("created_at")
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@index([userId])
+  @@index([module])
+  @@index([action])
+  @@index([createdAt])
   @@map("core_log")
 }
 
@@ -201,69 +208,6 @@ model Riparazione {
   @@map("rip_riparazioni")
 }
 
-model RiparazioneInterna {
-  id            Int       @id @default(autoincrement())
-  idRiparazione String    @unique @map("id_riparazione") @db.VarChar(10)
-
-  // Riferimenti
-  cartellino    String?   @db.VarChar(50)
-  userId        Int?      @map("user_id")
-  numerataId    Int?      @map("numerata_id")
-
-  // 20 colonne taglie (quantità per ogni taglia)
-  p01           Int       @default(0)
-  p02           Int       @default(0)
-  p03           Int       @default(0)
-  p04           Int       @default(0)
-  p05           Int       @default(0)
-  p06           Int       @default(0)
-  p07           Int       @default(0)
-  p08           Int       @default(0)
-  p09           Int       @default(0)
-  p10           Int       @default(0)
-  p11           Int       @default(0)
-  p12           Int       @default(0)
-  p13           Int       @default(0)
-  p14           Int       @default(0)
-  p15           Int       @default(0)
-  p16           Int       @default(0)
-  p17           Int       @default(0)
-  p18           Int       @default(0)
-  p19           Int       @default(0)
-  p20           Int       @default(0)
-
-  qtaTotale     Int       @default(0) @map("qta_totale")
-
-  // Info riparazione interna
-  causale          String? @db.Text
-  causaDifetto     String? @map("causa_difetto") @db.Text
-  repartoOrigine   String? @map("reparto_origine") @db.VarChar(100)
-  repartoDestino   String? @map("reparto_destino") @db.VarChar(100)
-
-  // Stato e date
-  data             DateTime  @default(now())
-  completa         Boolean   @default(false)
-  dataChiusura     DateTime? @map("data_chiusura")
-
-  // Operatori
-  operatoreApertura String? @map("operatore_apertura") @db.VarChar(100)
-  operatoreChiusura String? @map("operatore_chiusura") @db.VarChar(100)
-
-  // Note e allegati
-  note          String?   @db.Text
-  foto          String?   @db.VarChar(255)
-
-  // Timestamp
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-
-  // Relazioni
-  user     User?     @relation(fields: [userId], references: [id])
-  numerata Numerata? @relation(fields: [numerataId], references: [id])
-
-  @@map("rip_interne")
-}
-
 model Reparto {
   id          Int      @id @default(autoincrement())
   nome        String   @db.VarChar(100)
@@ -339,8 +283,7 @@ model Numerata {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  riparazioni        Riparazione[]
-  riparazioniInterne RiparazioneInterna[]
+  riparazioni Riparazione[]
 
   @@map("rip_idnumerate")
 }

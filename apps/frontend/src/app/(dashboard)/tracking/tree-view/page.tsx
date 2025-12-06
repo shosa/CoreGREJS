@@ -7,6 +7,62 @@ import { showSuccess, showError } from '@/store/notifications';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
+// Simple Confirm Dialog Component
+interface ConfirmDialogProps {
+  open: boolean;
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function ConfirmDialog({ open, title, message, onConfirm, onCancel }: ConfirmDialogProps) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={onCancel}
+      />
+
+      {/* Dialog */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-white dark:bg-gray-800 shadow-2xl border border-gray-200 dark:border-gray-700"
+      >
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+              <i className="fas fa-exclamation-triangle text-red-600 dark:text-red-400 text-xl"></i>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">{message}</p>
+
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-lg transition"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={onConfirm}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition"
+            >
+              Elimina
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 interface LotItem {
   id: number;
   lot: string;
@@ -34,6 +90,7 @@ export default function TreeViewPage() {
   const [expandedCartelli, setExpandedCartelli] = useState<Set<number>>(new Set());
   const [editingLot, setEditingLot] = useState<{ id: number; lot: string } | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
 
   const handleSearch = async (newPage = 1) => {
     if (!search.trim()) {
@@ -48,8 +105,8 @@ export default function TreeViewPage() {
       setTotalPages(result.totalPages || 1);
       setTotal(result.total || 0);
       setPage(newPage);
-      // Expand all by default
-      setExpandedCartelli(new Set((result.tree || []).map((t: TreeItem) => t.cartel)));
+      // Don't expand by default - let user expand manually
+      setExpandedCartelli(new Set());
     } catch (error) {
       showError('Errore nel caricamento dei dati');
     } finally {
@@ -81,11 +138,14 @@ export default function TreeViewPage() {
     }
   };
 
-  const handleDeleteLot = async (id: number) => {
-    if (!confirm('Eliminare questo collegamento?')) return;
-    setDeleting(id);
+  const handleDeleteLot = async () => {
+    if (!confirmDelete.id) return;
+
+    setDeleting(confirmDelete.id);
+    setConfirmDelete({ open: false, id: null });
+
     try {
-      await trackingApi.deleteLink(id);
+      await trackingApi.deleteLink(confirmDelete.id);
       showSuccess('Collegamento eliminato');
       handleSearch(page);
     } catch (error) {
@@ -216,19 +276,19 @@ export default function TreeViewPage() {
                                     <div className="flex items-center gap-2">
                                       <button
                                         onClick={() => setEditingLot({ id: lot.id, lot: lot.lot })}
-                                        className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                                        className="h-8 w-8 flex items-center justify-center rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 transition"
                                       >
-                                        <i className="fas fa-edit"></i>
+                                        <i className="fas fa-edit text-sm"></i>
                                       </button>
                                       <button
-                                        onClick={() => handleDeleteLot(lot.id)}
+                                        onClick={() => setConfirmDelete({ open: true, id: lot.id })}
                                         disabled={deleting === lot.id}
-                                        className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded disabled:opacity-50"
+                                        className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 transition disabled:opacity-50"
                                       >
                                         {deleting === lot.id ? (
-                                          <i className="fas fa-spinner fa-spin"></i>
+                                          <i className="fas fa-spinner fa-spin text-sm"></i>
                                         ) : (
-                                          <i className="fas fa-trash"></i>
+                                          <i className="fas fa-trash text-sm"></i>
                                         )}
                                       </button>
                                     </div>
@@ -279,6 +339,15 @@ export default function TreeViewPage() {
           <p className="text-sm mt-2">Usa "*" per visualizzare tutti i collegamenti (max 1000)</p>
         </div>
       )}
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={confirmDelete.open}
+        title="Elimina Collegamento"
+        message="Sei sicuro di voler eliminare questo collegamento? Questa azione non può essere annullata."
+        onConfirm={handleDeleteLot}
+        onCancel={() => setConfirmDelete({ open: false, id: null })}
+      />
     </motion.div>
   );
 }

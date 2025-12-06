@@ -24,6 +24,18 @@ type Stats = {
   registrazioniMese?: number;
 };
 
+type RecentRecord = {
+  id: number;
+  productionDate: string;
+  total: number;
+  creator: {
+    id: number;
+    nome: string;
+    userName: string;
+  } | null;
+  createdAt: string;
+};
+
 export default function ProduzioneDashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats>({
@@ -31,9 +43,11 @@ export default function ProduzioneDashboard() {
     repartiAttivi: 0,
     registrazioniMese: 0,
   });
+  const [recentRecords, setRecentRecords] = useState<RecentRecord[]>([]);
 
   useEffect(() => {
     fetchStats();
+    fetchRecentRecords();
   }, []);
 
   const fetchStats = async () => {
@@ -54,6 +68,24 @@ export default function ProduzioneDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchRecentRecords = async () => {
+    try {
+      const data = await produzioneApi.getRecentRecords(10);
+      setRecentRecords(data);
+    } catch (error) {
+      showError("Errore nel caricamento delle registrazioni recenti");
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   };
 
   if (loading) {
@@ -240,7 +272,7 @@ export default function ProduzioneDashboard() {
           </Link>
         </motion.div>
 
-        {/* Riga successiva: Elenco Commesse */}
+        {/* Riga successiva: Registrazioni Recenti */}
         <motion.div
           variants={itemVariants}
           className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm lg:col-span-2"
@@ -248,8 +280,44 @@ export default function ProduzioneDashboard() {
           <div className="border-b border-gray-100 px-6 py-4 text-sm font-semibold text-gray-800 dark:border-gray-700 dark:text-gray-200">
             Registrazioni Recenti
           </div>
-          <div className="px-6 py-6 text-sm text-gray-500 dark:text-gray-400">
-            Nessuna registrazione recente.
+          <div className="px-6 py-6">
+            {recentRecords.length === 0 ? (
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Nessuna registrazione recente.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentRecords.map((record) => (
+                  <Link
+                    key={record.id}
+                    href={`/produzione/${new Date(record.productionDate).toISOString().split('T')[0]}`}
+                    className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-yellow-500 hover:bg-yellow-50 dark:border-gray-700 dark:bg-gray-800/60 dark:hover:border-yellow-600 dark:hover:bg-gray-800"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-md">
+                        <i className="fas fa-calendar-alt"></i>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-900 dark:text-white">
+                          {formatDate(record.productionDate)}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {record.creator ? `Creato da ${record.creator.nome}` : 'Creatore sconosciuto'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-gray-900 dark:text-white">
+                        {record.total.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Pezzi totali
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </motion.div>
       </div>

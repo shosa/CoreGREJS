@@ -25,7 +25,7 @@ const permissionsList: PermissionItem[] = [
   { key: 'tracking', name: 'Tracking', description: 'Tracciabilità materiali', icon: 'fa-map-marker-alt', color: 'red' },
   { key: 'mrp', name: 'MRP', description: 'Gestione Ordini e Fabbisogni', icon: 'fa-box', color: 'orange' },
   { key: 'users', name: 'Gestione Utenti', description: 'Gestione Utenti COREGRE', icon: 'fa-users', color: 'teal' },
-  { key: 'log', name: 'Log Attività', description: 'Gestione del registro attività', icon: 'fa-chart-line', color: 'gray' },
+  { key: 'log', name: 'Log Attività', description: 'Visualizzazione e gestione log attività sistema', icon: 'fa-history', color: 'cyan' },
   { key: 'dbsql', name: 'Database e Migrazioni', description: 'Modifiche Database, SQL e sistema migrazioni', icon: 'fa-database', color: 'indigo' },
   { key: 'settings', name: 'Impostazioni', description: 'Accesso alle impostazioni e import Dati', icon: 'fa-cog', color: 'orange' },
 ];
@@ -146,6 +146,7 @@ export default function UserPermissionsPage() {
       red: { text: 'text-red-500', bg: 'bg-red-600', ring: 'focus:ring-red-500' },
       orange: { text: 'text-orange-500', bg: 'bg-orange-600', ring: 'focus:ring-orange-500' },
       teal: { text: 'text-teal-500', bg: 'bg-teal-600', ring: 'focus:ring-teal-500' },
+      cyan: { text: 'text-cyan-500', bg: 'bg-cyan-600', ring: 'focus:ring-cyan-500' },
       gray: { text: 'text-gray-500', bg: 'bg-gray-600', ring: 'focus:ring-gray-500' },
     };
     return colors[color] || colors.blue;

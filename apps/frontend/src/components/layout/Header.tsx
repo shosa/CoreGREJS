@@ -74,7 +74,7 @@ export default function Header() {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
-        className="sticky top-0 z-10 flex w-full bg-white shadow-md dark:bg-gray-800 dark:shadow-none"
+        className="sticky top-0 z-50 flex w-full bg-white shadow-md dark:bg-gray-800 dark:shadow-none"
       >
         <div className="flex flex-grow items-center justify-between px-4 py-4 md:px-6 2xl:px-11">
           {/* Left side - Menu toggle and search */}
@@ -258,7 +258,7 @@ export default function Header() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     transition={{ duration: 0.2 }}
-                    className="absolute right-0 mt-4 w-56 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                    className="absolute right-0 mt-4 w-56 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 z-[100]"
                   >
                     <ul className="py-2">
                       <motion.li whileHover={{ x: 5 }}>

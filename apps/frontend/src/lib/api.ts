@@ -242,6 +242,12 @@ export const produzioneApi = {
   },
 
   // Calendar & Data
+  getRecentRecords: async (limit?: number) => {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    const response = await api.get(`/produzione/recent?${params}`);
+    return response.data;
+  },
   getCalendar: async (month?: number, year?: number) => {
     const params = new URLSearchParams();
     if (month) params.append('month', month.toString());
@@ -1081,6 +1087,46 @@ export const riparazioniApi = {
 
   deleteNumerata: async (id: number) => {
     const response = await api.delete(`/riparazioni/numerate/${id}`);
+    return response.data;
+  },
+};
+
+// Activity Log API
+export const activityLogApi = {
+  getLogs: async (filters?: {
+    userId?: number;
+    module?: string;
+    action?: string;
+    entity?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.userId) params.append('userId', filters.userId.toString());
+    if (filters?.module) params.append('module', filters.module);
+    if (filters?.action) params.append('action', filters.action);
+    if (filters?.entity) params.append('entity', filters.entity);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.offset) params.append('offset', filters.offset.toString());
+    const response = await api.get(`/activity-log?${params}`);
+    return response.data;
+  },
+  getStats: async (filters?: {
+    userId?: number;
+    module?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.userId) params.append('userId', filters.userId.toString());
+    if (filters?.module) params.append('module', filters.module);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    const response = await api.get(`/activity-log/stats?${params}`);
     return response.data;
   },
 };

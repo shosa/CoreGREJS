@@ -36,15 +36,6 @@ export class AuthService {
       data: { lastLogin: new Date() },
     });
 
-    // Log activity
-    await this.prisma.activityLog.create({
-      data: {
-        userId: user.id,
-        action: 'login',
-        description: 'User logged in',
-      },
-    });
-
     // Normalizza i permessi
     const permessi = user.permissions?.permessi || {};
     const normalized = this.normalizePermissions(permessi);

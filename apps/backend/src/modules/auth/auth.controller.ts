@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from '../../common/guards/local-auth.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { LogActivity } from '../../common/decorators/log-activity.decorator';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -14,6 +15,7 @@ export class AuthController {
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
+  @LogActivity({ module: 'auth', action: 'login', description: 'Login utente' })
   @ApiOperation({ summary: 'User login' })
   async login(@Request() req, @Body() loginDto: LoginDto) {
     return this.authService.login(req.user);
@@ -37,6 +39,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
+  @LogActivity({ module: 'auth', action: 'change_password', description: 'Cambio password' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Change user password' })
   async changePassword(@Request() req, @Body() changePasswordDto: ChangePasswordDto) {

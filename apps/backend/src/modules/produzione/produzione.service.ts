@@ -119,6 +119,42 @@ export class ProduzioneService {
 
   // ==================== PRODUCTION DATA ====================
 
+  // Get recent production records
+  async getRecentRecords(limit: number = 15) {
+    const records = await this.prisma.productionRecord.findMany({
+      include: {
+        valori: {
+          include: {
+            department: {
+              include: { phase: true },
+            },
+          },
+        },
+        creator: {
+          select: {
+            id: true,
+            nome: true,
+            userName: true,
+          },
+        },
+      },
+      orderBy: { productionDate: 'desc' },
+      take: limit,
+    });
+
+    // Calculate total for each record
+    return records.map(record => {
+      const total = record.valori.reduce((sum, v) => sum + v.valore, 0);
+      return {
+        id: record.id,
+        productionDate: record.productionDate,
+        total,
+        creator: record.creator,
+        createdAt: record.createdAt,
+      };
+    });
+  }
+
   // Get calendar data for a month
   async getCalendarData(month: number, year: number) {
     const startDate = new Date(Date.UTC(year, month - 1, 1));

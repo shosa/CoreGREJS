@@ -15,6 +15,7 @@ import { RiparazioniService } from './riparazioni.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { LogActivity } from '../../common/decorators/log-activity.decorator';
 import { Prisma } from '@prisma/client';
 
 @Controller('riparazioni')
@@ -137,6 +138,7 @@ export class RiparazioniController {
    * Create new riparazione
    */
   @Post()
+  @LogActivity({ module: 'riparazioni', action: 'create', entity: 'Riparazione', description: 'Creazione nuova riparazione esterna' })
   async create(@Body() createDto: any) {
     // Convert DTO to Prisma input
     const data: Prisma.RiparazioneCreateInput = {
@@ -180,6 +182,7 @@ export class RiparazioniController {
    * Update riparazione
    */
   @Put(':id(\\d+)')
+  @LogActivity({ module: 'riparazioni', action: 'update', entity: 'Riparazione', description: 'Modifica riparazione esterna' })
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDto: any,
@@ -219,6 +222,7 @@ export class RiparazioniController {
    * Mark riparazione as completed
    */
   @Put(':id(\\d+)/complete')
+  @LogActivity({ module: 'riparazioni', action: 'complete', entity: 'Riparazione', description: 'Completamento riparazione esterna' })
   async complete(@Param('id', ParseIntPipe) id: number) {
     return this.riparazioniService.complete(id);
   }
@@ -228,189 +232,10 @@ export class RiparazioniController {
    * Delete riparazione
    */
   @Delete(':id(\\d+)')
+  @LogActivity({ module: 'riparazioni', action: 'delete', entity: 'Riparazione', description: 'Eliminazione riparazione esterna' })
   async remove(@Param('id', ParseIntPipe) id: number) {
     await this.riparazioniService.remove(id);
     return { message: 'Riparazione eliminata con successo' };
-  }
-
-  // ==================== RIPARAZIONI INTERNE ====================
-
-  /**
-   * GET /riparazioni/interne/stats
-   * Get dashboard statistics for riparazioni interne
-   */
-  @Get('interne/stats')
-  async getStatsInterne() {
-    return this.riparazioniService.getStatsInterne();
-  }
-
-  /**
-   * GET /riparazioni/interne
-   * Get all riparazioni interne
-   */
-  @Get('interne')
-  async findAllInterne(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-    @Query('search') search?: string,
-    @Query('completa') completa?: string,
-  ) {
-    const pageNum = parseInt(page) || 1;
-    const limitNum = parseInt(limit) || 20;
-    const skip = (pageNum - 1) * limitNum;
-
-    const where: Prisma.RiparazioneInternaWhereInput = {};
-
-    // Search filter
-    if (search) {
-      where.OR = [
-        { idRiparazione: { contains: search } },
-        { cartellino: { contains: search } },
-        { causale: { contains: search } },
-      ];
-    }
-
-    // Completa filter
-    if (completa !== undefined) {
-      where.completa = completa === 'true';
-    }
-
-    const { data, total } = await this.riparazioniService.findAllInterne({
-      skip,
-      take: limitNum,
-      where,
-      orderBy: { data: 'desc' },
-    });
-
-    return {
-      data,
-      pagination: {
-        page: pageNum,
-        limit: limitNum,
-        total,
-        pages: Math.ceil(total / limitNum),
-      },
-    };
-  }
-
-  /**
-   * GET /riparazioni/interne/next-id
-   * Get next available idRiparazione for interne
-   */
-  @Get('interne/next-id')
-  async getNextIdInterna() {
-    const nextId = await this.riparazioniService.generateNextIdRiparazioneInterna();
-    return { idRiparazione: nextId };
-  }
-
-  /**
-   * GET /riparazioni/interne/:id
-   * Get riparazione interna by ID
-   */
-  @Get('interne/:id(\\d+)')
-  async findOneInterna(@Param('id', ParseIntPipe) id: number) {
-    return this.riparazioniService.findOneInterna(id);
-  }
-
-  /**
-   * POST /riparazioni/interne
-   * Create new riparazione interna
-   */
-  @Post('interne')
-  async createInterna(@Body() createDto: any) {
-    const data: Prisma.RiparazioneInternaCreateInput = {
-      idRiparazione: createDto.idRiparazione,
-      cartellino: createDto.cartellino,
-      numerata: createDto.numerataId ? { connect: { id: createDto.numerataId } } : undefined,
-      user: createDto.userId ? { connect: { id: createDto.userId } } : undefined,
-      p01: createDto.p01 || 0,
-      p02: createDto.p02 || 0,
-      p03: createDto.p03 || 0,
-      p04: createDto.p04 || 0,
-      p05: createDto.p05 || 0,
-      p06: createDto.p06 || 0,
-      p07: createDto.p07 || 0,
-      p08: createDto.p08 || 0,
-      p09: createDto.p09 || 0,
-      p10: createDto.p10 || 0,
-      p11: createDto.p11 || 0,
-      p12: createDto.p12 || 0,
-      p13: createDto.p13 || 0,
-      p14: createDto.p14 || 0,
-      p15: createDto.p15 || 0,
-      p16: createDto.p16 || 0,
-      p17: createDto.p17 || 0,
-      p18: createDto.p18 || 0,
-      p19: createDto.p19 || 0,
-      p20: createDto.p20 || 0,
-      causale: createDto.causale,
-      causaDifetto: createDto.causaDifetto,
-      repartoOrigine: createDto.repartoOrigine,
-      repartoDestino: createDto.repartoDestino,
-      operatoreApertura: createDto.operatoreApertura,
-      data: createDto.data ? new Date(createDto.data) : new Date(),
-      note: createDto.note,
-      foto: createDto.foto,
-    };
-
-    return this.riparazioniService.createInterna(data);
-  }
-
-  /**
-   * PUT /riparazioni/interne/:id
-   * Update riparazione interna
-   */
-  @Put('interne/:id(\\d+)')
-  async updateInterna(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateDto: any,
-  ) {
-    const data: Prisma.RiparazioneInternaUpdateInput = {};
-
-    if (updateDto.cartellino !== undefined) data.cartellino = updateDto.cartellino;
-    if (updateDto.causale !== undefined) data.causale = updateDto.causale;
-    if (updateDto.causaDifetto !== undefined) data.causaDifetto = updateDto.causaDifetto;
-    if (updateDto.repartoOrigine !== undefined) data.repartoOrigine = updateDto.repartoOrigine;
-    if (updateDto.repartoDestino !== undefined) data.repartoDestino = updateDto.repartoDestino;
-    if (updateDto.operatoreApertura !== undefined) data.operatoreApertura = updateDto.operatoreApertura;
-    if (updateDto.note !== undefined) data.note = updateDto.note;
-    if (updateDto.foto !== undefined) data.foto = updateDto.foto;
-
-    // Update p01-p20 fields
-    for (let i = 1; i <= 20; i++) {
-      const field = `p${i.toString().padStart(2, '0')}`;
-      if (updateDto[field] !== undefined) {
-        data[field] = updateDto[field];
-      }
-    }
-
-    if (updateDto.numerataId !== undefined) {
-      data.numerata = updateDto.numerataId ? { connect: { id: updateDto.numerataId } } : { disconnect: true };
-    }
-
-    return this.riparazioniService.updateInterna(id, data);
-  }
-
-  /**
-   * PUT /riparazioni/interne/:id/complete
-   * Mark riparazione interna as completed
-   */
-  @Put('interne/:id(\\d+)/complete')
-  async completeInterna(
-    @Param('id', ParseIntPipe) id: number,
-    @Body('operatoreChiusura') operatoreChiusura?: string,
-  ) {
-    return this.riparazioniService.completeInterna(id, operatoreChiusura);
-  }
-
-  /**
-   * DELETE /riparazioni/interne/:id
-   * Delete riparazione interna
-   */
-  @Delete('interne/:id(\\d+)')
-  async removeInterna(@Param('id', ParseIntPipe) id: number) {
-    await this.riparazioniService.removeInterna(id);
-    return { message: 'Riparazione interna eliminata con successo' };
   }
 
   // ==================== SUPPORT DATA ====================
@@ -465,6 +290,7 @@ export class RiparazioniController {
    * Create laboratorio
    */
   @Post('laboratori')
+  @LogActivity({ module: 'riparazioni', action: 'create', entity: 'Laboratorio', description: 'Creazione nuovo laboratorio' })
   async createLaboratorio(@Body() createDto: any) {
     const data: Prisma.LaboratorioCreateInput = {
       nome: createDto.nome,
@@ -478,6 +304,7 @@ export class RiparazioniController {
    * Update laboratorio
    */
   @Put('laboratori/:id(\\d+)')
+  @LogActivity({ module: 'riparazioni', action: 'update', entity: 'Laboratorio', description: 'Modifica laboratorio' })
   async updateLaboratorio(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDto: any,
@@ -493,6 +320,7 @@ export class RiparazioniController {
    * Delete laboratorio
    */
   @Delete('laboratori/:id(\\d+)')
+  @LogActivity({ module: 'riparazioni', action: 'delete', entity: 'Laboratorio', description: 'Eliminazione laboratorio' })
   async deleteLaboratorio(@Param('id', ParseIntPipe) id: number) {
     await this.riparazioniService.deleteLaboratorio(id);
     return { message: 'Laboratorio eliminato con successo' };
@@ -543,6 +371,7 @@ export class RiparazioniController {
    * Create numerata
    */
   @Post('numerate')
+  @LogActivity({ module: 'riparazioni', action: 'create', entity: 'Numerata', description: 'Creazione nuova ID numerata' })
   async createNumerata(@Body() createDto: any) {
     const idNumerata = (createDto.idNumerata ?? '').toString().trim();
     if (!idNumerata || idNumerata.length > 2) {
@@ -580,6 +409,7 @@ export class RiparazioniController {
    * Update numerata
    */
   @Put('numerate/:id(\\d+)')
+  @LogActivity({ module: 'riparazioni', action: 'update', entity: 'Numerata', description: 'Modifica ID numerata' })
   async updateNumerata(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDto: any,
@@ -606,6 +436,7 @@ export class RiparazioniController {
    * Delete numerata
    */
   @Delete('numerate/:id(\\d+)')
+  @LogActivity({ module: 'riparazioni', action: 'delete', entity: 'Numerata', description: 'Eliminazione ID numerata' })
   async deleteNumerata(@Param('id', ParseIntPipe) id: number) {
     await this.riparazioniService.deleteNumerata(id);
     return { message: 'Numerata eliminata con successo' };

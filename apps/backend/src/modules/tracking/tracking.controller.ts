@@ -15,6 +15,7 @@ import { Response } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { LogActivity } from '../../common/decorators/log-activity.decorator';
 import { TrackingService } from './tracking.service';
 import { JobsQueueService } from '../jobs/jobs.queue';
 
@@ -40,6 +41,7 @@ export class TrackingController {
   }
 
   @Post('types')
+  @LogActivity({ module: 'tracking', action: 'create', entity: 'TrackingType', description: 'Creazione nuovo tipo tracciamento' })
   async createType(@Body() body: { name: string; note?: string }) {
     return this.trackingService.createType(body.name, body.note);
   }
@@ -68,6 +70,7 @@ export class TrackingController {
 
   // ==================== PROCESSLINKS ====================
   @Post('save-links')
+  @LogActivity({ module: 'tracking', action: 'save_links', entity: 'TrackingLink', description: 'Salvataggio collegamenti tracking' })
   async saveLinks(@Body() body: {
     typeId: number;
     lots: string[];
@@ -91,6 +94,7 @@ export class TrackingController {
   }
 
   @Put('update-lot/:id')
+  @LogActivity({ module: 'tracking', action: 'update', entity: 'TrackingLink', description: 'Modifica lotto tracking' })
   async updateLot(
     @Param('id') id: string,
     @Body() body: { lot: string },
@@ -99,6 +103,7 @@ export class TrackingController {
   }
 
   @Delete('delete-lot/:id')
+  @LogActivity({ module: 'tracking', action: 'delete', entity: 'TrackingLink', description: 'Eliminazione lotto tracking' })
   async deleteLot(@Param('id') id: string) {
     return this.trackingService.deleteLink(parseInt(id));
   }
@@ -171,6 +176,7 @@ export class TrackingController {
   }
 
   @Post('update-lot-info')
+  @LogActivity({ module: 'tracking', action: 'update_lot_info', entity: 'Lot', description: 'Aggiornamento informazioni lotto' })
   async updateLotInfo(@Body() body: {
     lot: string;
     doc?: string;
@@ -185,6 +191,7 @@ export class TrackingController {
   }
 
   @Post('update-order-info')
+  @LogActivity({ module: 'tracking', action: 'update_order_info', entity: 'Order', description: 'Aggiornamento informazioni ordine' })
   async updateOrderInfo(@Body() body: { ordine: string; date?: string }) {
     return this.trackingService.updateOrderInfo(
       body.ordine,
@@ -193,6 +200,7 @@ export class TrackingController {
   }
 
   @Post('update-sku')
+  @LogActivity({ module: 'tracking', action: 'update_sku', entity: 'Article', description: 'Aggiornamento SKU articolo' })
   async updateSku(@Body() body: { art: string; sku: string }) {
     return this.trackingService.updateSku(body.art, body.sku);
   }
