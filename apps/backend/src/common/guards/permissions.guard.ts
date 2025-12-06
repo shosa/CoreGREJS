@@ -46,7 +46,7 @@ export class PermissionsGuard implements CanActivate {
     }
 
     // Admin users have all permissions
-    if (userWithPermissions.adminType === 'admin') {
+    if (userWithPermissions.userType === 'admin') {
       return true;
     }
 

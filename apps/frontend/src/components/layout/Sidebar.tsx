@@ -40,7 +40,7 @@ const menuItems: MenuItem[] = [
     hoverGradient: 'hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20',
     permission: 'riparazioni',
     children: [
-      { name: 'Home', href: '/riparazioni', icon: 'fa-home' },
+      { name: 'Dashboard', href: '/riparazioni', icon: 'fa-home' },
       { name: 'Nuova', href: '/riparazioni/create', icon: 'fa-plus' },
       { name: 'Elenco', href: '/riparazioni/list', icon: 'fa-list' },
     ]
@@ -68,8 +68,9 @@ const menuItems: MenuItem[] = [
     hoverGradient: 'hover:from-yellow-50 hover:to-orange-100 dark:hover:from-yellow-900/20 dark:hover:to-orange-800/20',
     permission: 'produzione',
     children: [
+      { name: 'Dashboard', href: '/produzione', icon: 'fa-home' },
       { name: 'Nuova', href: '/produzione/new', icon: 'fa-plus' },
-      { name: 'Calendario', href: '/produzione', icon: 'fa-calendar' },
+      { name: 'Calendario', href: '/produzione/calendario', icon: 'fa-calendar' },
       { name: 'Statistiche', href: '/produzione/statistics', icon: 'fa-chart-simple' },
       { name: 'Configurazione', href: '/produzione/config', icon: 'fa-cog' },
     ]
@@ -82,7 +83,7 @@ const menuItems: MenuItem[] = [
     hoverGradient: 'hover:from-indigo-50 hover:to-purple-100 dark:hover:from-indigo-900/20 dark:hover:to-purple-800/20',
     permission: 'export',
     children: [
-      { name: 'Menu', href: '/export', icon: 'fa-home' },
+      { name: 'Dashboard', href: '/export', icon: 'fa-home' },
       { name: 'Nuovo DDT', href: '/export/create', icon: 'fa-plus-circle' },
       { name: 'Archivio', href: '/export/archive', icon: 'fa-archive' },
       { name: 'Terzisti', href: '/export/terzisti', icon: 'fa-truck' },
@@ -123,7 +124,7 @@ const menuItems: MenuItem[] = [
     hoverGradient: 'hover:from-purple-50 hover:to-pink-100 dark:hover:from-purple-900/20 dark:hover:to-pink-800/20',
     permission: 'tracking',
     children: [
-      { name: 'Menu', href: '/tracking', icon: 'fa-home' },
+      { name: 'Dashboard', href: '/tracking', icon: 'fa-home' },
       { name: 'Ricerca Multipla', href: '/tracking/multi-search', icon: 'fa-search-plus' },
       { name: 'Inserimento Manuale', href: '/tracking/order-search', icon: 'fa-keyboard' },
       { name: 'Albero Dettagli', href: '/tracking/tree-view', icon: 'fa-sitemap' },
@@ -437,7 +438,7 @@ export default function Sidebar() {
               <ul className="space-y-1.5">{menuItems.slice(1).map((item, i) => renderMenuItem(item, i + 1))}</ul>
             </div>
 
-            {user?.adminType === 'admin' && (
+            {user?.userType === 'admin' && (
               <div className="mb-6">
                 <AnimatePresence>
                   {!sidebarCollapsed && (

@@ -28,7 +28,7 @@ export class AdminGuard implements CanActivate {
     }
 
     // Only admin users can access
-    if (userRecord.adminType !== 'admin') {
+    if (userRecord.userType !== 'admin') {
       throw new ForbiddenException('Accesso riservato agli amministratori');
     }
 

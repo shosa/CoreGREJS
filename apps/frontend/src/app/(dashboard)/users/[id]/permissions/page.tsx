@@ -210,8 +210,8 @@ export default function UserPermissionsPage() {
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">{user?.nome}</h3>
             <p className="text-gray-600 dark:text-gray-400">@{user?.userName}</p>
             <div className="flex items-center mt-2">
-              <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getBadgeColor(user?.adminType)}`}>
-                {user?.adminType?.charAt(0).toUpperCase() + user?.adminType?.slice(1)}
+              <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getBadgeColor(user?.userType)}`}>
+                {user?.userType?.charAt(0).toUpperCase() + user?.userType?.slice(1)}
               </span>
             </div>
           </div>

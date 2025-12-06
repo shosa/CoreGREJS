@@ -13,7 +13,7 @@ export class UsersService {
         userName: true,
         nome: true,
         mail: true,
-        adminType: true,
+        userType: true,
         lastLogin: true,
         createdAt: true,
       },
@@ -23,14 +23,14 @@ export class UsersService {
 
   async getStats() {
     const users = await this.prisma.user.findMany({
-      select: { adminType: true },
+      select: { userType: true },
     });
 
     return {
       total: users.length,
-      admins: users.filter(u => u.adminType === 'admin').length,
-      managers: users.filter(u => u.adminType === 'manager').length,
-      users: users.filter(u => u.adminType === 'user' || u.adminType === 'viewer').length,
+      admins: users.filter(u => u.userType === 'admin').length,
+      managers: users.filter(u => u.userType === 'manager').length,
+      users: users.filter(u => u.userType === 'user' || u.userType === 'viewer').length,
     };
   }
 
@@ -42,8 +42,7 @@ export class UsersService {
         userName: true,
         nome: true,
         mail: true,
-        adminType: true,
-        themeColor: true,
+        userType: true,
         lastLogin: true,
         createdAt: true,
         permissions: true,
@@ -66,15 +65,14 @@ export class UsersService {
         nome: data.nome,
         mail: data.mail,
         password: hashedPassword,
-        adminType: data.adminType || 'user',
-        themeColor: data.themeColor || 'blue',
+        userType: data.userType || 'user',
       },
       select: {
         id: true,
         userName: true,
         nome: true,
         mail: true,
-        adminType: true,
+        userType: true,
         createdAt: true,
       },
     });
@@ -96,8 +94,8 @@ export class UsersService {
     if (data.userName) updateData.userName = data.userName;
     if (data.nome) updateData.nome = data.nome;
     if (data.mail) updateData.mail = data.mail;
-    if (data.adminType) updateData.adminType = data.adminType;
-    if (data.themeColor) updateData.themeColor = data.themeColor;
+    if (data.userType) updateData.userType = data.userType;
+    if (data.mailPassword !== undefined) updateData.mailPassword = data.mailPassword;
 
     if (data.password) {
       updateData.password = await bcrypt.hash(data.password, 12);
@@ -111,7 +109,7 @@ export class UsersService {
         userName: true,
         nome: true,
         mail: true,
-        adminType: true,
+        userType: true,
         createdAt: true,
       },
     });

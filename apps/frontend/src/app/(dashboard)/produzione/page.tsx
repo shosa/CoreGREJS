@@ -1,24 +1,16 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { produzioneApi } from '@/lib/api';
-import { showError } from '@/store/notifications';
-import PageHeader from '@/components/layout/PageHeader';
-import Breadcrumb from '@/components/layout/Breadcrumb';
-
-const MONTHS = [
-  'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
-  'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
-];
-
-const DAYS = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import PageHeader from "@/components/layout/PageHeader";
+import Breadcrumb from "@/components/layout/Breadcrumb";
+import { produzioneApi } from "@/lib/api";
+import { showError } from "@/store/notifications";
 
 const containerVariants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
+  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
 };
 
 const itemVariants = {
@@ -26,119 +18,50 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-export default function ProduzionePage() {
-  const router = useRouter();
+type Stats = {
+  registrazioniOggi?: number;
+  repartiAttivi?: number;
+  registrazioniMese?: number;
+};
+
+export default function ProduzioneDashboard() {
   const [loading, setLoading] = useState(true);
-  const [calendarData, setCalendarData] = useState<any>(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [stats, setStats] = useState<Stats>({
+    registrazioniOggi: 0,
+    repartiAttivi: 0,
+    registrazioniMese: 0,
+  });
 
   useEffect(() => {
-    fetchCalendarData();
-  }, [currentMonth, currentYear]);
+    fetchStats();
+  }, []);
 
-  const fetchCalendarData = async () => {
+  const fetchStats = async () => {
     try {
       setLoading(true);
-      const data = await produzioneApi.getCalendar(currentMonth, currentYear);
-      setCalendarData(data);
+      // TODO: Implementare API per statistiche produzione
+      // const data = await produzioneApi.getStats();
+      // setStats(data);
+
+      // Mock data temporaneo
+      setStats({
+        registrazioniOggi: 0,
+        repartiAttivi: 0,
+        registrazioniMese: 0,
+      });
     } catch (error) {
-      showError('Errore nel caricamento del calendario');
+      showError("Errore nel caricamento delle statistiche");
     } finally {
       setLoading(false);
     }
   };
 
-  const prevMonth = () => {
-    if (currentMonth === 1) {
-      setCurrentMonth(12);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
-  };
-
-  const nextMonth = () => {
-    if (currentMonth === 12) {
-      setCurrentMonth(1);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
-  };
-
-  const goToToday = () => {
-    const today = new Date();
-    setCurrentMonth(today.getMonth() + 1);
-    setCurrentYear(today.getFullYear());
-  };
-
-  const handleDayClick = (day: number) => {
-    const date = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    router.push(`/produzione/${date}`);
-  };
-
-  const renderCalendar = () => {
-    if (!calendarData) return null;
-
-    const { daysInMonth, firstDayOfWeek, daysWithData } = calendarData;
-    const days = [];
-
-    // Empty cells for days before first day of month
-    for (let i = 0; i < firstDayOfWeek; i++) {
-      days.push(<div key={`empty-${i}`} className="h-24" />);
-    }
-
-    // Days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dayData = daysWithData[day];
-      const isToday =
-        day === new Date().getDate() &&
-        currentMonth === new Date().getMonth() + 1 &&
-        currentYear === new Date().getFullYear();
-
-      days.push(
-        <motion.div
-          key={day}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => handleDayClick(day)}
-          className={`h-24 p-2 rounded-lg cursor-pointer transition-all border ${
-            isToday
-              ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/20'
-              : dayData?.hasData
-              ? 'border-green-300 bg-green-50 dark:bg-green-900/20'
-              : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-          }`}
-        >
-          <div className="flex justify-between items-start">
-            <span className={`text-sm font-medium ${
-              isToday ? 'text-orange-600 dark:text-orange-400' : 'text-gray-700 dark:text-gray-300'
-            }`}>
-              {day}
-            </span>
-            {dayData?.hasData && (
-              <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded">
-                {dayData.total}
-              </span>
-            )}
-          </div>
-          {isToday && (
-            <span className="text-[10px] text-orange-500 font-medium">Oggi</span>
-          )}
-        </motion.div>
-      );
-    }
-
-    return days;
-  };
-
-  if (loading && !calendarData) {
+  if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <motion.div
           animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           className="h-12 w-12 rounded-full border-4 border-solid border-yellow-500 border-t-transparent"
         />
       </div>
@@ -147,118 +70,189 @@ export default function ProduzionePage() {
 
   return (
     <motion.div initial="hidden" animate="visible" variants={containerVariants}>
-      {/* Header */}
-      <PageHeader
-        title="Produzione"
-        subtitle="Calendario della produzione giornaliera"
-        actions={
-          <>
-            <Link href="/produzione/new">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-flex items-center rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2 text-sm font-medium text-white hover:from-orange-600 hover:to-orange-700 shadow-md"
-              >
-                <i className="fas fa-plus mr-2"></i>
-                Nuovo
-              </motion.button>
-            </Link>
-            <Link href="/produzione/statistics">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-flex items-center rounded-lg border border-purple-300 bg-white px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-50 dark:border-purple-600 dark:bg-gray-800 dark:text-purple-300"
-              >
-                <i className="fas fa-chart-line mr-2"></i>
-                Statistiche
-              </motion.button>
-            </Link>
-            <motion.button
-              onClick={goToToday}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-            >
-              <i className="fas fa-calendar-day mr-2"></i>
-              Oggi
-            </motion.button>
-          </>
-        }
-      />
+      <PageHeader title="Produzione" subtitle="Registrazione produzioni giornaliere dei reparti" />
 
-      {/* Breadcrumb */}
       <Breadcrumb
         items={[
-          { label: 'Dashboard', href: '/', icon: 'fa-home' },
-          { label: 'Produzione' },
+          { label: "Dashboard", href: "/", icon: "fa-home" },
+          { label: "Produzione" },
         ]}
       />
 
-      {/* Calendar Navigation */}
-      <motion.div
-        variants={itemVariants}
-        className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-      >
-        <div className="flex items-center justify-between">
-          <motion.button
-            onClick={prevMonth}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-          >
-            <i className="fas fa-chevron-left"></i>
-          </motion.button>
-
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            {MONTHS[currentMonth - 1]} {currentYear}
-          </h2>
-
-          <motion.button
-            onClick={nextMonth}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-          >
-            <i className="fas fa-chevron-right"></i>
-          </motion.button>
-        </div>
-      </motion.div>
-
-      {/* Calendar Grid */}
-      <motion.div
-        variants={itemVariants}
-        className="rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 overflow-hidden"
-      >
-        {/* Days Header */}
-        <div className="grid grid-cols-7 bg-gray-50 dark:bg-gray-900">
-          {DAYS.map((day) => (
-            <div key={day} className="p-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-400">
-              {day}
+      {/* 3 Stats Cards */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3 mb-8">
+        <motion.div
+          variants={itemVariants}
+          className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
+        >
+          <div className="flex items-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 shadow-lg">
+              <i className="fas fa-calendar-day text-white"></i>
             </div>
-          ))}
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Registrazioni Oggi
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {stats.registrazioniOggi?.toLocaleString() || 0}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          variants={itemVariants}
+          className="rounded-2xl border border-green-200 bg-green-50 p-6 shadow-lg dark:border-green-800 dark:bg-green-900/20 backdrop-blur-sm"
+        >
+          <div className="flex items-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 shadow-lg">
+              <i className="fas fa-industry text-white"></i>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                Reparti Attivi
+              </p>
+              <p className="text-2xl font-bold text-green-800 dark:text-green-300">
+                {stats.repartiAttivi?.toLocaleString() || 0}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          variants={itemVariants}
+          className="rounded-2xl border border-gray-200 bg-gray-50 p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800/20 backdrop-blur-sm"
+        >
+          <div className="flex items-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-gray-500 to-gray-600 shadow-lg">
+              <i className="fas fa-calendar-alt text-white"></i>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                Registrazioni Mese
+              </p>
+              <p className="text-2xl font-bold text-gray-800 dark:text-gray-300">
+                {stats.registrazioniMese?.toLocaleString() || 0}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Navigation + Support layout */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Colonna 1-2: Cards principali */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:col-span-2">
+          {/* Nuova Produzione */}
+          <motion.div variants={itemVariants}>
+            <div className="group relative h-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg transition-all duration-300 hover:shadow-xl dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm">
+              <div className="absolute inset-0 bg-gradient-to-br from-yellow-50 to-orange-50 opacity-60 dark:from-yellow-900/10 dark:to-orange-800/10" />
+              <div className="relative p-8">
+                <Link href="/produzione/new" className="mb-4 block">
+                  <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-yellow-500 to-orange-600 text-white shadow-lg transition-transform duration-300 group-hover:scale-110">
+                    <i className="fas fa-plus-circle text-xl" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Nuova Produzione
+                  </h3>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Inserisci una nuova produzione giornaliera.
+                  </p>
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Calendario */}
+          <motion.div variants={itemVariants}>
+            <div className="group relative h-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg transition-all duration-300 hover:shadow-xl dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 opacity-60 dark:from-blue-900/10 dark:to-indigo-800/10" />
+              <div className="relative p-8">
+                <Link href="/produzione/calendario" className="mb-4 block">
+                  <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg transition-transform duration-300 group-hover:scale-110">
+                    <i className="fas fa-calendar-alt text-xl" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Calendario
+                  </h3>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Visualizza il calendario della produzione.
+                  </p>
+                </Link>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
-        {/* Calendar Days */}
-        <div className="grid grid-cols-7 gap-1 p-2">
-          {renderCalendar()}
-        </div>
-      </motion.div>
+        {/* Colonna 3: Cards supporto */}
+        <motion.div
+          variants={itemVariants}
+          className="flex flex-col gap-4 lg:row-span-2"
+        >
+          <Link
+            href="/produzione/statistics"
+            className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-800/10"></div>
+            <div className="relative p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-purple-500 to-pink-600 shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
+                  <i className="fas fa-chart-line text-white text-xl"></i>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                    Statistiche
+                  </h3>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Report e analisi produzione
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center text-purple-600 dark:text-purple-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-300">
+                Apri <i className="fas fa-arrow-right ml-2"></i>
+              </div>
+            </div>
+          </Link>
 
-      {/* Legend */}
-      <motion.div variants={itemVariants} className="mt-6 flex items-center justify-center space-x-6">
-        <div className="flex items-center">
-          <div className="h-4 w-4 rounded border border-orange-400 bg-orange-50 dark:bg-orange-900/20 mr-2"></div>
-          <span className="text-sm text-gray-600 dark:text-gray-400">Oggi</span>
-        </div>
-        <div className="flex items-center">
-          <div className="h-4 w-4 rounded border border-green-300 bg-green-50 dark:bg-green-900/20 mr-2"></div>
-          <span className="text-sm text-gray-600 dark:text-gray-400">Con dati</span>
-        </div>
-        <div className="flex items-center">
-          <div className="h-4 w-4 rounded border border-gray-200 dark:border-gray-700 mr-2"></div>
-          <span className="text-sm text-gray-600 dark:text-gray-400">Vuoto</span>
-        </div>
-      </motion.div>
+          <Link
+            href="/produzione/config"
+            className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/10 dark:to-green-800/10"></div>
+            <div className="relative p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
+                  <i className="fas fa-cog text-white text-xl"></i>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                    Configurazione
+                  </h3>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Impostazioni reparti e fasi
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center text-emerald-600 dark:text-emerald-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-300">
+                Apri <i className="fas fa-arrow-right ml-2"></i>
+              </div>
+            </div>
+          </Link>
+        </motion.div>
+
+        {/* Riga successiva: Elenco Commesse */}
+        <motion.div
+          variants={itemVariants}
+          className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm lg:col-span-2"
+        >
+          <div className="border-b border-gray-100 px-6 py-4 text-sm font-semibold text-gray-800 dark:border-gray-700 dark:text-gray-200">
+            Registrazioni Recenti
+          </div>
+          <div className="px-6 py-6 text-sm text-gray-500 dark:text-gray-400">
+            Nessuna registrazione recente.
+          </div>
+        </motion.div>
+      </div>
     </motion.div>
   );
 }

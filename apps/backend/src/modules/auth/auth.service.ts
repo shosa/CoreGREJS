@@ -27,7 +27,7 @@ export class AuthService {
     const payload = {
       sub: user.id,
       username: user.userName,
-      adminType: user.adminType,
+      userType: user.userType,
     };
 
     // Update last login
@@ -56,8 +56,7 @@ export class AuthService {
         userName: user.userName,
         nome: user.nome,
         mail: user.mail,
-        adminType: user.adminType,
-        themeColor: user.themeColor,
+        userType: user.userType,
         permissions: normalized,
       },
     };
@@ -105,7 +104,7 @@ export class AuthService {
     return normalized;
   }
 
-  async updateProfile(userId: number, data: { nome?: string; mail?: string; themeColor?: string }) {
+  async updateProfile(userId: number, data: { nome?: string; mail?: string; mailPassword?: string }) {
     return this.prisma.user.update({
       where: { id: userId },
       data,
@@ -114,7 +113,6 @@ export class AuthService {
         userName: true,
         nome: true,
         mail: true,
-        themeColor: true,
       },
     });
   }

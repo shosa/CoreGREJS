@@ -10,19 +10,16 @@ datasource db {
 // ==================== AUTH ====================
 
 model User {
-  id            Int       @id @default(autoincrement())
-  userName      String    @unique @map("user_name") @db.VarChar(50)
-  nome          String    @db.VarChar(100)
-  password      String    @db.VarChar(255)
-  mail          String?   @db.VarChar(100)
-  adminType     String    @default("operator") @map("admin_type") @db.VarChar(20)
-  themeColor    String    @default("blue") @map("theme_color") @db.VarChar(20)
-  lastLogin     DateTime? @map("last_login")
-  expires       DateTime?
-  rememberToken String?   @map("remember_token") @db.VarChar(255)
-  seriesId      String?   @map("series_id") @db.VarChar(255)
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id           Int       @id @default(autoincrement())
+  userName     String    @unique @map("user_name") @db.VarChar(50)
+  nome         String    @db.VarChar(100)
+  password     String    @db.VarChar(255)
+  mail         String?   @db.VarChar(100)
+  mailPassword String?   @map("mail_password") @db.VarChar(255)
+  userType     String    @default("operator") @map("user_type") @db.VarChar(20)
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   permissions   Permission?
   notifications Notification[]

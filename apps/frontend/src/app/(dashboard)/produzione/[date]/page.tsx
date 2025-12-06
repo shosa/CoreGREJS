@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { produzioneApi } from '@/lib/api';
+import { motion, AnimatePresence } from 'framer-motion';
+import { produzioneApi, settingsApi } from '@/lib/api';
 import { showError, showSuccess } from '@/store/notifications';
+import { useAuthStore } from '@/store/auth';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
+import Footer from '@/components/layout/Footer';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -28,9 +30,13 @@ export default function ProduzioneViewPage() {
   const router = useRouter();
   const params = useParams();
   const date = params.date as string;
+  const { user } = useAuthStore();
 
   const [loading, setLoading] = useState(true);
   const [record, setRecord] = useState<any>(null);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailRecipients, setEmailRecipients] = useState<string[]>([]);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   useEffect(() => {
     fetchRecord();
@@ -58,6 +64,33 @@ export default function ProduzioneViewPage() {
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  };
+
+  const handleOpenEmailModal = async () => {
+    try {
+      const recipients = await settingsApi.getProduzioneEmails();
+      setEmailRecipients(recipients);
+      setShowEmailModal(true);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore nel caricamento dei destinatari');
+    }
+  };
+
+  const handleSendEmail = async () => {
+    try {
+      setSendingEmail(true);
+      const res = await produzioneApi.sendEmail(date);
+      if (res?.success) {
+        showSuccess('Email inviata con successo!');
+        setShowEmailModal(false);
+      } else {
+        showError(res?.error || 'Errore nell\'invio dell\'email');
+      }
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore nell\'invio dell\'email');
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   if (loading) {
@@ -116,48 +149,6 @@ export default function ProduzioneViewPage() {
       <PageHeader
         title={`Produzione del ${formatDate(date)}`}
         subtitle="Dettaglio produzione"
-        actions={
-          <>
-              <motion.button
-                onClick={async () => {
-                  const res = await produzioneApi.requestPdf(date);
-                  if (res?.jobId) {
-                    showSuccess('Il lavoro è stato messo in coda.');
-                  } else {
-                    showError('Errore nella generazione del PDF');
-                  }
-                }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
-              >
-                <i className="fas fa-file-pdf mr-2 text-red-500"></i>
-                Stampa
-              </motion.button>
-
-            <Link href={`/produzione/new?date=${date}`}>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
-              >
-                <i className="fas fa-edit mr-2 text-blue-500"></i>
-                Modifica
-              </motion.button>
-            </Link>
-
-            <Link href="/produzione">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-flex items-center rounded-lg border border-primary bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 text-sm font-medium text-white hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5"
-              >
-                <i className="fas fa-calendar mr-2"></i>
-                Torna al Calendario
-              </motion.button>
-            </Link>
-          </>
-        }
       />
 
       {/* Breadcrumb */}
@@ -278,6 +269,196 @@ export default function ProduzioneViewPage() {
           </div>
         </div>
       </div>
+
+      {/* Footer con Actions */}
+      <Footer>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <Link href="/produzione/calendario">
+            <motion.button
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              className="inline-flex items-center rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-2.5 text-sm font-medium text-white hover:from-orange-600 hover:to-orange-700 shadow-md hover:shadow-lg transition-all duration-200"
+            >
+              <i className="fas fa-calendar mr-2"></i>
+              Torna al Calendario
+            </motion.button>
+          </Link>
+
+          <div className="flex items-center gap-3">
+            <motion.button
+              onClick={async () => {
+                const res = await produzioneApi.requestPdf(date);
+                if (res?.jobId) {
+                  showSuccess('Il lavoro è stato messo in coda.');
+                } else {
+                  showError('Errore nella generazione del PDF');
+                }
+              }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors shadow-sm"
+            >
+              <i className="fas fa-file-pdf mr-2 text-red-500"></i>
+              Stampa PDF
+            </motion.button>
+
+            <motion.button
+              onClick={handleOpenEmailModal}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="inline-flex items-center rounded-lg border border-green-300 bg-white px-4 py-2.5 text-sm font-medium text-green-700 hover:bg-green-50 dark:border-green-600 dark:bg-gray-700 dark:text-green-300 dark:hover:bg-green-600/20 transition-colors shadow-sm"
+            >
+              <i className="fas fa-envelope mr-2 text-green-500"></i>
+              Invia Email
+            </motion.button>
+
+            <Link href={`/produzione/new?date=${date}`}>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors shadow-sm"
+              >
+                <i className="fas fa-edit mr-2 text-blue-500"></i>
+                Modifica
+              </motion.button>
+            </Link>
+          </div>
+        </div>
+      </Footer>
+
+      {/* Email Confirmation Modal */}
+      <AnimatePresence>
+        {showEmailModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={() => !sendingEmail && setShowEmailModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-lg rounded-xl bg-white dark:bg-gray-800 shadow-2xl border border-gray-200 dark:border-gray-700"
+            >
+              {/* Header */}
+              <div className="border-b border-gray-200 dark:border-gray-700 p-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-t-xl">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 shadow-lg">
+                    <i className="fas fa-envelope text-white text-xl"></i>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                      Conferma Invio Email
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Cedola Produzione {formatDate(date)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-4">
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4">
+                  <div className="flex items-start gap-3">
+                    <i className="fas fa-info-circle text-blue-500 mt-1"></i>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
+                        Riepilogo Invio
+                      </p>
+                      <div className="space-y-2 text-sm text-blue-800 dark:text-blue-300">
+                        <div>
+                          <span className="font-medium">Da:</span> {user?.mail || 'Email non configurata'}
+                        </div>
+                        <div>
+                          <span className="font-medium">A:</span>
+                          <div className="mt-1 ml-4 space-y-1">
+                            {emailRecipients.length > 0 ? (
+                              emailRecipients.map((email, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                  <i className="fas fa-circle text-xs"></i>
+                                  {email}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-red-600 dark:text-red-400">
+                                <i className="fas fa-exclamation-triangle mr-2"></i>
+                                Nessun destinatario configurato
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="pt-2 border-t border-blue-200 dark:border-blue-700">
+                          <span className="font-medium">Allegato:</span> PRODUZIONE_{date}.pdf
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {!user?.mail && (
+                  <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4">
+                    <div className="flex items-start gap-3">
+                      <i className="fas fa-exclamation-triangle text-yellow-500 mt-1"></i>
+                      <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                        <strong>Attenzione:</strong> Non hai configurato un indirizzo email nel tuo profilo.
+                        Vai in Utenti per configurarlo.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {emailRecipients.length === 0 && (
+                  <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4">
+                    <div className="flex items-start gap-3">
+                      <i className="fas fa-exclamation-circle text-red-500 mt-1"></i>
+                      <p className="text-sm text-red-800 dark:text-red-300">
+                        <strong>Errore:</strong> Nessun destinatario configurato.
+                        Vai nelle Impostazioni per configurare gli indirizzi email dei destinatari.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="border-t border-gray-200 dark:border-gray-700 p-6 flex items-center justify-end gap-3 bg-gray-50 dark:bg-gray-900/50 rounded-b-xl">
+                <button
+                  onClick={() => setShowEmailModal(false)}
+                  disabled={sendingEmail}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  Annulla
+                </button>
+                <button
+                  onClick={handleSendEmail}
+                  disabled={sendingEmail || !user?.mail || emailRecipients.length === 0}
+                  className="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {sendingEmail ? (
+                    <>
+                      <motion.i
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        className="fas fa-spinner"
+                      ></motion.i>
+                      Invio in corso...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-paper-plane"></i>
+                      Conferma e Invia
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

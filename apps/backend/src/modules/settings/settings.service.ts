@@ -328,4 +328,97 @@ export class SettingsService {
 
     return { success: true };
   }
+
+  // ==================== SMTP CONFIGURATION ====================
+
+  async getSmtpConfig(): Promise<any> {
+    const settings = await this.prisma.setting.findMany({
+      where: {
+        key: {
+          startsWith: 'smtp.',
+        },
+      },
+    });
+
+    const config: any = {
+      host: '',
+      port: 587,
+      secure: false,
+    };
+
+    settings.forEach(setting => {
+      const key = setting.key.replace('smtp.', '');
+      if (key === 'port') {
+        config[key] = parseInt(setting.value || '587', 10);
+      } else if (key === 'secure') {
+        config[key] = setting.value === 'true';
+      } else {
+        config[key] = setting.value || '';
+      }
+    });
+
+    return config;
+  }
+
+  async updateSmtpConfig(config: any): Promise<{ success: boolean }> {
+    const settings = [
+      { key: 'smtp.host', value: config.host || '', type: 'string' },
+      { key: 'smtp.port', value: String(config.port || 587), type: 'number' },
+      { key: 'smtp.secure', value: config.secure ? 'true' : 'false', type: 'boolean' },
+    ];
+
+    for (const setting of settings) {
+      await this.prisma.setting.upsert({
+        where: { key: setting.key },
+        update: {
+          value: setting.value,
+          updatedAt: new Date(),
+        },
+        create: {
+          key: setting.key,
+          value: setting.value,
+          type: setting.type,
+          group: 'smtp',
+        },
+      });
+    }
+
+    return { success: true };
+  }
+
+  // ==================== PRODUZIONE EMAIL CONFIGURATION ====================
+
+  async getProduzioneEmailConfig(): Promise<string[]> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: 'produzione.email.recipients' },
+    });
+
+    if (!setting || !setting.value) {
+      return [];
+    }
+
+    try {
+      return JSON.parse(setting.value);
+    } catch {
+      return [];
+    }
+  }
+
+  async updateProduzioneEmailConfig(emails: string[]): Promise<{ success: boolean }> {
+    await this.prisma.setting.upsert({
+      where: { key: 'produzione.email.recipients' },
+      update: {
+        value: JSON.stringify(emails),
+        updatedAt: new Date(),
+      },
+      create: {
+        key: 'produzione.email.recipients',
+        value: JSON.stringify(emails),
+        type: 'json',
+        group: 'produzione',
+      },
+    });
+
+    return { success: true };
+  }
 }

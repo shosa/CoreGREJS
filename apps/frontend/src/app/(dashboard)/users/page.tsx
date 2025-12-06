@@ -11,7 +11,7 @@ interface User {
   userName: string;
   nome: string;
   mail: string;
-  adminType: string;
+  userType: string;
   lastLogin: string | null;
   createdAt: string;
 }
@@ -367,8 +367,8 @@ export default function UsersPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getBadgeColor(user.adminType)}`}>
-                          {user.adminType.charAt(0).toUpperCase() + user.adminType.slice(1)}
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getBadgeColor(user.userType)}`}>
+                          {user.userType.charAt(0).toUpperCase() + user.userType.slice(1)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">

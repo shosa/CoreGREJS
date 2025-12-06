@@ -26,12 +26,14 @@ export default function EditUserPage() {
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showMailPassword, setShowMailPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     userName: '',
     nome: '',
     mail: '',
-    adminType: '',
+    mailPassword: '',
+    userType: '',
     password: '',
     confirmPassword: '',
   });
@@ -46,7 +48,8 @@ export default function EditUserPage() {
           userName: user.userName,
           nome: user.nome,
           mail: user.mail || '',
-          adminType: user.adminType,
+          mailPassword: '',
+          userType: user.userType,
           password: '',
           confirmPassword: '',
         });
@@ -86,8 +89,12 @@ export default function EditUserPage() {
         userName: formData.userName,
         nome: formData.nome,
         mail: formData.mail,
-        adminType: formData.adminType,
+        userType: formData.userType,
       };
+
+      if (formData.mailPassword) {
+        updateData.mailPassword = formData.mailPassword;
+      }
 
       if (formData.password) {
         updateData.password = formData.password;
@@ -246,11 +253,38 @@ export default function EditUserPage() {
 
             <motion.div variants={itemVariants}>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Password Email SMTP
+              </label>
+              <div className="relative">
+                <input
+                  type={showMailPassword ? 'text' : 'password'}
+                  name="mailPassword"
+                  value={formData.mailPassword}
+                  onChange={handleChange}
+                  placeholder="Password per invio email (lascia vuoto per non modificare)"
+                  className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowMailPassword(!showMailPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                >
+                  <i className={`fas ${showMailPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <i className="fas fa-info-circle mr-1"></i>
+                Password utilizzata per autenticare l'invio di email tramite SMTP
+              </p>
+            </motion.div>
+
+            <motion.div variants={itemVariants}>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Ruolo <span className="text-red-500">*</span>
               </label>
               <select
-                name="adminType"
-                value={formData.adminType}
+                name="userType"
+                value={formData.userType}
                 onChange={handleChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"

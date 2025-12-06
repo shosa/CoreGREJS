@@ -16,8 +16,7 @@ async function main() {
       nome: 'Amministratore',
       password: adminPassword,
       mail: 'admin@coregre.local',
-      adminType: 'admin',
-      themeColor: 'blue',
+      userType: 'admin',
     },
   });
 
@@ -51,8 +50,7 @@ async function main() {
       nome: 'Operatore Test',
       password: operatorPassword,
       mail: 'operatore@coregre.local',
-      adminType: 'operator',
-      themeColor: 'green',
+      userType: 'operator',
     },
   });
 

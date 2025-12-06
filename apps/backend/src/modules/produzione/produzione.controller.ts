@@ -9,12 +9,15 @@ import {
   Param,
   UseGuards,
   Request,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { ProduzioneService } from './produzione.service';
 import { JobsQueueService } from '../jobs/jobs.queue';
+import { JobsService } from '../jobs/jobs.service';
+import { EmailService } from '../email/email.service';
 
 @Controller('produzione')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -23,6 +26,8 @@ export class ProduzioneController {
   constructor(
     private produzioneService: ProduzioneService,
     private jobsQueueService: JobsQueueService,
+    private jobsService: JobsService,
+    private emailService: EmailService,
   ) {}
 
   // ==================== PHASES ====================
@@ -171,6 +176,45 @@ export class ProduzioneController {
     const userId = req.user?.userId || req.user?.id;
     const job = await this.jobsQueueService.enqueue('prod.report-pdf', { date }, userId);
     return { jobId: job.id, status: job.status };
+  }
+
+  // POST /produzione/email/:date - send PDF via email
+  @Post('email/:date')
+  async sendPdfEmail(@Param('date') date: string, @Request() req: any) {
+    const userId = req.user?.userId || req.user?.id;
+
+    // Generate PDF first (enqueue job)
+    const job = await this.jobsQueueService.enqueue('prod.report-pdf', { date }, userId);
+
+    // Wait for job completion (poll status)
+    let attempts = 0;
+    const maxAttempts = 60; // 30 seconds max
+    while (attempts < maxAttempts) {
+      const jobStatus = await this.jobsService.getJob(job.id, userId);
+
+      if (jobStatus.status === 'done' && jobStatus.outputPath) {
+        // Send email with PDF
+        const result = await this.emailService.sendProduzionePdf(
+          date,
+          jobStatus.outputPath,
+          userId,
+        );
+
+        return {
+          success: result.success,
+          message: 'Email inviata con successo',
+          jobId: job.id,
+        };
+      } else if (jobStatus.status === 'failed') {
+        throw new BadRequestException('Errore nella generazione del PDF');
+      }
+
+      // Wait 500ms before next check
+      await new Promise(resolve => setTimeout(resolve, 500));
+      attempts++;
+    }
+
+    throw new BadRequestException('Timeout nella generazione del PDF');
   }
 
   // GET /produzione/date/:date - MUST be after all static routes

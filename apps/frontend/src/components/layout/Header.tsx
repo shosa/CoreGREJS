@@ -232,7 +232,7 @@ export default function Header() {
                     {user?.nome}
                   </span>
                   <span className="block text-xs text-gray-500 dark:text-gray-400">
-                    {user?.adminType === 'admin' ? 'Amministratore' : 'Operatore'}
+                    {user?.userType === 'admin' ? 'Amministratore' : 'Operatore'}
                   </span>
                 </span>
 

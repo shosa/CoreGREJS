@@ -30,7 +30,7 @@ export default function CreateUserPage() {
     userName: '',
     nome: '',
     mail: '',
-    adminType: '',
+    userType: '',
     password: '',
     confirmPassword: '',
   });
@@ -58,7 +58,7 @@ export default function CreateUserPage() {
         userName: formData.userName,
         nome: formData.nome,
         mail: formData.mail,
-        adminType: formData.adminType,
+        userType: formData.userType,
         password: formData.password,
       });
       showSuccess('Utente creato con successo');
@@ -196,8 +196,8 @@ export default function CreateUserPage() {
                 Ruolo <span className="text-red-500">*</span>
               </label>
               <select
-                name="adminType"
-                value={formData.adminType}
+                name="userType"
+                value={formData.userType}
                 onChange={handleChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"

@@ -257,6 +257,10 @@ export const produzioneApi = {
     const response = await api.get(`/produzione/pdf/${date}`);
     return response.data;
   },
+  sendEmail: async (date: string) => {
+    const response = await api.post(`/produzione/email/${date}`);
+    return response.data;
+  },
   save: async (data: any) => {
     const response = await api.post(`/produzione/date/${data.date}`, data);
     return response.data;
@@ -487,6 +491,24 @@ export const settingsApi = {
   },
   updateMultipleModules: async (modules: Record<string, boolean>) => {
     const response = await api.put('/settings/modules', modules);
+    return response.data;
+  },
+  // SMTP configuration
+  getSmtpConfig: async () => {
+    const response = await api.get('/settings/smtp');
+    return response.data;
+  },
+  updateSmtpConfig: async (config: any) => {
+    const response = await api.put('/settings/smtp', config);
+    return response.data;
+  },
+  // Produzione email configuration
+  getProduzioneEmails: async () => {
+    const response = await api.get('/settings/produzione/emails');
+    return response.data;
+  },
+  updateProduzioneEmails: async (emails: string[]) => {
+    const response = await api.put('/settings/produzione/emails', { emails });
     return response.data;
   },
 };

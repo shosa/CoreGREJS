@@ -88,4 +88,32 @@ export class SettingsController {
   async updateMultipleModules(@Body() modules: Record<string, boolean>) {
     return this.settingsService.updateMultipleModules(modules);
   }
+
+  // ==================== SMTP CONFIGURATION ====================
+
+  @Get('smtp')
+  @UseGuards(AdminGuard)
+  async getSmtpConfig() {
+    return this.settingsService.getSmtpConfig();
+  }
+
+  @Put('smtp')
+  @UseGuards(AdminGuard)
+  async updateSmtpConfig(@Body() config: any) {
+    return this.settingsService.updateSmtpConfig(config);
+  }
+
+  // ==================== PRODUZIONE EMAIL CONFIGURATION ====================
+
+  @Get('produzione/emails')
+  @UseGuards(AdminGuard)
+  async getProduzioneEmailConfig() {
+    return this.settingsService.getProduzioneEmailConfig();
+  }
+
+  @Put('produzione/emails')
+  @UseGuards(AdminGuard)
+  async updateProduzioneEmailConfig(@Body('emails') emails: string[]) {
+    return this.settingsService.updateProduzioneEmailConfig(emails);
+  }
 }

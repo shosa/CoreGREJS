@@ -8,7 +8,7 @@ import { useModulesStore } from '@/store/modules';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
-type Section = 'import' | 'modules' | 'general' | 'users' | 'system';
+type Section = 'import' | 'modules' | 'smtp' | 'produzione' | 'general' | 'users' | 'system';
 type ImportStep = 'select' | 'analyzing' | 'confirm' | 'importing' | 'completed';
 
 interface ImportAnalysis {
@@ -188,6 +188,17 @@ export default function SettingsPage() {
   const [modulesSaving, setModulesSaving] = useState(false);
   const { clearCache: clearModulesCache } = useModulesStore();
 
+  // SMTP state
+  const [smtpConfig, setSmtpConfig] = useState({ host: '', port: 587, secure: false });
+  const [smtpLoading, setSmtpLoading] = useState(false);
+  const [smtpSaving, setSmtpSaving] = useState(false);
+
+  // Produzione email state
+  const [produzioneEmails, setProduzioneEmails] = useState<string[]>([]);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailsLoading, setEmailsLoading] = useState(false);
+  const [emailsSaving, setEmailsSaving] = useState(false);
+
   // Cleanup interval on unmount
   useEffect(() => {
     return () => {
@@ -197,10 +208,14 @@ export default function SettingsPage() {
     };
   }, []);
 
-  // Load modules when switching to modules section
+  // Load data when switching sections
   useEffect(() => {
     if (activeSection === 'modules') {
       loadModules();
+    } else if (activeSection === 'smtp') {
+      loadSmtpConfig();
+    } else if (activeSection === 'produzione') {
+      loadProduzioneEmails();
     }
   }, [activeSection]);
 
@@ -268,6 +283,71 @@ export default function SettingsPage() {
       showError(error.response?.data?.message || 'Errore disattivazione moduli');
     } finally {
       setModulesSaving(false);
+    }
+  };
+
+  const loadSmtpConfig = async () => {
+    setSmtpLoading(true);
+    try {
+      const config = await settingsApi.getSmtpConfig();
+      setSmtpConfig(config);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento configurazione SMTP');
+    } finally {
+      setSmtpLoading(false);
+    }
+  };
+
+  const handleSaveSmtp = async () => {
+    setSmtpSaving(true);
+    try {
+      await settingsApi.updateSmtpConfig(smtpConfig);
+      showSuccess('Configurazione SMTP salvata');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore salvataggio SMTP');
+    } finally {
+      setSmtpSaving(false);
+    }
+  };
+
+  const loadProduzioneEmails = async () => {
+    setEmailsLoading(true);
+    try {
+      const emails = await settingsApi.getProduzioneEmails();
+      setProduzioneEmails(emails);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento email produzione');
+    } finally {
+      setEmailsLoading(false);
+    }
+  };
+
+  const handleAddEmail = () => {
+    if (!newEmail || !newEmail.includes('@')) {
+      showError('Inserisci un indirizzo email valido');
+      return;
+    }
+    if (produzioneEmails.includes(newEmail)) {
+      showError('Email già presente nella lista');
+      return;
+    }
+    setProduzioneEmails([...produzioneEmails, newEmail]);
+    setNewEmail('');
+  };
+
+  const handleRemoveEmail = (email: string) => {
+    setProduzioneEmails(produzioneEmails.filter(e => e !== email));
+  };
+
+  const handleSaveEmails = async () => {
+    setEmailsSaving(true);
+    try {
+      await settingsApi.updateProduzioneEmails(produzioneEmails);
+      showSuccess('Indirizzi email salvati');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore salvataggio email');
+    } finally {
+      setEmailsSaving(false);
     }
   };
 
@@ -361,8 +441,10 @@ export default function SettingsPage() {
   const sections = [
     { id: 'import' as Section, label: 'Import Dati', icon: 'fa-file-import', color: 'blue' },
     { id: 'modules' as Section, label: 'Moduli Attivi', icon: 'fa-puzzle-piece', color: 'purple' },
+    { id: 'smtp' as Section, label: 'Server Email (SMTP)', icon: 'fa-server', color: 'green' },
+    { id: 'produzione' as Section, label: 'Email Produzione', icon: 'fa-envelope', color: 'orange' },
     { id: 'general' as Section, label: 'Generali', icon: 'fa-cog', color: 'gray', disabled: true },
-    { id: 'users' as Section, label: 'Utenti', icon: 'fa-users', color: 'orange', disabled: true },
+    { id: 'users' as Section, label: 'Utenti', icon: 'fa-users', color: 'red', disabled: true },
   ];
 
   const progressPercent = progress && progress.total > 0
@@ -825,8 +907,260 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* SMTP Section */}
+          {activeSection === 'smtp' && (
+            <div className="space-y-6">
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 shadow-lg">
+                      <i className="fas fa-server text-white text-2xl"></i>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                        Configurazione Server Email (SMTP)
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Configura il server SMTP per l'invio delle email
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  {smtpLoading ? (
+                    <div className="text-center py-12">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        className="mx-auto h-16 w-16 rounded-full border-4 border-green-500 border-t-transparent mb-4"
+                      />
+                      <p className="text-lg font-medium text-green-600 dark:text-green-400">
+                        Caricamento configurazione...
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Host SMTP *
+                        </label>
+                        <input
+                          type="text"
+                          value={smtpConfig.host}
+                          onChange={(e) => setSmtpConfig({ ...smtpConfig, host: e.target.value })}
+                          placeholder="smtp.gmail.com"
+                          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Porta *
+                          </label>
+                          <input
+                            type="number"
+                            value={smtpConfig.port}
+                            onChange={(e) => setSmtpConfig({ ...smtpConfig, port: parseInt(e.target.value) || 587 })}
+                            placeholder="587"
+                            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                        </div>
+
+                        <div className="flex items-center">
+                          <label className="flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={smtpConfig.secure}
+                              onChange={(e) => setSmtpConfig({ ...smtpConfig, secure: e.target.checked })}
+                              className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                            />
+                            <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Usa SSL/TLS (porta 465)
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4">
+                        <div className="flex items-start gap-3">
+                          <i className="fas fa-info-circle text-blue-500 mt-1"></i>
+                          <div className="text-sm text-blue-800 dark:text-blue-300">
+                            <p className="font-medium mb-1">Credenziali Email Utente</p>
+                            <p>Le credenziali email (indirizzo e password) vengono configurate nel profilo di ogni utente. Ogni utente utilizzerà le proprie credenziali per inviare email utilizzando questo server SMTP condiviso.</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleSaveSmtp}
+                        disabled={smtpSaving}
+                        className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 transition font-medium shadow-lg disabled:opacity-50"
+                      >
+                        {smtpSaving ? (
+                          <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</>
+                        ) : (
+                          <><i className="fas fa-save mr-2"></i>Salva Configurazione</>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Info Card */}
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow p-6">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <i className="fas fa-info-circle text-green-500"></i>
+                  Informazioni SMTP
+                </h4>
+                <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+                  <p className="flex items-start gap-2">
+                    <i className="fas fa-check text-green-500 mt-1"></i>
+                    <span>Per Gmail usa smtp.gmail.com porta 587</span>
+                  </p>
+                  <p className="flex items-start gap-2">
+                    <i className="fas fa-check text-green-500 mt-1"></i>
+                    <span>Per Outlook/Office365 usa smtp.office365.com porta 587</span>
+                  </p>
+                  <p className="flex items-start gap-2">
+                    <i className="fas fa-user text-blue-500 mt-1"></i>
+                    <span>Ogni utente deve configurare le proprie credenziali email nel proprio profilo</span>
+                  </p>
+                  <p className="flex items-start gap-2">
+                    <i className="fas fa-lock text-yellow-500 mt-1"></i>
+                    <span>Le credenziali vengono salvate in modo sicuro nel database</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Produzione Email Section */}
+          {activeSection === 'produzione' && (
+            <div className="space-y-6">
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 shadow-lg">
+                      <i className="fas fa-envelope text-white text-2xl"></i>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                        Destinatari Email Produzione
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Configura gli indirizzi email che riceveranno le cedole di produzione
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  {emailsLoading ? (
+                    <div className="text-center py-12">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        className="mx-auto h-16 w-16 rounded-full border-4 border-orange-500 border-t-transparent mb-4"
+                      />
+                      <p className="text-lg font-medium text-orange-600 dark:text-orange-400">
+                        Caricamento indirizzi...
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex gap-2">
+                        <input
+                          type="email"
+                          value={newEmail}
+                          onChange={(e) => setNewEmail(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && handleAddEmail()}
+                          placeholder="indirizzo@email.com"
+                          className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        />
+                        <button
+                          onClick={handleAddEmail}
+                          className="px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition font-medium"
+                        >
+                          <i className="fas fa-plus mr-2"></i>Aggiungi
+                        </button>
+                      </div>
+
+                      {produzioneEmails.length > 0 ? (
+                        <div className="space-y-2">
+                          {produzioneEmails.map((email, idx) => (
+                            <motion.div
+                              key={idx}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                            >
+                              <span className="text-gray-900 dark:text-white flex items-center">
+                                <i className="fas fa-envelope text-orange-500 mr-3"></i>
+                                {email}
+                              </span>
+                              <button
+                                onClick={() => handleRemoveEmail(email)}
+                                className="text-red-500 hover:text-red-700 transition"
+                              >
+                                <i className="fas fa-trash"></i>
+                              </button>
+                            </motion.div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <i className="fas fa-inbox text-4xl mb-2"></i>
+                          <p>Nessun indirizzo configurato</p>
+                        </div>
+                      )}
+
+                      {produzioneEmails.length > 0 && (
+                        <button
+                          onClick={handleSaveEmails}
+                          disabled={emailsSaving}
+                          className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700 transition font-medium shadow-lg disabled:opacity-50"
+                        >
+                          {emailsSaving ? (
+                            <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</>
+                          ) : (
+                            <><i className="fas fa-save mr-2"></i>Salva Indirizzi</>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Info Card */}
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow p-6">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <i className="fas fa-info-circle text-orange-500"></i>
+                  Informazioni Email Produzione
+                </h4>
+                <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+                  <p className="flex items-start gap-2">
+                    <i className="fas fa-paper-plane text-orange-500 mt-1"></i>
+                    <span>Questi indirizzi riceveranno automaticamente le cedole di produzione quando inviate</span>
+                  </p>
+                  <p className="flex items-start gap-2">
+                    <i className="fas fa-user text-blue-500 mt-1"></i>
+                    <span>L'email del mittente sarà quella dell'utente che invia la cedola</span>
+                  </p>
+                  <p className="flex items-start gap-2">
+                    <i className="fas fa-cog text-purple-500 mt-1"></i>
+                    <span>Assicurati di aver configurato correttamente il server SMTP</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Placeholder for other sections */}
-          {activeSection !== 'import' && activeSection !== 'modules' && (
+          {activeSection !== 'import' && activeSection !== 'modules' && activeSection !== 'smtp' && activeSection !== 'produzione' && (
             <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow p-12 text-center">
               <div className="mx-auto h-20 w-20 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4">
                 <i className="fas fa-tools text-4xl text-gray-400 dark:text-gray-500"></i>
