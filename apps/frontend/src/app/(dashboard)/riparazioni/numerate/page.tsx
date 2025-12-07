@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { riparazioniApi } from '@/lib/api';
 import { showError, showSuccess } from '@/store/notifications';
@@ -43,6 +44,7 @@ interface Numerata {
 }
 
 export default function NumeratePage() {
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [numerate, setNumerate] = useState<Numerata[]>([]);
 
@@ -60,6 +62,27 @@ export default function NumeratePage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Handle query params for auto-opening create modal
+  useEffect(() => {
+    const create = searchParams.get('create');
+    const idNumerataParam = searchParams.get('id_numerata');
+
+    if (create === 'true') {
+      // Initialize empty taglie
+      initializeTaglie();
+
+      // Pre-fill ID if provided
+      if (idNumerataParam) {
+        setIdNumerata(idNumerataParam.toUpperCase());
+      } else {
+        setIdNumerata('');
+      }
+
+      // Open create modal
+      setShowCreateModal(true);
+    }
+  }, [searchParams]);
 
   const fetchData = async () => {
     try {

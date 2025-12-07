@@ -34,10 +34,6 @@ interface Riparazione {
     id: number;
     nome: string;
   };
-  linea?: {
-    id: number;
-    nome: string;
-  };
   numerata?: {
     id: number;
     n01?: string;
@@ -100,6 +96,7 @@ export default function RiparazioneDetailPage() {
   const [riparazione, setRiparazione] = useState<Riparazione | null>(null);
   const [completing, setCompleting] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -138,11 +135,11 @@ export default function RiparazioneDetailPage() {
 
   const handleDelete = async () => {
     if (!riparazione) return;
-    if (!confirm(`Eliminare la riparazione ${riparazione.idRiparazione}?`)) return;
     try {
       setDeleting(true);
       await riparazioniApi.deleteRiparazione(riparazione.id);
       showSuccess('Riparazione eliminata');
+      setShowDeleteModal(false);
       router.push('/riparazioni/list');
     } catch (error: any) {
       showError(error.response?.data?.message || 'Errore durante la eliminazione');
@@ -262,90 +259,61 @@ export default function RiparazioneDetailPage() {
         variants={itemVariants}
         className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
       >
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-          <i className="fas fa-info-circle text-blue-500 mr-2"></i>
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
           Informazioni Riparazione
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
-            <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
-              ID Riparazione
-            </div>
-            <div className="text-lg font-mono font-bold text-gray-900 dark:text-white">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">ID Riparazione</div>
+            <div className="text-base font-mono font-semibold text-gray-900 dark:text-white">
               {riparazione.idRiparazione}
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
-            <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
-              Cartellino
-            </div>
-            <div className="text-lg font-medium text-gray-900 dark:text-white">
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Cartellino</div>
+            <div className="text-base font-semibold text-gray-900 dark:text-white">
               {riparazione.cartellino || '-'}
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
-            <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
-              Data
-            </div>
-            <div className="text-lg font-medium text-gray-900 dark:text-white">
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Data Creazione</div>
+            <div className="text-base font-semibold text-gray-900 dark:text-white">
               {new Date(riparazione.data).toLocaleDateString('it-IT')}
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
-            <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
-              <i className="fas fa-flask mr-1"></i>
-              Laboratorio
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Quantità Totale</div>
+            <div className="text-base font-bold text-blue-600 dark:text-blue-400">
+              {riparazione.qtaTotale} paia
             </div>
-            <div className="text-lg font-medium text-gray-900 dark:text-white">
+          </div>
+
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Laboratorio</div>
+            <div className="text-base font-semibold text-gray-900 dark:text-white">
               {riparazione.laboratorio?.nome || '-'}
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
-            <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
-              <i className="fas fa-industry mr-1"></i>
-              Reparto
-            </div>
-            <div className="text-lg font-medium text-gray-900 dark:text-white">
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Reparto</div>
+            <div className="text-base font-semibold text-gray-900 dark:text-white">
               {riparazione.reparto?.nome || '-'}
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
-            <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
-              <i className="fas fa-stream mr-1"></i>
-              Linea
-            </div>
-            <div className="text-lg font-medium text-gray-900 dark:text-white">
-              {riparazione.linea?.nome || '-'}
-            </div>
-          </div>
-
           {riparazione.user && (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
-              <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
-                <i className="fas fa-user mr-1"></i>
-                Utente
-              </div>
-              <div className="text-lg font-medium text-gray-900 dark:text-white">
+            <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Creato da</div>
+              <div className="text-base font-semibold text-gray-900 dark:text-white">
                 {riparazione.user.nome}
               </div>
             </div>
           )}
-
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-            <div className="text-xs uppercase tracking-wide text-blue-600 dark:text-blue-400 mb-1">
-              <i className="fas fa-boxes mr-1"></i>
-              Quantità Totale
-            </div>
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {riparazione.qtaTotale}
-            </div>
-          </div>
         </div>
 
         {riparazione.causale && (
@@ -446,10 +414,10 @@ export default function RiparazioneDetailPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-800"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
           >
             <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 dark:bg-green-900/30">
                 <i className="fas fa-check-circle text-xl text-green-600 dark:text-green-400"></i>
               </div>
               <div>
@@ -497,6 +465,63 @@ export default function RiparazioneDetailPage() {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+          >
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30">
+                <i className="fas fa-exclamation-triangle text-xl text-red-600 dark:text-red-400"></i>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Elimina Riparazione</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Conferma eliminazione</p>
+              </div>
+            </div>
+
+            <div className="mb-6 rounded-lg bg-red-50 p-4 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                Sei sicuro di voler eliminare definitivamente questa riparazione?
+              </p>
+              <p className="mt-2 text-xs font-bold text-red-600 dark:text-red-400">
+                La riparazione <span className="font-mono">{riparazione.idRiparazione}</span> verrà eliminata permanentemente e non potrà essere recuperata.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 disabled:opacity-50"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:shadow-lg disabled:opacity-50"
+              >
+                {deleting ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin mr-2"></i>
+                    Eliminazione...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-trash mr-2"></i>
+                    Elimina
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       <Footer show>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -504,11 +529,10 @@ export default function RiparazioneDetailPage() {
           </div>
           <div className="flex flex-wrap justify-end gap-3">
             <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="px-5 py-3 rounded-lg border-2 border-red-300 text-red-700 dark:border-red-700 dark:text-red-300 font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition disabled:opacity-50"
+              onClick={() => setShowDeleteModal(true)}
+              className="px-5 py-3 rounded-lg border-2 border-red-300 text-red-700 dark:border-red-700 dark:text-red-300 font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition"
             >
-              {deleting ? <i className="fas fa-spinner fa-spin mr-2"></i> : <i className="fas fa-trash mr-2"></i>}
+              <i className="fas fa-trash mr-2"></i>
               Elimina
             </button>
             {!riparazione.completa && (

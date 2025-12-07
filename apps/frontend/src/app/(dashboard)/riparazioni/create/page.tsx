@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { riparazioniApi } from '@/lib/api';
+import { riparazioniApi, jobsApi } from '@/lib/api';
 import { showError, showSuccess } from '@/store/notifications';
+import { useAuthStore } from '@/store/auth';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import Footer from '@/components/layout/Footer';
@@ -61,10 +62,12 @@ interface ArticleData {
   ragioneSociale: string;
   totale: number;
   numerataId: number;
+  nu?: number; // NU field from core_dati
 }
 
 export default function CreateRiparazionePage() {
   const router = useRouter();
+  const { user } = useAuthStore();
 
   // Step 1: Input cartellino/commessa
   const [step, setStep] = useState<1 | 2>(1);
@@ -86,6 +89,7 @@ export default function CreateRiparazionePage() {
   const [taglie, setTaglie] = useState<Record<string, number>>({});
 
   const [creating, setCreating] = useState(false);
+  const [autoPrint, setAutoPrint] = useState(true); // Checkbox for auto-print, enabled by default
 
   useEffect(() => {
     fetchSupportData();
@@ -110,9 +114,9 @@ export default function CreateRiparazionePage() {
       return;
     }
 
-    try {
-      setSearching(true);
+    setSearching(true);
 
+    try {
       // Carica dati del cartellino da core_dati
       const cartellinoData = await riparazioniApi.getCartellinoData(cartellinoInput);
 
@@ -124,14 +128,41 @@ export default function CreateRiparazionePage() {
         ragioneSociale: cartellinoData.ragioneSociale,
         totale: cartellinoData.totale,
         numerataId: cartellinoData.numerataId,
+        nu: cartellinoData.nu, // Include NU for redirect
       };
 
       setArticleData(articleData);
 
-      // Carica numerata se presente
-      if (cartellinoData.numerataId) {
-        const numerataData = await riparazioniApi.getNumerata(cartellinoData.numerataId);
+      // If no numerataId in core_dati, redirect to numerata page with NU value
+      if (!articleData.numerataId) {
+        setSearching(false);
+        showError('Nessuna numerata associata. Creane una prima di procedere.');
+        // Redirect to numerate page with create modal params
+        if (articleData.nu) {
+          router.push(`/riparazioni/numerate?create=true&id_numerata=${articleData.nu}`);
+        } else {
+          router.push('/riparazioni/numerate?create=true');
+        }
+        return;
+      }
+
+      let numerataData;
+      try {
+        numerataData = await riparazioniApi.getNumerata(cartellinoData.numerataId);
         setNumerata(numerataData);
+      } catch (error: any) {
+        // Numerata doesn't exist - redirect to create it
+        const statusCode = error.response?.status || error.status;
+
+        if (statusCode === 404) {
+          setSearching(false);
+          showError('Numerata non trovata. Creane una prima di procedere.');
+          router.push(`/riparazioni/numerate?create=true&id_numerata=${cartellinoData.numerataId}`);
+          return;
+        }
+
+        // For other errors, re-throw to be handled by outer catch
+        throw error;
       }
 
       // Salva le quantità del cartellino (per visualizzazione)
@@ -151,10 +182,10 @@ export default function CreateRiparazionePage() {
       setTaglie(initialTaglie);
 
       setStep(2);
-    } catch (error: any) {
-      showError(error.response?.data?.message || 'Cartellino non trovato');
-    } finally {
       setSearching(false);
+    } catch (error: any) {
+      setSearching(false);
+      showError(error.response?.data?.message || 'Cartellino non trovato');
     }
   };
 
@@ -176,10 +207,11 @@ export default function CreateRiparazionePage() {
 
       const nextId = await riparazioniApi.getNextId();
 
-      await riparazioniApi.createRiparazione({
+      const createdRiparazione = await riparazioniApi.createRiparazione({
         idRiparazione: nextId.idRiparazione,
         cartellino: articleData.cartellino,
         numerataId: articleData.numerataId,
+        userId: user?.id, // Add logged-in user ID
         laboratorioId,
         repartoId: repartoId || undefined,
         causale: causale || undefined,
@@ -188,6 +220,17 @@ export default function CreateRiparazionePage() {
       });
 
       showSuccess('Riparazione creata con successo!');
+
+      // Auto-print if checkbox is enabled
+      if (autoPrint && createdRiparazione?.id) {
+        try {
+          const { jobId } = await jobsApi.enqueue('riparazioni.cedola-pdf', { id: createdRiparazione.id });
+          showSuccess(`Stampa avviata automaticamente. Job ${jobId} nello spool`);
+        } catch (error: any) {
+          showError(error.response?.data?.message || 'Errore nella stampa automatica');
+        }
+      }
+
       router.push('/riparazioni/list');
     } catch (error: any) {
       showError(error.response?.data?.message || 'Errore nella creazione della riparazione');
@@ -546,6 +589,7 @@ export default function CreateRiparazionePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
       <Footer show={step === 2 && !!articleData}>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -558,7 +602,7 @@ export default function CreateRiparazionePage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap justify-end gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3">
             <button
               onClick={() => {
                 setStep(1);
@@ -571,6 +615,19 @@ export default function CreateRiparazionePage() {
               <i className="fas fa-arrow-left mr-2"></i>
               Indietro
             </button>
+
+            <label className="flex items-center gap-2 px-4 py-3 rounded-lg border-2 border-orange-300 dark:border-orange-600 bg-orange-50 dark:bg-orange-900/20 cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-all duration-200">
+              <input
+                type="checkbox"
+                checked={autoPrint}
+                onChange={(e) => setAutoPrint(e.target.checked)}
+                className="w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 dark:focus:ring-orange-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <span className="text-sm font-medium text-orange-700 dark:text-orange-300">
+                <i className="fas fa-print mr-1"></i>
+                Stampa
+              </span>
+            </label>
 
             <button
               onClick={handleCreate}

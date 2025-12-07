@@ -19,13 +19,14 @@ import { AdminGuard } from '../../common/guards/admin.guard';
 import { SettingsService, ImportProgress, ImportAnalysis } from './settings.service';
 
 @Controller('settings')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('settings')
+@UseGuards(JwtAuthGuard)
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
   // Step 1: Analyze Excel file
   @Post('analyze-excel')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
   @UseInterceptors(FileInterceptor('file'))
   async analyzeExcel(@UploadedFile() file: Express.Multer.File): Promise<ImportAnalysis> {
     if (!file) {
@@ -46,12 +47,16 @@ export class SettingsController {
 
   // Step 2: Execute import after confirmation
   @Post('execute-import')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
   async executeImport() {
     return this.settingsService.executeImport();
   }
 
   // Cancel pending import
   @Delete('cancel-import')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
   cancelImport() {
     this.settingsService.cancelImport();
     return { success: true, message: 'Import annullato' };
@@ -59,20 +64,21 @@ export class SettingsController {
 
   // Get import progress
   @Get('import-progress')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
   getImportProgress(): ImportProgress {
     return this.settingsService.getImportProgress();
   }
 
   // ==================== MODULE MANAGEMENT ====================
 
-  // Get all active modules
+  // Get all active modules - Accessible to all authenticated users
   @Get('modules')
-  @UseGuards(AdminGuard)
   async getActiveModules() {
     return this.settingsService.getActiveModules();
   }
 
-  // Update single module status
+  // Update single module status - Admin only
   @Put('modules/:moduleName')
   @UseGuards(AdminGuard)
   async updateModuleStatus(
@@ -82,7 +88,7 @@ export class SettingsController {
     return this.settingsService.updateModuleStatus(moduleName, enabled);
   }
 
-  // Update multiple modules at once
+  // Update multiple modules at once - Admin only
   @Put('modules')
   @UseGuards(AdminGuard)
   async updateMultipleModules(@Body() modules: Record<string, boolean>) {

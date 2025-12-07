@@ -169,7 +169,6 @@ export class RiparazioniController {
       causale: createDto.causale,
       laboratorio: createDto.laboratorioId ? { connect: { id: createDto.laboratorioId } } : undefined,
       reparto: createDto.repartoId ? { connect: { id: createDto.repartoId } } : undefined,
-      linea: createDto.lineaId ? { connect: { id: createDto.lineaId } } : undefined,
       data: createDto.data ? new Date(createDto.data) : new Date(),
       note: createDto.note,
     };
@@ -209,9 +208,6 @@ export class RiparazioniController {
     }
     if (updateDto.repartoId !== undefined) {
       data.reparto = updateDto.repartoId ? { connect: { id: updateDto.repartoId } } : { disconnect: true };
-    }
-    if (updateDto.lineaId !== undefined) {
-      data.linea = updateDto.lineaId ? { connect: { id: updateDto.lineaId } } : { disconnect: true };
     }
 
     return this.riparazioniService.update(id, data);

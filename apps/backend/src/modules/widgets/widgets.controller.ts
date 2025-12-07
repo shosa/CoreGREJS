@@ -10,11 +10,6 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 export class WidgetsController {
   constructor(private widgetsService: WidgetsService) {}
 
-  @Get('available')
-  getAvailable() {
-    return this.widgetsService.getAvailableWidgets();
-  }
-
   @Get('user')
   getUserWidgets(@Request() req) {
     return this.widgetsService.getUserWidgets(req.user.userId);
@@ -31,7 +26,7 @@ export class WidgetsController {
   }
 
   @Get('dashboard/activities')
-  getRecentActivities() {
-    return this.widgetsService.getRecentActivities();
+  getRecentActivities(@Request() req) {
+    return this.widgetsService.getRecentActivities(req.user.userId, req.user.permissions);
   }
 }

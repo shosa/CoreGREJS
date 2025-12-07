@@ -95,7 +95,7 @@ export class AuthService {
     return normalized;
   }
 
-  async updateProfile(userId: number, data: { nome?: string; mail?: string; mailPassword?: string }) {
+  async updateProfile(userId: number, data: { nome?: string; userName?: string; mail?: string; mailPassword?: string }) {
     return this.prisma.user.update({
       where: { id: userId },
       data,
@@ -104,6 +104,7 @@ export class AuthService {
         userName: true,
         nome: true,
         mail: true,
+        userType: true,
       },
     });
   }

@@ -30,7 +30,6 @@ export class RiparazioniService {
           user: { select: { id: true, nome: true, userName: true } },
           laboratorio: true,
           reparto: true,
-          linea: true,
           numerata: true,
         },
       }),
@@ -50,7 +49,6 @@ export class RiparazioniService {
         user: { select: { id: true, nome: true, userName: true } },
         laboratorio: true,
         reparto: true,
-        linea: true,
         numerata: true,
       },
     });
@@ -72,7 +70,6 @@ export class RiparazioniService {
         user: { select: { id: true, nome: true, userName: true } },
         laboratorio: true,
         reparto: true,
-        linea: true,
         numerata: true,
       },
     });
@@ -138,7 +135,7 @@ export class RiparazioniService {
       ragioneSociale: record.ragioneSociale,
       totale: record.tot,
       numerataId: numerata?.id || null,
-      linea: record.ln,
+      nu: record.nu || null, // Include NU from core_dati for redirect purposes
       // Include le quantità per taglia dal core_dati
       p01: record.p01 || 0,
       p02: record.p02 || 0,
@@ -183,7 +180,6 @@ export class RiparazioniService {
         user: { select: { id: true, nome: true, userName: true } },
         laboratorio: true,
         reparto: true,
-        linea: true,
         numerata: true,
       },
     });
@@ -206,7 +202,6 @@ export class RiparazioniService {
         user: { select: { id: true, nome: true, userName: true } },
         laboratorio: true,
         reparto: true,
-        linea: true,
         numerata: true,
       },
     });
@@ -226,7 +221,6 @@ export class RiparazioniService {
         user: { select: { id: true, nome: true, userName: true } },
         laboratorio: true,
         reparto: true,
-        linea: true,
         numerata: true,
       },
     });

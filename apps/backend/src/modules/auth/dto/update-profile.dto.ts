@@ -8,6 +8,11 @@ export class UpdateProfileDto {
   nome?: string;
 
   @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  userName?: string;
+
+  @ApiProperty({ required: false })
   @IsEmail()
   @IsOptional()
   mail?: string;

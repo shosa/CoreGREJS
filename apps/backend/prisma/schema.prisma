@@ -24,7 +24,7 @@ model User {
   permissions   Permission?
   notifications Notification[]
   activityLogs  ActivityLog[]
-  userWidgets   UserWidget[]
+  widgetConfigs AuthWidgetConfig[]
   jobs          Job[]
 
   // Production records created/updated by this user
@@ -184,7 +184,6 @@ model Riparazione {
   causale       String?   @db.Text
   laboratorioId Int?      @map("laboratorio_id")  // Destinazione
   repartoId     Int?      @map("reparto_id")      // Provenienza
-  lineaId       Int?      @map("linea_id")
 
   // Stato e date
   data          DateTime  @default(now())
@@ -203,7 +202,6 @@ model Riparazione {
   numerata    Numerata?    @relation(fields: [numerataId], references: [id])
   laboratorio Laboratorio? @relation(fields: [laboratorioId], references: [id])
   reparto     Reparto?     @relation(fields: [repartoId], references: [id])
-  linea       Linea?       @relation(fields: [lineaId], references: [id])
 
   @@map("rip_riparazioni")
 }
@@ -232,8 +230,6 @@ model Linea {
   ordine      Int      @default(0)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
-
-  riparazioni Riparazione[]
 
   @@map("rip_linee")
 }
@@ -856,40 +852,22 @@ model MrpRequirement {
 
 // ==================== WIDGETS ====================
 
-model AvailableWidget {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique @db.VarChar(100)
-  title       String   @db.VarChar(100)
-  description String?  @db.Text
-  icon        String?  @db.VarChar(50)
-  category    String?  @db.VarChar(50)
-  minWidth    Int      @default(1) @map("min_width")
-  minHeight   Int      @default(1) @map("min_height")
-  attivo      Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  userWidgets UserWidget[]
-
-  @@map("widg_available")
-}
-
-model UserWidget {
+model AuthWidgetConfig {
   id        Int      @id @default(autoincrement())
   userId    Int      @map("user_id")
-  widgetId  Int      @map("widget_id")
+  widgetId  String   @db.VarChar(50) @map("widget_id")
+  enabled   Boolean  @default(true)
   x         Int      @default(0)
   y         Int      @default(0)
-  width     Int      @default(1)
-  height    Int      @default(1)
-  config    Json?
+  w         Int      @default(1)
+  h         Int      @default(1)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  widget AvailableWidget @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("widg_usermap")
+  @@unique([userId, widgetId])
+  @@map("auth_widget_config")
 }
 
 // ==================== NOTIFICATIONS ====================
