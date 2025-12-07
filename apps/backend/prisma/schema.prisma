@@ -22,7 +22,6 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
   permissions   Permission?
-  notifications Notification[]
   activityLogs  ActivityLog[]
   widgetConfigs AuthWidgetConfig[]
   jobs          Job[]
@@ -52,12 +51,12 @@ model Permission {
 model ActivityLog {
   id          Int      @id @default(autoincrement())
   userId      Int?     @map("user_id")
-  module      String   @default("system") @db.VarChar(50)  // produzione, riparazioni, users, etc.
+  module      String   @default("system") @db.VarChar(50) // produzione, riparazioni, users, etc.
   action      String   @db.VarChar(100) // create, update, delete, view, login, etc.
   entity      String?  @db.VarChar(100) // Nome entità (User, ProductionRecord, etc.)
   entityId    String?  @map("entity_id") @db.VarChar(100) // ID dell'entità modificata
   description String?  @db.Text
-  metadata    Json?    // Dati aggiuntivi (before/after values, etc.)
+  metadata    Json? // Dati aggiuntivi (before/after values, etc.)
   ipAddress   String?  @map("ip_address") @db.VarChar(45)
   userAgent   String?  @map("user_agent") @db.VarChar(255)
   createdAt   DateTime @default(now()) @map("created_at")
@@ -85,41 +84,41 @@ model Setting {
 
 // Tabella principale dati produzione - struttura LEGACY
 model CoreData {
-  id                   Int     @id @default(autoincrement())
-  st                   String? @map("St") @db.VarChar(3)
-  ordine               Int?    @map("Ordine")
-  rg                   Int?    @map("Rg")
-  cCli                 Int?    @map("CCli")
-  ragioneSociale       String? @map("Ragione Sociale") @db.VarChar(35)
-  cartel               Int?    @unique @map("Cartel")
-  commessaCli          String? @map("Commessa Cli") @db.VarChar(20)
-  po                   String? @map("PO") @db.VarChar(255)
-  articolo             String  @map("Articolo") @db.VarChar(255)
-  descrizioneArticolo  String  @map("Descrizione Articolo") @db.VarChar(255)
-  nu                   String? @map("Nu") @db.VarChar(2)
-  marcaEtich           String? @map("Marca Etich") @db.VarChar(13)
-  ln                   String? @map("Ln") @db.VarChar(2)
-  p01                  Int?    @map("P01")
-  p02                  Int?    @map("P02")
-  p03                  Int?    @map("P03")
-  p04                  Int?    @map("P04")
-  p05                  Int?    @map("P05")
-  p06                  Int?    @map("P06")
-  p07                  Int?    @map("P07")
-  p08                  Int?    @map("P08")
-  p09                  Int?    @map("P09")
-  p10                  Int?    @map("P10")
-  p11                  Int?    @map("P11")
-  p12                  Int?    @map("P12")
-  p13                  Int?    @map("P13")
-  p14                  Int?    @map("P14")
-  p15                  Int?    @map("P15")
-  p16                  Int?    @map("P16")
-  p17                  Int?    @map("P17")
-  p18                  Int?    @map("P18")
-  p19                  Int?    @map("P19")
-  p20                  Int?    @map("P20")
-  tot                  Int?    @map("Tot")
+  id                  Int     @id @default(autoincrement())
+  st                  String? @map("St") @db.VarChar(3)
+  ordine              Int?    @map("Ordine")
+  rg                  Int?    @map("Rg")
+  cCli                Int?    @map("CCli")
+  ragioneSociale      String? @map("Ragione Sociale") @db.VarChar(35)
+  cartel              Int?    @unique @map("Cartel")
+  commessaCli         String? @map("Commessa Cli") @db.VarChar(20)
+  po                  String? @map("PO") @db.VarChar(255)
+  articolo            String  @map("Articolo") @db.VarChar(255)
+  descrizioneArticolo String  @map("Descrizione Articolo") @db.VarChar(255)
+  nu                  String? @map("Nu") @db.VarChar(2)
+  marcaEtich          String? @map("Marca Etich") @db.VarChar(13)
+  ln                  String? @map("Ln") @db.VarChar(2)
+  p01                 Int?    @map("P01")
+  p02                 Int?    @map("P02")
+  p03                 Int?    @map("P03")
+  p04                 Int?    @map("P04")
+  p05                 Int?    @map("P05")
+  p06                 Int?    @map("P06")
+  p07                 Int?    @map("P07")
+  p08                 Int?    @map("P08")
+  p09                 Int?    @map("P09")
+  p10                 Int?    @map("P10")
+  p11                 Int?    @map("P11")
+  p12                 Int?    @map("P12")
+  p13                 Int?    @map("P13")
+  p14                 Int?    @map("P14")
+  p15                 Int?    @map("P15")
+  p16                 Int?    @map("P16")
+  p17                 Int?    @map("P17")
+  p18                 Int?    @map("P18")
+  p19                 Int?    @map("P19")
+  p20                 Int?    @map("P20")
+  tot                 Int?    @map("Tot")
 
   @@index([ordine])
   @@index([commessaCli])
@@ -148,54 +147,54 @@ model CoreAnagrafica {
 // ==================== RIPARAZIONI ====================
 
 model Riparazione {
-  id            Int       @id @default(autoincrement())
-  idRiparazione String    @unique @map("id_riparazione") @db.VarChar(10)
+  id            Int    @id @default(autoincrement())
+  idRiparazione String @unique @map("id_riparazione") @db.VarChar(10)
 
   // Riferimenti
-  cartellino    String?   @db.VarChar(50)
-  userId        Int?      @map("user_id")
-  numerataId    Int?      @map("numerata_id")
+  cartellino String? @db.VarChar(50)
+  userId     Int?    @map("user_id")
+  numerataId Int?    @map("numerata_id")
 
   // 20 colonne taglie (quantità per ogni taglia)
-  p01           Int       @default(0)
-  p02           Int       @default(0)
-  p03           Int       @default(0)
-  p04           Int       @default(0)
-  p05           Int       @default(0)
-  p06           Int       @default(0)
-  p07           Int       @default(0)
-  p08           Int       @default(0)
-  p09           Int       @default(0)
-  p10           Int       @default(0)
-  p11           Int       @default(0)
-  p12           Int       @default(0)
-  p13           Int       @default(0)
-  p14           Int       @default(0)
-  p15           Int       @default(0)
-  p16           Int       @default(0)
-  p17           Int       @default(0)
-  p18           Int       @default(0)
-  p19           Int       @default(0)
-  p20           Int       @default(0)
+  p01 Int @default(0)
+  p02 Int @default(0)
+  p03 Int @default(0)
+  p04 Int @default(0)
+  p05 Int @default(0)
+  p06 Int @default(0)
+  p07 Int @default(0)
+  p08 Int @default(0)
+  p09 Int @default(0)
+  p10 Int @default(0)
+  p11 Int @default(0)
+  p12 Int @default(0)
+  p13 Int @default(0)
+  p14 Int @default(0)
+  p15 Int @default(0)
+  p16 Int @default(0)
+  p17 Int @default(0)
+  p18 Int @default(0)
+  p19 Int @default(0)
+  p20 Int @default(0)
 
-  qtaTotale     Int       @default(0) @map("qta_totale")
+  qtaTotale Int @default(0) @map("qta_totale")
 
   // Info riparazione
-  causale       String?   @db.Text
-  laboratorioId Int?      @map("laboratorio_id")  // Destinazione
-  repartoId     Int?      @map("reparto_id")      // Provenienza
+  causale       String? @db.Text
+  laboratorioId Int?    @map("laboratorio_id") // Destinazione
+  repartoId     Int?    @map("reparto_id") // Provenienza
 
   // Stato e date
-  data          DateTime  @default(now())
-  completa      Boolean   @default(false)
-  dataChiusura  DateTime? @map("data_chiusura")
+  data         DateTime  @default(now())
+  completa     Boolean   @default(false)
+  dataChiusura DateTime? @map("data_chiusura")
 
   // Note aggiuntive
-  note          String?   @db.Text
+  note String? @db.Text
 
   // Timestamp
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relazioni
   user        User?        @relation(fields: [userId], references: [id])
@@ -378,14 +377,14 @@ model QualityException {
 
 // Tabella master articoli (normalizzata, no duplicati)
 model ExportArticleMaster {
-  id              Int      @id @default(autoincrement())
-  codiceArticolo  String   @unique @map("codice_articolo") @db.VarChar(255)
-  descrizione     String?  @db.VarChar(255)
-  voceDoganale    String?  @map("voce_doganale") @db.VarChar(50)
-  um              String?  @db.VarChar(10)
-  prezzoUnitario  Decimal? @map("prezzo_unitario") @db.Decimal(10, 3)
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id             Int      @id @default(autoincrement())
+  codiceArticolo String   @unique @map("codice_articolo") @db.VarChar(255)
+  descrizione    String?  @db.VarChar(255)
+  voceDoganale   String?  @map("voce_doganale") @db.VarChar(50)
+  um             String?  @db.VarChar(10)
+  prezzoUnitario Decimal? @map("prezzo_unitario") @db.Decimal(10, 3)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   righe    ExportDocumentItem[]
   mancanti ExportMissingData[]
@@ -396,17 +395,17 @@ model ExportArticleMaster {
 
 // Terzisti (fornitori/subfornitori)
 model ExportTerzista {
-  id              Int      @id @default(autoincrement())
-  ragioneSociale  String   @map("ragione_sociale") @db.VarChar(255)
-  indirizzo1      String?  @map("indirizzo_1") @db.VarChar(255)
-  indirizzo2      String?  @map("indirizzo_2") @db.VarChar(255)
-  indirizzo3      String?  @map("indirizzo_3") @db.VarChar(255)
-  nazione         String?  @db.VarChar(100)
-  consegna        String?  @db.Text
-  autorizzazione  String?  @db.VarChar(255)
-  attivo          Boolean  @default(true)
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id             Int      @id @default(autoincrement())
+  ragioneSociale String   @map("ragione_sociale") @db.VarChar(255)
+  indirizzo1     String?  @map("indirizzo_1") @db.VarChar(255)
+  indirizzo2     String?  @map("indirizzo_2") @db.VarChar(255)
+  indirizzo3     String?  @map("indirizzo_3") @db.VarChar(255)
+  nazione        String?  @db.VarChar(100)
+  consegna       String?  @db.Text
+  autorizzazione String?  @db.VarChar(255)
+  attivo         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   documenti ExportDocument[]
 
@@ -416,18 +415,18 @@ model ExportTerzista {
 
 // Documenti DDT
 model ExportDocument {
-  id              Int       @id @default(autoincrement())
-  progressivo     String    @unique @db.VarChar(50)
-  terzistaId      Int       @map("terzista_id")
-  data            DateTime  @db.Date
-  stato           String    @default("Aperto") @db.VarChar(20) // Aperto, Chiuso
-  firstBoot       Boolean   @default(true) @map("first_boot")
-  autorizzazione  String?   @db.VarChar(255)
-  commento        String?   @db.Text
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id             Int      @id @default(autoincrement())
+  progressivo    String   @unique @db.VarChar(50)
+  terzistaId     Int      @map("terzista_id")
+  data           DateTime @db.Date
+  stato          String   @default("Aperto") @db.VarChar(20) // Aperto, Chiuso
+  firstBoot      Boolean  @default(true) @map("first_boot")
+  autorizzazione String?  @db.VarChar(255)
+  commento       String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  terzista ExportTerzista           @relation(fields: [terzistaId], references: [id], onDelete: Restrict)
+  terzista ExportTerzista        @relation(fields: [terzistaId], references: [id], onDelete: Restrict)
   righe    ExportDocumentItem[]
   piede    ExportDocumentFooter?
   mancanti ExportMissingData[]
@@ -442,25 +441,25 @@ model ExportDocument {
 
 // Righe documento (referenziano articoli master)
 model ExportDocumentItem {
-  id              Int      @id @default(autoincrement())
-  documentoId     Int      @map("documento_id")
-  articleId       Int?     @map("article_id") // FK a master, NULL se riga libera
-  qtaOriginale    Decimal? @default(0) @map("qta_originale") @db.Decimal(10, 2)
-  qtaReale        Decimal? @default(0) @map("qta_reale") @db.Decimal(10, 2)
-  isMancante      Boolean  @default(false) @map("is_mancante")
-  rifMancante     String?  @map("rif_mancante") @db.VarChar(50)
-  tipoRiga        String   @default("articolo") @map("tipo_riga") @db.VarChar(20) // articolo, libera
+  id                Int      @id @default(autoincrement())
+  documentoId       Int      @map("documento_id")
+  articleId         Int?     @map("article_id") // FK a master, NULL se riga libera
+  qtaOriginale      Decimal? @default(0) @map("qta_originale") @db.Decimal(10, 2)
+  qtaReale          Decimal? @default(0) @map("qta_reale") @db.Decimal(10, 2)
+  isMancante        Boolean  @default(false) @map("is_mancante")
+  rifMancante       String?  @map("rif_mancante") @db.VarChar(50)
+  tipoRiga          String   @default("articolo") @map("tipo_riga") @db.VarChar(20) // articolo, libera
   // Campi per righe libere (senza FK article)
-  codiceLibero    String?  @map("codice_libero") @db.VarChar(255)
-  descrizioneLibera String? @map("descrizione_libera") @db.VarChar(255)
-  voceLibera      String?  @map("voce_libera") @db.VarChar(50)
-  umLibera        String?  @map("um_libera") @db.VarChar(10)
-  prezzoLibero    Decimal? @map("prezzo_libero") @db.Decimal(10, 3)
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  codiceLibero      String?  @map("codice_libero") @db.VarChar(255)
+  descrizioneLibera String?  @map("descrizione_libera") @db.VarChar(255)
+  voceLibera        String?  @map("voce_libera") @db.VarChar(50)
+  umLibera          String?  @map("um_libera") @db.VarChar(10)
+  prezzoLibero      Decimal? @map("prezzo_libero") @db.Decimal(10, 3)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-  documento ExportDocument        @relation(fields: [documentoId], references: [id], onDelete: Cascade)
-  article   ExportArticleMaster?  @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  documento ExportDocument       @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  article   ExportArticleMaster? @relation(fields: [articleId], references: [id], onDelete: SetNull)
 
   @@index([documentoId])
   @@index([articleId])
@@ -469,18 +468,18 @@ model ExportDocumentItem {
 
 // Piede documento (footer) - con JSON array per voci doganali
 model ExportDocumentFooter {
-  id             Int      @id @default(autoincrement())
-  documentoId    Int      @unique @map("documento_id")
-  aspettoColli   String?  @map("aspetto_colli") @db.VarChar(255)
-  nColli         Int?     @map("n_colli")
-  totPesoLordo   Decimal? @map("tot_peso_lordo") @db.Decimal(10, 2)
-  totPesoNetto   Decimal? @map("tot_peso_netto") @db.Decimal(10, 2)
-  trasportatore  String?  @db.VarChar(255)
-  consegnatoPer  String?  @map("consegnato_per") @db.Text
+  id            Int      @id @default(autoincrement())
+  documentoId   Int      @unique @map("documento_id")
+  aspettoColli  String?  @map("aspetto_colli") @db.VarChar(255)
+  nColli        Int?     @map("n_colli")
+  totPesoLordo  Decimal? @map("tot_peso_lordo") @db.Decimal(10, 2)
+  totPesoNetto  Decimal? @map("tot_peso_netto") @db.Decimal(10, 2)
+  trasportatore String?  @db.VarChar(255)
+  consegnatoPer String?  @map("consegnato_per") @db.Text
   // Array JSON: [{ voce: "56031480", peso: 123.45 }, ...]
-  vociDoganali   Json?    @map("voci_doganali")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  vociDoganali  Json?    @map("voci_doganali")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   documento ExportDocument @relation(fields: [documentoId], references: [id], onDelete: Cascade)
 
@@ -495,8 +494,8 @@ model ExportMissingData {
   qtaMancante Decimal? @map("qta_mancante") @db.Decimal(10, 2)
   createdAt   DateTime @default(now()) @map("created_at")
 
-  documento ExportDocument @relation(fields: [documentoId], references: [id], onDelete: Cascade)
-  article   ExportArticleMaster  @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  documento ExportDocument      @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  article   ExportArticleMaster @relation(fields: [articleId], references: [id], onDelete: Restrict)
 
   @@index([documentoId])
   @@index([articleId])
@@ -636,7 +635,7 @@ model ScmSetting {
 // Collegamenti cartellini-lotti (tabella principale)
 model TrackLink {
   id        Int      @id @default(autoincrement())
-  cartel    Int      // FK a CoreData.Cartel
+  cartel    Int // FK a CoreData.Cartel
   typeId    Int      @map("type_id")
   lot       String   @db.VarChar(255)
   note      String?  @db.VarChar(255)
@@ -652,9 +651,9 @@ model TrackLink {
 
 // Tipi di tracking (TOMAIA 1, FODERA 1, etc.)
 model TrackType {
-  id    Int     @id @default(autoincrement())
-  name  String  @db.VarChar(255)
-  note  String? @db.VarChar(255)
+  id   Int     @id @default(autoincrement())
+  name String  @db.VarChar(255)
+  note String? @db.VarChar(255)
 
   links TrackLink[]
 
@@ -663,10 +662,10 @@ model TrackType {
 
 // Metadati lotti (DDT, data, note)
 model TrackLotInfo {
-  lot  String  @id @db.VarChar(255) // PK stringa
-  doc  String? @db.VarChar(255) // Numero DDT
+  lot  String    @id @db.VarChar(255) // PK stringa
+  doc  String?   @db.VarChar(255) // Numero DDT
   date DateTime? @db.Date
-  note String? @db.VarChar(255)
+  note String?   @db.VarChar(255)
 
   @@map("track_lots_info")
 }
@@ -738,8 +737,8 @@ model ProductionRecord {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  creator User? @relation("ProductionCreator", fields: [createdBy], references: [id])
-  updater User? @relation("ProductionUpdater", fields: [updatedBy], references: [id])
+  creator User?             @relation("ProductionCreator", fields: [createdBy], references: [id])
+  updater User?             @relation("ProductionUpdater", fields: [updatedBy], references: [id])
   valori  ProductionValue[]
 
   @@map("prod_records")
@@ -855,7 +854,7 @@ model MrpRequirement {
 model AuthWidgetConfig {
   id        Int      @id @default(autoincrement())
   userId    Int      @map("user_id")
-  widgetId  String   @db.VarChar(50) @map("widget_id")
+  widgetId  String   @map("widget_id") @db.VarChar(50)
   enabled   Boolean  @default(true)
   x         Int      @default(0)
   y         Int      @default(0)
@@ -871,22 +870,6 @@ model AuthWidgetConfig {
 }
 
 // ==================== NOTIFICATIONS ====================
-
-model Notification {
-  id        Int       @id @default(autoincrement())
-  userId    Int       @map("user_id")
-  type      String    @db.VarChar(50)
-  title     String    @db.VarChar(200)
-  message   String?   @db.Text
-  link      String?   @db.VarChar(255)
-  read      Boolean   @default(false)
-  readAt    DateTime? @map("read_at")
-  createdAt DateTime  @default(now()) @map("created_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("auth_notifications")
-}
 
 // ==================== JOBS / SPOOL ====================
 

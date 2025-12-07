@@ -12,10 +12,9 @@ import {
   RiparazioniWidget,
   ProduzioneWidget,
   QualityWidget,
-  ExportWidget,
   TrackingWidget,
   SCMWidget,
-  SpoolWidget,
+  ExportStatsWidget,
   QuickActionsWidget,
   ActivitiesWidget,
 } from "@/components/dashboard/DashboardWidgets";
@@ -33,6 +32,9 @@ interface DashboardStats {
   scmLanciAttivi: number;
   produzioneOggi: number;
   produzioneOggiFasi: Record<string, number>;
+  exportOggi?: number;
+  exportSettimana?: number;
+  exportMese?: number;
 }
 
 interface Activity {
@@ -56,14 +58,12 @@ interface Job {
 export default function DashboardPage() {
   const { user, hasPermission } = useAuthStore();
   const { isModuleActive, fetchModules } = useModulesStore();
-  const { widgets, isEditMode, setEditMode, setShowConfigModal, updateLayout } = useDashboardStore();
+  const { widgets, isEditMode, isLoaded, setEditMode, setShowConfigModal, updateLayout, loadWidgets } = useDashboardStore();
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
-  const [jobsLoading, setJobsLoading] = useState(true);
 
   const fetchData = async () => {
     try {
@@ -87,29 +87,37 @@ export default function DashboardPage() {
     }
   };
 
-  const fetchJobs = async () => {
+  const fetchWidgets = async () => {
     try {
-      const jobsData = await jobsApi.list('completed');
-      setJobs(jobsData.slice(0, 5));
+      const authStorage = localStorage.getItem('coregre-auth');
+      const token = authStorage ? JSON.parse(authStorage).state?.token : null;
+
+      const response = await fetch('/api/widgets/user', {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+      if (response.ok) {
+        const widgetsData = await response.json();
+        loadWidgets(widgetsData);
+      }
     } catch (error) {
-      console.error("Error fetching jobs:", error);
-    } finally {
-      setJobsLoading(false);
+      console.error("Error fetching widgets:", error);
+      loadWidgets([]); // Use defaults on error
     }
   };
 
   useEffect(() => {
+    fetchWidgets();
     fetchModules();
     fetchData();
     fetchActivities();
-    fetchJobs();
 
     const interval = setInterval(
       () => {
         fetchModules();
         fetchData();
         fetchActivities();
-        fetchJobs();
       },
       5 * 60 * 1000
     );
@@ -188,7 +196,7 @@ export default function DashboardPage() {
       <div className="mb-8">
         <div className="sm:flex sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-indigo-400">
+            <h1 className="text-3xl font-bold dark:from-blue-400 dark:to-indigo-400">
               Dashboard CoreGRE
             </h1>
             <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
@@ -211,26 +219,26 @@ export default function DashboardPage() {
               </div>
               <div className="flex gap-2">
                 <motion.button
-                  whileHover={{ scale: 1.02, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => setShowConfigModal(true)}
-                  className="rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 text-sm font-medium text-white shadow-md hover:shadow-lg transition-all"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg transition-all"
+                  title="Configura Widget"
                 >
-                  <i className="fas fa-cog mr-2"></i>
-                  Configura Widget
+                  <i className="fas fa-cog"></i>
                 </motion.button>
                 <motion.button
-                  whileHover={{ scale: 1.02, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => setEditMode(!isEditMode)}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium shadow-md hover:shadow-lg transition-all ${
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg shadow-md hover:shadow-lg transition-all ${
                     isEditMode
                       ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white'
                       : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                   }`}
+                  title={isEditMode ? 'Salva Layout' : 'Modifica Layout'}
                 >
-                  <i className={`fas fa-${isEditMode ? 'save' : 'edit'} mr-2`}></i>
-                  {isEditMode ? 'Salva Layout' : 'Modifica Layout'}
+                  <i className={`fas fa-${isEditMode ? 'save' : 'edit'}`}></i>
                 </motion.button>
               </div>
             </div>
@@ -262,7 +270,9 @@ export default function DashboardPage() {
         layouts={{ lg: getLayout() }}
         breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
         cols={{ lg: 4, md: 3, sm: 2, xs: 1, xxs: 1 }}
-        rowHeight={200}
+        rowHeight={150}
+        margin={[16, 16]}
+        containerPadding={[0, 0]}
         isDraggable={isEditMode}
         isResizable={isEditMode}
         onLayoutChange={handleLayoutChange}
@@ -271,63 +281,72 @@ export default function DashboardPage() {
         {/* Riparazioni */}
         {isWidgetVisible('riparazioni', 'riparazioni', 'riparazioni') && (
           <div key="riparazioni" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <RiparazioniWidget stats={stats} />
+            <div className={isEditMode ? 'pointer-events-none' : ''}>
+              <RiparazioniWidget stats={stats} />
+            </div>
           </div>
         )}
 
         {/* Produzione */}
         {isWidgetVisible('produzione', 'produzione', 'produzione') && (
           <div key="produzione" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <ProduzioneWidget stats={stats} />
+            <div className={isEditMode ? 'pointer-events-none' : ''}>
+              <ProduzioneWidget stats={stats} />
+            </div>
           </div>
         )}
 
         {/* Quality */}
         {isWidgetVisible('quality', 'quality', 'quality') && (
           <div key="quality" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <QualityWidget stats={stats} />
+            <div className={isEditMode ? 'pointer-events-none' : ''}>
+              <QualityWidget stats={stats} />
+            </div>
           </div>
         )}
 
-        {/* Export */}
-        {isWidgetVisible('export', 'export', 'export') && (
-          <div key="export" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <ExportWidget stats={stats} />
+        {/* Export Stats */}
+        {isWidgetVisible('export-stats', 'export', 'export') && (
+          <div key="export-stats" className={isEditMode ? 'drag-handle cursor-move' : ''}>
+            <div className={isEditMode ? 'pointer-events-none' : ''}>
+              <ExportStatsWidget stats={stats} />
+            </div>
           </div>
         )}
 
         {/* Tracking */}
         {isWidgetVisible('tracking') && (
           <div key="tracking" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <TrackingWidget />
+            <div className={isEditMode ? 'pointer-events-none' : ''}>
+              <TrackingWidget />
+            </div>
           </div>
         )}
 
         {/* SCM */}
         {isWidgetVisible('scm', 'scm_admin', 'scm') && (
           <div key="scm" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <SCMWidget stats={stats} />
-          </div>
-        )}
-
-        {/* Spool */}
-        {isWidgetVisible('spool') && (
-          <div key="spool" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <SpoolWidget jobs={jobs} jobsLoading={jobsLoading} />
+            <div className={isEditMode ? 'pointer-events-none' : ''}>
+              <SCMWidget stats={stats} />
+            </div>
           </div>
         )}
 
         {/* Quick Actions */}
         {isWidgetVisible('quick-actions') && (
           <div key="quick-actions" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <QuickActionsWidget hasPermission={hasPermission} isModuleActive={isModuleActive} />
+            <div className={isEditMode ? 'pointer-events-none' : ''}>
+              <QuickActionsWidget hasPermission={hasPermission} isModuleActive={isModuleActive} />
+            </div>
           </div>
         )}
 
         {/* Activities */}
         {isWidgetVisible('activities') && (
           <div key="activities" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <ActivitiesWidget activities={activities} activitiesLoading={activitiesLoading} hasPermission={hasPermission} />
+            <div className={isEditMode ? 'pointer-events-none' : ''}>
+              <ActivitiesWidget activities={activities} activitiesLoading={activitiesLoading} hasPermission={hasPermission} />
+            </div>
           </div>
         )}
       </ResponsiveGridLayout>

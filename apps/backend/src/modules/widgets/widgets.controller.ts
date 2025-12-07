@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { WidgetsService } from './widgets.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -28,5 +28,10 @@ export class WidgetsController {
   @Get('dashboard/activities')
   getRecentActivities(@Request() req) {
     return this.widgetsService.getRecentActivities(req.user.userId, req.user.permissions);
+  }
+
+  @Get('produzione-chart')
+  getProduzioneChart(@Query('period') period: string = '7') {
+    return this.widgetsService.getProduzioneChartData(parseInt(period, 10));
   }
 }

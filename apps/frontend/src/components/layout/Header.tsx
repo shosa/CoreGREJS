@@ -10,7 +10,7 @@ import { jobsApi } from '@/lib/api';
 
 export default function Header() {
   const router = useRouter();
-  const { user, darkMode, toggleDarkMode, toggleSidebar, logout } = useAuthStore();
+  const { user, toggleSidebar, logout, hasPermission } = useAuthStore();
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSpool, setShowSpool] = useState(false);
@@ -168,58 +168,7 @@ export default function Header() {
 
         {/* Right side - Actions */}
         <div className="flex items-center gap-3 2xsm:gap-7">
-          {/* Dark mode toggle */}
-          <motion.button
-            onClick={toggleDarkMode}
-            whileHover={{ scale: 1.1, rotate: 15 }}
-            whileTap={{ scale: 0.9 }}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
-            >
-              <AnimatePresence mode="wait">
-                {darkMode ? (
-                  <motion.i
-                    key="sun"
-                    initial={{ rotate: -90, opacity: 0 }}
-                    animate={{ rotate: 0, opacity: 1 }}
-                    exit={{ rotate: 90, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="fas fa-sun text-yellow-500"
-                  />
-                ) : (
-                  <motion.i
-                    key="moon"
-                    initial={{ rotate: 90, opacity: 0 }}
-                    animate={{ rotate: 0, opacity: 1 }}
-                    exit={{ rotate: -90, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="fas fa-moon text-gray-600"
-                  />
-                )}
-              </AnimatePresence>
-            </motion.button>
-
-            {/* Notifications */}
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
-            >
-              <motion.i
-                animate={{ rotate: [0, -10, 10, -10, 10, 0] }}
-                transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 5 }}
-                className="fas fa-bell text-gray-600 dark:text-gray-300"
-              />
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-                className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white"
-              >
-                3
-              </motion.span>
-            </motion.button>
-
-            {/* User dropdown */}
+          {/* User dropdown */}
             <div className="relative">
               <motion.button
                 onClick={() => setShowDropdown(!showDropdown)}
@@ -271,16 +220,18 @@ export default function Header() {
                           Profilo
                         </Link>
                       </motion.li>
-                      <motion.li whileHover={{ x: 5 }}>
-                        <Link
-                          href="/settings"
-                          className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                          onClick={() => setShowDropdown(false)}
-                        >
-                          <i className="fas fa-cog"></i>
-                          Impostazioni
-                        </Link>
-                      </motion.li>
+                      {hasPermission('settings') && (
+                        <motion.li whileHover={{ x: 5 }}>
+                          <Link
+                            href="/settings"
+                            className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                            onClick={() => setShowDropdown(false)}
+                          >
+                            <i className="fas fa-cog"></i>
+                            Impostazioni
+                          </Link>
+                        </motion.li>
+                      )}
                       <motion.li
                         whileHover={{ x: 5 }}
                         className="border-t border-gray-200 dark:border-gray-700"

@@ -2,8 +2,6 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
-import { useAuthStore } from '@/store/auth';
-import Notifications from '@/components/ui/Notifications';
 import './globals.css';
 
 export default function RootLayout({
@@ -12,10 +10,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const [queryClient] = useState(() => new QueryClient());
-  const { darkMode } = useAuthStore();
 
   return (
-    <html lang="it" className={`h-full ${darkMode ? 'dark' : ''}`}>
+    <html lang="it" className="h-full">
       <head>
         <title>CoreGRE</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -25,10 +22,9 @@ export default function RootLayout({
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
         />
       </head>
-      <body className={`h-full ${darkMode ? 'dark bg-gray-900' : ''}`}>
+      <body className="h-full">
         <QueryClientProvider client={queryClient}>
           {children}
-          <Notifications />
         </QueryClientProvider>
       </body>
     </html>

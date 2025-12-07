@@ -13,7 +13,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, darkMode, token, sidebarCollapsed } = useAuthStore();
+  const { isAuthenticated, token, sidebarCollapsed } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className={`h-screen overflow-hidden ${darkMode ? 'dark' : ''}`}>
+    <div className="h-screen overflow-hidden">
       {/* Sidebar */}
       <Sidebar />
 

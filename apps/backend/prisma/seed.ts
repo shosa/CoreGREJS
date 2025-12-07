@@ -139,23 +139,6 @@ async function main() {
     });
   }
 
-  // Create available widgets
-  const widgets = [
-    { name: 'stats-riparazioni', title: 'Riparazioni Aperte', icon: 'fa-tools', category: 'stats' },
-    { name: 'stats-quality', title: 'Controlli QC', icon: 'fa-check-circle', category: 'stats' },
-    { name: 'stats-ddt', title: 'DDT in Bozza', icon: 'fa-file-export', category: 'stats' },
-    { name: 'stats-scm', title: 'Lanci SCM', icon: 'fa-truck', category: 'stats' },
-    { name: 'chart-produzione', title: 'Produzione Giornaliera', icon: 'fa-chart-bar', category: 'charts' },
-    { name: 'activity-log', title: 'Attività Recenti', icon: 'fa-history', category: 'activity' },
-  ];
-  for (const widget of widgets) {
-    await prisma.availableWidget.upsert({
-      where: { name: widget.name },
-      update: {},
-      create: widget,
-    });
-  }
-
   // Create production phases and departments
   const productionPhases = [
     {

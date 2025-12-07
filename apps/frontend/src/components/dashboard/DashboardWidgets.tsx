@@ -84,34 +84,34 @@ function BaseStatWidget({
 }) {
   return (
     <motion.div
-      className={`h-full w-full group relative overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br ${gradientFrom} ${gradientTo} dark:border-gray-700 p-3 sm:p-4 lg:p-6 shadow-lg backdrop-blur-sm cursor-pointer flex flex-col`}
+      className={`h-full w-full group relative overflow-hidden rounded-xl border border-gray-200 bg-gradient-to-br ${gradientFrom} ${gradientTo} dark:border-gray-700 p-4 shadow-lg backdrop-blur-sm cursor-pointer flex flex-col`}
       onClick={() => (window.location.href = href)}
     >
-      <div className={`absolute top-0 right-0 w-32 h-32 ${textColor}/10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500`}></div>
+      <div className={`absolute top-0 right-0 w-24 h-24 ${textColor}/10 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500`}></div>
       <div className="relative flex-1 flex flex-col min-h-0">
-        <div className="flex items-center justify-between mb-2 sm:mb-4 flex-shrink-0">
-          <div className={`flex h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 items-center justify-center rounded-xl bg-gradient-to-br ${iconFrom} ${iconTo} shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-            <i className={`fas fa-${icon} text-white text-sm sm:text-lg lg:text-xl`}></i>
+        <div className="flex items-center justify-between mb-3 flex-shrink-0">
+          <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${iconFrom} ${iconTo} shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+            <i className={`fas fa-${icon} text-white text-base`}></i>
           </div>
-          <span className={`text-[10px] sm:text-xs font-semibold ${textColor} dark:${textColor} uppercase tracking-wider`}>{title}</span>
+          <span className={`text-[10px] font-semibold ${textColor} dark:${textColor} uppercase tracking-wider`}>{title}</span>
         </div>
         <div className="flex-1 flex flex-col justify-between min-h-0">
           <div className="flex-shrink-0">
-            <h3 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1 truncate">
+            <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-1 truncate">
               {value}
             </h3>
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2 sm:mb-3 line-clamp-2">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
               {label}
             </p>
           </div>
-          <div className={`flex items-center justify-between pt-2 sm:pt-3 border-t border-${textColor.split('-')[1]}-200 dark:border-${textColor.split('-')[1]}-800 flex-shrink-0 mt-auto`}>
+          <div className={`flex items-center justify-between pt-2 border-t border-${textColor.split('-')[1]}-200 dark:border-${textColor.split('-')[1]}-800 flex-shrink-0 mt-auto`}>
             {secondaryValue !== undefined && (
-              <span className={`text-xs sm:text-sm font-medium ${textColor} truncate`}>
+              <span className={`text-sm font-medium ${textColor} truncate`}>
                 <i className="fas fa-user mr-1"></i>
                 {secondaryValue} {secondaryLabel}
               </span>
             )}
-            <i className={`fas fa-arrow-right ${textColor} group-hover:translate-x-1 transition-transform text-xs sm:text-sm ml-auto`}></i>
+            <i className={`fas fa-arrow-right ${textColor} group-hover:translate-x-1 transition-transform text-sm ml-auto`}></i>
           </div>
         </div>
       </div>
@@ -237,51 +237,48 @@ export function ExportWidget({ stats }: { stats: DashboardStats | null }) {
 export function TrackingWidget() {
   return (
     <motion.div
-      className="h-full w-full group rounded-2xl border border-gray-200 bg-white dark:bg-gray-800/40 dark:border-gray-700 p-3 sm:p-4 lg:p-6 shadow-lg backdrop-blur-sm overflow-y-auto"
+      className="h-full w-full group rounded-xl border border-gray-200 bg-white dark:bg-gray-800/40 dark:border-gray-700 p-4 shadow-lg backdrop-blur-sm overflow-y-auto"
     >
-      <div className="flex items-center justify-between mb-3 sm:mb-4 flex-shrink-0">
-        <div className="flex h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 items-center justify-center rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 shadow-lg">
-          <i className="fas fa-route text-white text-sm sm:text-lg lg:text-xl"></i>
+      <div className="flex items-center justify-between mb-3 flex-shrink-0">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-pink-500 to-rose-500 shadow-lg">
+          <i className="fas fa-route text-white text-base"></i>
         </div>
-        <span className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400 rounded-full">
+        <span className="px-2 py-1 text-[10px] font-semibold bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400 rounded-full">
           TRACKING
         </span>
       </div>
-      <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-900 dark:text-white mb-1 sm:mb-2">
+      <h3 className="text-base font-bold text-gray-900 dark:text-white mb-1">
         Sistema di Tracciamento
       </h3>
-      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 sm:mb-4 line-clamp-2">
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
         Traccia ordini, lotti e processi produttivi
       </p>
-      <div className="space-y-1 sm:space-y-2">
+      <div className="space-y-2">
         <Link href="/tracking">
           <motion.button
             whileHover={{ x: 3 }}
-            className="w-full text-left px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-colors truncate"
+            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-colors truncate"
           >
-            <i className="fas fa-search mr-1 sm:mr-2 text-pink-500"></i>
-            <span className="hidden sm:inline">Ricerca generale</span>
-            <span className="sm:hidden">Ricerca</span>
+            <i className="fas fa-search mr-2 text-pink-500"></i>
+            Ricerca generale
           </motion.button>
         </Link>
         <Link href="/tracking/order-search">
           <motion.button
             whileHover={{ x: 3 }}
-            className="w-full text-left px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-colors truncate"
+            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-colors truncate"
           >
-            <i className="fas fa-file-alt mr-1 sm:mr-2 text-pink-500"></i>
-            <span className="hidden sm:inline">Cerca per ordine</span>
-            <span className="sm:hidden">Ordini</span>
+            <i className="fas fa-file-alt mr-2 text-pink-500"></i>
+            Cerca per ordine
           </motion.button>
         </Link>
         <Link href="/tracking/tree-view">
           <motion.button
             whileHover={{ x: 3 }}
-            className="w-full text-left px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-colors truncate"
+            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-colors truncate"
           >
-            <i className="fas fa-sitemap mr-1 sm:mr-2 text-pink-500"></i>
-            <span className="hidden sm:inline">Vista ad albero</span>
-            <span className="sm:hidden">Albero</span>
+            <i className="fas fa-sitemap mr-2 text-pink-500"></i>
+            Vista ad albero
           </motion.button>
         </Link>
       </div>
@@ -293,48 +290,47 @@ export function TrackingWidget() {
 export function SCMWidget({ stats }: { stats: DashboardStats | null }) {
   return (
     <motion.div
-      className="h-full w-full group rounded-2xl border border-gray-200 bg-white dark:bg-gray-800/40 dark:border-gray-700 p-3 sm:p-4 lg:p-6 shadow-lg backdrop-blur-sm overflow-y-auto"
+      className="h-full w-full group rounded-xl border border-gray-200 bg-white dark:bg-gray-800/40 dark:border-gray-700 p-4 shadow-lg backdrop-blur-sm overflow-y-auto"
     >
-      <div className="flex items-center justify-between mb-3 sm:mb-4 flex-shrink-0">
-        <div className="flex h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-red-500 shadow-lg">
-          <i className="fas fa-rocket text-white text-sm sm:text-lg lg:text-xl"></i>
+      <div className="flex items-center justify-between mb-3 flex-shrink-0">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-red-500 shadow-lg">
+          <i className="fas fa-rocket text-white text-base"></i>
         </div>
-        <span className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-full">
+        <span className="px-2 py-1 text-[10px] font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-full">
           SCM
         </span>
       </div>
-      <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-900 dark:text-white mb-1 sm:mb-2 truncate">
+      <h3 className="text-base font-bold text-gray-900 dark:text-white mb-1 truncate">
         Supply Chain Management
       </h3>
-      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 sm:mb-4">
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
         <span className="font-semibold text-orange-600 dark:text-orange-400">{stats?.scmLanciAttivi || 0}</span> lanci attivi
       </p>
-      <div className="space-y-1 sm:space-y-2">
+      <div className="space-y-2">
         <Link href="/scm-admin/launches/create">
           <motion.button
             whileHover={{ x: 3 }}
-            className="w-full text-left px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors truncate"
+            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors truncate"
           >
-            <i className="fas fa-plus-circle mr-1 sm:mr-2 text-orange-500"></i>
+            <i className="fas fa-plus-circle mr-2 text-orange-500"></i>
             Nuovo lancio
           </motion.button>
         </Link>
         <Link href="/scm-admin">
           <motion.button
             whileHover={{ x: 3 }}
-            className="w-full text-left px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors truncate"
+            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors truncate"
           >
-            <i className="fas fa-list mr-1 sm:mr-2 text-orange-500"></i>
-            <span className="hidden sm:inline">Gestione lanci</span>
-            <span className="sm:hidden">Gestione</span>
+            <i className="fas fa-list mr-2 text-orange-500"></i>
+            Gestione lanci
           </motion.button>
         </Link>
         <Link href="/scm-admin/monitoring">
           <motion.button
             whileHover={{ x: 3 }}
-            className="w-full text-left px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors truncate"
+            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors truncate"
           >
-            <i className="fas fa-chart-bar mr-1 sm:mr-2 text-orange-500"></i>
+            <i className="fas fa-chart-bar mr-2 text-orange-500"></i>
             Monitoraggio
           </motion.button>
         </Link>
@@ -344,72 +340,136 @@ export function SCMWidget({ stats }: { stats: DashboardStats | null }) {
 }
 
 // Spool Jobs Widget
-export function SpoolWidget({ jobs, jobsLoading }: { jobs: Job[]; jobsLoading: boolean }) {
+// Export Stats Widget
+export function ExportStatsWidget({ stats }: { stats: DashboardStats | null }) {
+  return (
+    <motion.div
+      className="h-full w-full group relative overflow-hidden rounded-xl border border-gray-200 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 dark:border-gray-700 p-4 shadow-lg backdrop-blur-sm cursor-pointer flex flex-col"
+      onClick={() => (window.location.href = '/export')}
+    >
+      <div className="absolute top-0 right-0 w-24 h-24 text-purple-600/10 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500"></div>
+      <div className="relative flex-1 flex flex-col min-h-0">
+        <div className="flex items-center justify-between mb-3 flex-shrink-0">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg group-hover:scale-110 transition-transform duration-300">
+            <i className="fas fa-file-export text-white text-base"></i>
+          </div>
+          <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider">Export</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 mb-3 flex-shrink-0">
+          <div className="text-center p-2 rounded-lg bg-white/50 dark:bg-gray-800/30">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+              {stats?.ddtBozze || 0}
+            </h3>
+            <p className="text-[10px] text-gray-600 dark:text-gray-400">DDT Bozze</p>
+          </div>
+          <div className="text-center p-2 rounded-lg bg-white/50 dark:bg-gray-800/30">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+              {stats?.exportOggi || 0}
+            </h3>
+            <p className="text-[10px] text-gray-600 dark:text-gray-400">Export Oggi</p>
+          </div>
+        </div>
+
+        <div className="flex-1 space-y-2 min-h-0">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-700 dark:text-gray-300">Export Settimana</span>
+            <span className="font-semibold text-purple-700 dark:text-purple-400">{stats?.exportSettimana || 0}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-700 dark:text-gray-300">Export Mese</span>
+            <span className="font-semibold text-purple-700 dark:text-purple-400">{stats?.exportMese || 0}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end pt-2 border-t border-purple-200 dark:border-purple-800 flex-shrink-0 mt-auto">
+          <i className="fas fa-arrow-right text-purple-600 group-hover:translate-x-1 transition-transform text-sm"></i>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Production Chart Widget
+export function ProduzioneChartWidget({ chartData, period, setPeriod }: {
+  chartData: any;
+  period: 7 | 30 | 90;
+  setPeriod: (p: 7 | 30 | 90) => void;
+}) {
+  const maxValue = chartData?.departments ? Math.max(...chartData.departments.map((d: any) => d.value)) : 0;
+
   return (
     <motion.div
       className="h-full w-full group rounded-2xl border border-gray-200 bg-white dark:bg-gray-800/40 dark:border-gray-700 p-3 sm:p-4 lg:p-6 shadow-lg backdrop-blur-sm flex flex-col overflow-hidden"
     >
       <div className="flex items-center justify-between mb-3 sm:mb-4 flex-shrink-0">
-        <div className="flex h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg">
-          <i className="fas fa-print text-white text-sm sm:text-lg lg:text-xl"></i>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 items-center justify-center rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 shadow-lg">
+            <i className="fas fa-chart-bar text-white text-sm sm:text-lg lg:text-xl"></i>
+          </div>
+          <div>
+            <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-900 dark:text-white">
+              Produzione per Reparto
+            </h3>
+            <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400">
+              Ultimi {period} giorni
+            </p>
+          </div>
         </div>
-        <span className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 rounded-full">
-          SPOOL
-        </span>
+        <div className="flex gap-1">
+          {[7, 30, 90].map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p as 7 | 30 | 90)}
+              className={`px-2 py-1 text-[10px] sm:text-xs font-medium rounded-lg transition-colors ${
+                period === p
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              {p}g
+            </button>
+          ))}
+        </div>
       </div>
-      <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-900 dark:text-white mb-1 sm:mb-2 flex-shrink-0">
-        Ultimi Job Pronti
-      </h3>
-      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 sm:mb-4 flex-shrink-0">
-        {jobsLoading ? 'Caricamento...' : `${jobs.length} job completati`}
-      </p>
-      <div className="space-y-1 sm:space-y-2 flex-1 overflow-y-auto min-h-0 custom-scrollbar">
-        {jobsLoading ? (
-          <div className="text-center py-4">
-            <motion.i
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="fas fa-spinner text-xl sm:text-2xl text-cyan-500"
-            />
-          </div>
-        ) : jobs.length === 0 ? (
-          <div className="text-center py-4 text-gray-500 dark:text-gray-400">
-            <i className="far fa-file text-xl sm:text-2xl mb-2"></i>
-            <p className="text-xs">Nessun job completato</p>
-          </div>
-        ) : (
-          jobs.map((job, index) => (
-            <Link key={job.id} href={`/jobs/${job.id}`}>
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                whileHover={{ x: 3, backgroundColor: "rgba(6, 182, 212, 0.05)" }}
-                className="flex items-center justify-between p-1.5 sm:p-2 rounded-lg text-sm transition-all"
-              >
-                <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
-                  <i className={`fas fa-${getJobIcon(job.type)} text-cyan-500 text-[10px] sm:text-xs`}></i>
-                  <span className="text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
-                    {getJobTypeName(job.type)}
-                  </span>
-                </div>
-                <i className="fas fa-download text-[10px] sm:text-xs text-cyan-500 flex-shrink-0"></i>
-              </motion.div>
-            </Link>
+
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-2 sm:space-y-3">
+        {chartData?.departments && chartData.departments.length > 0 ? (
+          chartData.departments.map((dept: any, index: number) => (
+            <div key={index} className="space-y-1">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
+                <span className="font-medium text-gray-700 dark:text-gray-300 truncate">{dept.name}</span>
+                <span className="font-semibold text-yellow-600 dark:text-yellow-400 flex-shrink-0 ml-2">
+                  {dept.value} PAIA
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 sm:h-3 overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${maxValue > 0 ? (dept.value / maxValue) * 100 : 0}%` }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="h-full rounded-full bg-gradient-to-r from-yellow-400 to-orange-500"
+                />
+              </div>
+            </div>
           ))
+        ) : (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <i className="fas fa-chart-bar text-3xl sm:text-4xl mb-3 opacity-50"></i>
+            <p className="text-xs sm:text-sm">Nessun dato disponibile</p>
+          </div>
         )}
       </div>
-      {jobs.length > 0 && (
-        <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <Link
-            href="/jobs"
-            className="text-[10px] sm:text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 flex items-center justify-center"
-          >
-            Visualizza tutti i job
-            <i className="fas fa-arrow-right ml-1 text-[10px] sm:text-xs"></i>
-          </Link>
-        </div>
-      )}
+
+      <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <button
+          onClick={() => (window.location.href = '/produzione')}
+          className="w-full text-xs sm:text-sm font-medium text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 flex items-center justify-center"
+        >
+          Visualizza dettagli produzione
+          <i className="fas fa-arrow-right ml-1 sm:ml-2 text-xs"></i>
+        </button>
+      </div>
     </motion.div>
   );
 }

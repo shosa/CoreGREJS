@@ -10,10 +10,20 @@ export class WidgetsService {
   ) {}
 
   async getUserWidgets(userId: number) {
-    return this.prisma.authWidgetConfig.findMany({
+    const widgets = await this.prisma.authWidgetConfig.findMany({
       where: { userId },
       orderBy: [{ y: 'asc' }, { x: 'asc' }],
     });
+
+    // Map widgetId to id for frontend compatibility
+    return widgets.map(w => ({
+      id: w.widgetId,
+      enabled: w.enabled,
+      x: w.x,
+      y: w.y,
+      w: w.w,
+      h: w.h,
+    }));
   }
 
   async saveUserWidgets(userId: number, widgets: any[]) {
@@ -41,35 +51,101 @@ export class WidgetsService {
   }
 
   async getDashboardStats() {
+    const now = new Date();
+    const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - 7);
+    const startOfMonth = new Date(now);
+    startOfMonth.setDate(now.getDate() - 30);
+
     const [
       riparazioniAperte,
       qualityRecordsToday,
       ddtBozze,
       scmLanciAttivi,
       produzioneOggi,
+      exportOggi,
+      exportSettimana,
+      exportMese,
     ] = await Promise.all([
       this.prisma.riparazione.count({ where: { completa: false } }),
       this.prisma.qualityRecord.count({
         where: {
           dataControllo: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0)),
+            gte: startOfDay,
           },
         },
       }),
       this.prisma.exportDocument.count({ where: { stato: 'bozza' } }),
       this.prisma.scmLaunch.count({ where: { stato: 'in_corso' } }),
       this.produzioneService.getTodayStats(),
+      this.prisma.exportDocument.count({
+        where: {
+          createdAt: { gte: startOfDay },
+          stato: { not: 'bozza' },
+        },
+      }),
+      this.prisma.exportDocument.count({
+        where: {
+          createdAt: { gte: startOfWeek },
+          stato: { not: 'bozza' },
+        },
+      }),
+      this.prisma.exportDocument.count({
+        where: {
+          createdAt: { gte: startOfMonth },
+          stato: { not: 'bozza' },
+        },
+      }),
     ]);
 
     return {
       riparazioniAperte,
-      riparazioniMie: 0, // Keeping for compatibility
+      riparazioniMie: 0,
       qualityRecordsToday,
       ddtBozze,
       scmLanciAttivi,
       produzioneOggi: produzioneOggi.total,
       produzioneOggiFasi: produzioneOggi.byPhase,
+      exportOggi,
+      exportSettimana,
+      exportMese,
     };
+  }
+
+  async getProduzioneChartData(period: number = 7) {
+    const now = new Date();
+    const startDate = new Date(now);
+    startDate.setDate(now.getDate() - period);
+
+    // Get all production values for the period
+    const productionValues = await this.prisma.productionValue.findMany({
+      where: {
+        record: {
+          productionDate: { gte: startDate },
+        },
+      },
+      include: {
+        department: {
+          select: { nome: true },
+        },
+      },
+    });
+
+    // Aggregate by department
+    const departmentMap: Record<string, number> = {};
+    productionValues.forEach((pv) => {
+      const deptName = pv.department.nome;
+      const value = pv.valore || 0;
+      departmentMap[deptName] = (departmentMap[deptName] || 0) + value;
+    });
+
+    // Convert to array and sort by value descending
+    const departments = Object.entries(departmentMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    return { departments };
   }
 
   async getRecentActivities(userId: number, permissions: string[] | undefined, limit = 10) {

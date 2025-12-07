@@ -1808,10 +1808,10 @@ export default function DocumentDetailPage() {
                         className="border-b border-gray-100 dark:border-gray-700/50"
                       >
                         <td className="py-3 text-gray-900 dark:text-white">
-                          {item.article?.codiceArticolo || '-'}
+                          {item.codiceArticolo || '-'}
                         </td>
                         <td className="py-3 text-gray-600 dark:text-gray-400">
-                          {item.article?.descrizione || "-"}
+                          {item.descrizione || "-"}
                         </td>
                         <td className="py-3 text-right text-gray-900 dark:text-white">
                           {item.qtaMancante}

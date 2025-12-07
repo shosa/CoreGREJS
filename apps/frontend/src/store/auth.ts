@@ -14,13 +14,11 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  darkMode: boolean;
   sidebarCollapsed: boolean;
   _hasHydrated: boolean;
   setAuth: (user: User, token: string) => void;
   logout: () => void;
   updateUser: (user: Partial<User>) => void;
-  toggleDarkMode: () => void;
   toggleSidebar: () => void;
   hasPermission: (module: string) => boolean;
   setHasHydrated: (state: boolean) => void;
@@ -32,7 +30,6 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      darkMode: false,
       sidebarCollapsed: false,
       _hasHydrated: false,
 
@@ -48,10 +45,6 @@ export const useAuthStore = create<AuthState>()(
         set((state) => ({
           user: state.user ? { ...state.user, ...userData } : null,
         }));
-      },
-
-      toggleDarkMode: () => {
-        set((state) => ({ darkMode: !state.darkMode }));
       },
 
       toggleSidebar: () => {
@@ -76,7 +69,6 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
-        darkMode: state.darkMode,
         sidebarCollapsed: state.sidebarCollapsed,
       }),
       onRehydrateStorage: () => (state) => {

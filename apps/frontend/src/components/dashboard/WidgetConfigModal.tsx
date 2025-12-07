@@ -18,16 +18,15 @@ const availableWidgets: WidgetInfo[] = [
   { id: 'riparazioni', name: 'Riparazioni', icon: 'tools', color: 'blue', permission: 'riparazioni', module: 'riparazioni' },
   { id: 'produzione', name: 'Produzione', icon: 'industry', color: 'yellow', permission: 'produzione', module: 'produzione' },
   { id: 'quality', name: 'Quality Control', icon: 'check-circle', color: 'green', permission: 'quality', module: 'quality' },
-  { id: 'export', name: 'Export/DDT', icon: 'file-export', color: 'purple', permission: 'export', module: 'export' },
+  { id: 'export-stats', name: 'Statistiche Export', icon: 'file-export', color: 'purple', permission: 'export', module: 'export' },
   { id: 'tracking', name: 'Tracking', icon: 'route', color: 'pink' },
   { id: 'scm', name: 'SCM', icon: 'rocket', color: 'orange', permission: 'scm_admin', module: 'scm' },
-  { id: 'spool', name: 'Spool Jobs', icon: 'print', color: 'cyan' },
-  { id: 'quick-actions', name: 'Azioni Rapide', icon: 'bolt', color: 'yellow' },
+  { id: 'quick-actions', name: 'Azioni Rapide', icon: 'bolt', color: 'indigo' },
   { id: 'activities', name: 'Attività Recenti', icon: 'history', color: 'gray' },
 ];
 
 export default function WidgetConfigModal() {
-  const { showConfigModal, setShowConfigModal, widgets, toggleWidget, resetLayout } = useDashboardStore();
+  const { showConfigModal, setShowConfigModal, widgets, toggleWidget, resetLayout, saveWidgets } = useDashboardStore();
   const { hasPermission } = useAuthStore();
   const { isModuleActive } = useModulesStore();
 
@@ -47,6 +46,11 @@ export default function WidgetConfigModal() {
     if (confirm('Sei sicuro di voler ripristinare il layout predefinito?')) {
       resetLayout();
     }
+  };
+
+  const handleSave = async () => {
+    await saveWidgets();
+    setShowConfigModal(false);
   };
 
   if (!showConfigModal) return null;
@@ -155,7 +159,7 @@ export default function WidgetConfigModal() {
               Ripristina Default
             </button>
             <button
-              onClick={() => setShowConfigModal(false)}
+              onClick={handleSave}
               className="px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all"
             >
               <i className="fas fa-check mr-2"></i>
