@@ -133,7 +133,7 @@ const menuItems: MenuItem[] = [
 ];
 
 const adminItems: MenuItem[] = [
-  { name: 'Database', href: '/database', icon: 'fa-database', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50' },
+  { name: 'Gestione Dati', href: '/data-management', icon: 'fa-database', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50' },
   { name: 'Log Attività', href: '/log-attivita', icon: 'fa-history', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-cyan-800/50 dark:hover:to-cyan-700/50', permission: 'log' },
   { name: 'Cron Jobs', href: '/cron', icon: 'fa-clock', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50' },
 ];

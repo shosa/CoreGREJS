@@ -17,7 +17,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { WidgetsModule } from './modules/widgets/widgets.module';
 import { CronModule } from './modules/cron/cron.module';
 import { ActivityLogModule } from './modules/activity-log/activity-log.module';
-import { DatabaseModule } from './modules/database/database.module';
+import { DataManagementModule } from './modules/data-management/data-management.module';
 import { SearchModule } from './modules/search/search.module';
 import { EtichetteModule } from './modules/etichette/etichette.module';
 import { InworkModule } from './modules/inwork/inwork.module';
@@ -49,7 +49,7 @@ import { HealthModule } from './modules/health/health.module';
     WidgetsModule,
     CronModule,
     ActivityLogModule,
-    DatabaseModule,
+    DataManagementModule,
     SearchModule,
     EtichetteModule,
     InworkModule,
