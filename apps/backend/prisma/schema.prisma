@@ -220,18 +220,6 @@ model Reparto {
   @@map("rip_reparti")
 }
 
-model Linea {
-  id          Int      @id @default(autoincrement())
-  nome        String   @db.VarChar(100)
-  codice      String?  @db.VarChar(20)
-  descrizione String?  @db.Text
-  attivo      Boolean  @default(true)
-  ordine      Int      @default(0)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  @@map("rip_linee")
-}
 
 model Laboratorio {
   id        Int      @id @default(autoincrement())

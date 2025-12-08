@@ -89,20 +89,7 @@ async function main() {
     });
   }
 
-  // Create some linee
-  const linee = ['Linea 1', 'Linea 2', 'Linea 3'];
-  for (const nome of linee) {
-    await prisma.linea.upsert({
-      where: { id: linee.indexOf(nome) + 1 },
-      update: {},
-      create: {
-        nome,
-        codice: `L${linee.indexOf(nome) + 1}`,
-        attivo: true,
-        ordine: linee.indexOf(nome),
-      },
-    });
-  }
+  // Linee table removed - deprecated
 
   // Create quality departments
   const departments = ['Controllo Entrata', 'Controllo Processo', 'Controllo Finale'];

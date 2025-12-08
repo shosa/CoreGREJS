@@ -277,76 +277,117 @@ export default function DashboardPage() {
         isResizable={isEditMode}
         onLayoutChange={handleLayoutChange}
         draggableHandle=".drag-handle"
+        useCSSTransforms={false}
       >
         {/* Riparazioni */}
         {isWidgetVisible('riparazioni', 'riparazioni', 'riparazioni') && (
           <div key="riparazioni" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <div className={isEditMode ? 'pointer-events-none' : ''}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className={isEditMode ? 'pointer-events-none' : ''}
+            >
               <RiparazioniWidget stats={stats} />
-            </div>
+            </motion.div>
           </div>
         )}
 
         {/* Produzione */}
         {isWidgetVisible('produzione', 'produzione', 'produzione') && (
           <div key="produzione" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <div className={isEditMode ? 'pointer-events-none' : ''}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+              className={isEditMode ? 'pointer-events-none' : ''}
+            >
               <ProduzioneWidget stats={stats} />
-            </div>
+            </motion.div>
           </div>
         )}
 
         {/* Quality */}
         {isWidgetVisible('quality', 'quality', 'quality') && (
           <div key="quality" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <div className={isEditMode ? 'pointer-events-none' : ''}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+              className={isEditMode ? 'pointer-events-none' : ''}
+            >
               <QualityWidget stats={stats} />
-            </div>
+            </motion.div>
           </div>
         )}
 
         {/* Export Stats */}
         {isWidgetVisible('export-stats', 'export', 'export') && (
           <div key="export-stats" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <div className={isEditMode ? 'pointer-events-none' : ''}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.3 }}
+              className={isEditMode ? 'pointer-events-none' : ''}
+            >
               <ExportStatsWidget stats={stats} />
-            </div>
+            </motion.div>
           </div>
         )}
 
         {/* Tracking */}
         {isWidgetVisible('tracking') && (
           <div key="tracking" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <div className={isEditMode ? 'pointer-events-none' : ''}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.4 }}
+              className={isEditMode ? 'pointer-events-none' : ''}
+            >
               <TrackingWidget />
-            </div>
+            </motion.div>
           </div>
         )}
 
         {/* SCM */}
         {isWidgetVisible('scm', 'scm_admin', 'scm') && (
           <div key="scm" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <div className={isEditMode ? 'pointer-events-none' : ''}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.5 }}
+              className={isEditMode ? 'pointer-events-none' : ''}
+            >
               <SCMWidget stats={stats} />
-            </div>
+            </motion.div>
           </div>
         )}
 
         {/* Quick Actions */}
         {isWidgetVisible('quick-actions') && (
           <div key="quick-actions" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <div className={isEditMode ? 'pointer-events-none' : ''}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.6 }}
+              className={isEditMode ? 'pointer-events-none' : ''}
+            >
               <QuickActionsWidget hasPermission={hasPermission} isModuleActive={isModuleActive} />
-            </div>
+            </motion.div>
           </div>
         )}
 
         {/* Activities */}
         {isWidgetVisible('activities') && (
           <div key="activities" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <div className={isEditMode ? 'pointer-events-none' : ''}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.7 }}
+              className={isEditMode ? 'pointer-events-none' : ''}
+            >
               <ActivitiesWidget activities={activities} activitiesLoading={activitiesLoading} hasPermission={hasPermission} />
-            </div>
+            </motion.div>
           </div>
         )}
       </ResponsiveGridLayout>

@@ -21,30 +21,272 @@ export class DataManagementService {
 
   // Mappa delle tabelle gestibili con metadata
   private readonly managedTables = {
-    riparazioni: {
-      model: 'riparazione',
-      displayName: 'Riparazioni',
-      searchFields: ['numero', 'descrizione', 'cliente'],
-    },
-    produzione: {
-      model: 'numerata',
-      displayName: 'Produzione',
-      searchFields: ['numero', 'articolo', 'descrizione'],
-    },
-    quality: {
-      model: 'qualityRecord',
-      displayName: 'Quality Control',
-      searchFields: ['numerata', 'note'],
-    },
-    export: {
-      model: 'exportDocument',
-      displayName: 'Export/DDT',
-      searchFields: ['progressivo', 'cliente', 'destinazione'],
-    },
-    users: {
+    // Auth Module
+    user: {
       model: 'user',
       displayName: 'Utenti',
       searchFields: ['userName', 'nome', 'mail'],
+    },
+    permission: {
+      model: 'permission',
+      displayName: 'Permessi',
+      searchFields: [],
+    },
+    authWidgetConfig: {
+      model: 'authWidgetConfig',
+      displayName: 'Configurazione Widget',
+      searchFields: [],
+    },
+
+    // Core Module
+    activityLog: {
+      model: 'activityLog',
+      displayName: 'Log Attività',
+      searchFields: ['module', 'action', 'entity', 'description'],
+    },
+    setting: {
+      model: 'setting',
+      displayName: 'Impostazioni',
+      searchFields: ['key', 'value', 'group'],
+      noConvert: ['value'], // Il campo value è sempre String, anche per booleani
+    },
+    coreData: {
+      model: 'coreData',
+      displayName: 'Dati Core (Legacy)',
+      searchFields: ['articolo', 'descrizioneArticolo', 'ragioneSociale', 'commessaCli'],
+    },
+    coreAnagrafica: {
+      model: 'coreAnagrafica',
+      displayName: 'Anagrafica Core',
+      searchFields: ['codice', 'nome', 'tipo'],
+    },
+    job: {
+      model: 'job',
+      displayName: 'Jobs',
+      searchFields: ['type', 'status'],
+      idType: 'string', // UUID
+    },
+
+    // Riparazioni Module
+    riparazione: {
+      model: 'riparazione',
+      displayName: 'Riparazioni',
+      searchFields: ['idRiparazione', 'cartellino', 'causale'],
+    },
+    reparto: {
+      model: 'reparto',
+      displayName: 'Reparti',
+      searchFields: ['nome', 'codice', 'descrizione'],
+    },
+    laboratorio: {
+      model: 'laboratorio',
+      displayName: 'Laboratori',
+      searchFields: ['nome', 'codice', 'indirizzo'],
+    },
+    numerata: {
+      model: 'numerata',
+      displayName: 'Numerate (Taglie)',
+      searchFields: ['idNumerata'],
+    },
+
+    // Quality Module (cq_)
+    qualityRecord: {
+      model: 'qualityRecord',
+      displayName: 'Record Qualità',
+      searchFields: ['cartellino', 'commessa', 'modello', 'note'],
+    },
+    qualityDepartment: {
+      model: 'qualityDepartment',
+      displayName: 'Dipartimenti Qualità',
+      searchFields: ['nome', 'codice', 'descrizione'],
+    },
+    qualityOperator: {
+      model: 'qualityOperator',
+      displayName: 'Operatori Qualità',
+      searchFields: ['nome', 'cognome', 'matricola'],
+    },
+    qualityDefectType: {
+      model: 'qualityDefectType',
+      displayName: 'Tipi Difetto',
+      searchFields: ['nome', 'codice', 'categoria'],
+    },
+    qualityException: {
+      model: 'qualityException',
+      displayName: 'Eccezioni Qualità',
+      searchFields: ['commessa', 'modello', 'tipo', 'descrizione'],
+    },
+
+    // Export Module (exp_)
+    exportDocument: {
+      model: 'exportDocument',
+      displayName: 'Documenti DDT',
+      searchFields: ['progressivo', 'autorizzazione', 'commento'],
+    },
+    exportDocumentItem: {
+      model: 'exportDocumentItem',
+      displayName: 'Righe DDT',
+      searchFields: ['codiceLibero', 'descrizioneLibera'],
+    },
+    exportArticleMaster: {
+      model: 'exportArticleMaster',
+      displayName: 'Anagrafica Articoli',
+      searchFields: ['codiceArticolo', 'descrizione', 'voceDoganale'],
+    },
+    exportTerzista: {
+      model: 'exportTerzista',
+      displayName: 'Terzisti',
+      searchFields: ['ragioneSociale', 'nazione', 'indirizzo1'],
+    },
+    exportDocumentFooter: {
+      model: 'exportDocumentFooter',
+      displayName: 'Piede Documenti',
+      searchFields: ['aspettoColli', 'trasportatore'],
+    },
+    exportMissingData: {
+      model: 'exportMissingData',
+      displayName: 'Dati Mancanti',
+      searchFields: [],
+    },
+    exportLaunchData: {
+      model: 'exportLaunchData',
+      displayName: 'Lanci DDT',
+      searchFields: ['lancio', 'articolo'],
+    },
+
+    // Tracking Module (track_)
+    trackLink: {
+      model: 'trackLink',
+      displayName: 'Collegamenti Tracking',
+      searchFields: ['lot', 'note'],
+    },
+    trackType: {
+      model: 'trackType',
+      displayName: 'Tipi Tracking',
+      searchFields: ['name', 'note'],
+    },
+    trackLotInfo: {
+      model: 'trackLotInfo',
+      displayName: 'Info Lotti',
+      searchFields: ['lot', 'doc', 'note'],
+      primaryKey: 'lot', // PK è 'lot' non 'id'
+      idType: 'string',
+    },
+    trackOrderInfo: {
+      model: 'trackOrderInfo',
+      displayName: 'Info Ordini',
+      searchFields: ['ordine'],
+    },
+    trackSku: {
+      model: 'trackSku',
+      displayName: 'SKU Tracking',
+      searchFields: ['art', 'sku'],
+      primaryKey: 'art', // PK è 'art' non 'id'
+      idType: 'string',
+    },
+
+    // Produzione Module (prod_)
+    productionPhase: {
+      model: 'productionPhase',
+      displayName: 'Fasi Produzione',
+      searchFields: ['nome', 'codice', 'descrizione'],
+    },
+    productionDepartment: {
+      model: 'productionDepartment',
+      displayName: 'Reparti Produzione',
+      searchFields: ['nome', 'codice', 'descrizione'],
+    },
+    productionRecord: {
+      model: 'productionRecord',
+      displayName: 'Record Produzione',
+      searchFields: [],
+    },
+    productionValue: {
+      model: 'productionValue',
+      displayName: 'Valori Produzione',
+      searchFields: ['note'],
+    },
+
+    // SCM Module (scm_)
+    scmLaboratory: {
+      model: 'scmLaboratory',
+      displayName: 'Laboratori SCM',
+      searchFields: ['codice', 'nome', 'accessCode'],
+    },
+    scmLaunch: {
+      model: 'scmLaunch',
+      displayName: 'Lanci SCM',
+      searchFields: ['numero', 'stato', 'note'],
+    },
+    scmLaunchArticle: {
+      model: 'scmLaunchArticle',
+      displayName: 'Articoli Lanci',
+      searchFields: ['commessa', 'modello', 'colore'],
+    },
+    scmLaunchPhase: {
+      model: 'scmLaunchPhase',
+      displayName: 'Fasi Lanci',
+      searchFields: ['nome', 'stato', 'note'],
+    },
+    scmStandardPhase: {
+      model: 'scmStandardPhase',
+      displayName: 'Fasi Standard',
+      searchFields: ['nome', 'codice', 'descrizione'],
+    },
+    scmProgressTracking: {
+      model: 'scmProgressTracking',
+      displayName: 'Tracking Progressi',
+      searchFields: ['note'],
+    },
+    scmSetting: {
+      model: 'scmSetting',
+      displayName: 'Impostazioni SCM',
+      searchFields: ['key', 'value'],
+    },
+
+    // MRP Module (mrp_)
+    mrpMaterial: {
+      model: 'mrpMaterial',
+      displayName: 'Materiali',
+      searchFields: ['codice', 'nome', 'fornitore'],
+    },
+    mrpCategory: {
+      model: 'mrpCategory',
+      displayName: 'Categorie Materiali',
+      searchFields: ['nome', 'codice', 'descrizione'],
+    },
+    mrpOrder: {
+      model: 'mrpOrder',
+      displayName: 'Ordini Materiali',
+      searchFields: ['fornitore', 'riferimento', 'stato'],
+    },
+    mrpArrival: {
+      model: 'mrpArrival',
+      displayName: 'Arrivi Materiali',
+      searchFields: ['riferimento', 'note'],
+    },
+    mrpRequirement: {
+      model: 'mrpRequirement',
+      displayName: 'Fabbisogni Materiali',
+      searchFields: ['commessa', 'stato', 'note'],
+    },
+
+    // Cron Jobs Module
+    cronLog: {
+      model: 'cronLog',
+      displayName: 'Log Cron Jobs',
+      searchFields: ['jobClass', 'name', 'status'],
+    },
+
+    // InWork Module (inwork_)
+    inworkOperator: {
+      model: 'inworkOperator',
+      displayName: 'Operatori InWork',
+      searchFields: ['nome', 'cognome', 'matricola', 'reparto'],
+    },
+    inworkModulePermission: {
+      model: 'inworkModulePermission',
+      displayName: 'Permessi Moduli InWork',
+      searchFields: ['module'],
     },
   };
 
@@ -88,18 +330,19 @@ export class DataManagementService {
       }));
     }
 
-    // Costruisci l'ordinamento
-    const orderBy: any = sortBy ? { [sortBy]: sortOrder } : { id: 'desc' };
+    // Costruisci l'ordinamento - usa primaryKey se disponibile, altrimenti 'id'
+    const defaultSortField = tableConfig.primaryKey || 'id';
+    const orderBy: any = (sortBy && sortBy !== '') ? { [sortBy]: sortOrder } : { [defaultSortField]: 'desc' };
 
     try {
       const [data, total] = await Promise.all([
-        this.prisma[tableConfig.model].findMany({
+        (this.prisma as any)[tableConfig.model].findMany({
           where,
           orderBy,
           skip,
           take: limit,
         }),
-        this.prisma[tableConfig.model].count({ where }),
+        (this.prisma as any)[tableConfig.model].count({ where }),
       ]);
 
       return {
@@ -116,6 +359,13 @@ export class DataManagementService {
     }
   }
 
+  private parseId(id: string, idType?: string): string | number {
+    if (idType === 'string') {
+      return id; // UUID o altra stringa
+    }
+    return parseInt(id, 10); // Default: numero intero
+  }
+
   async getRecord(tableName: string, id: string) {
     const tableConfig = this.managedTables[tableName];
     if (!tableConfig) {
@@ -123,8 +373,10 @@ export class DataManagementService {
     }
 
     try {
-      const record = await this.prisma[tableConfig.model].findUnique({
-        where: { id: parseInt(id, 10) },
+      const parsedId = this.parseId(id, tableConfig.idType);
+      const pkField = tableConfig.primaryKey || 'id';
+      const record = await (this.prisma as any)[tableConfig.model].findUnique({
+        where: { [pkField]: parsedId },
       });
 
       if (!record) {
@@ -138,6 +390,51 @@ export class DataManagementService {
     }
   }
 
+  private sanitizeUpdateData(data: any, tableName: string): any {
+    const sanitized: any = {};
+    const tableConfig = this.managedTables[tableName];
+    const noConvertFields = tableConfig?.noConvert || [];
+
+    for (const [key, value] of Object.entries(data)) {
+      if (value === null || value === undefined) {
+        sanitized[key] = value;
+        continue;
+      }
+
+      // Se il campo è nella lista noConvert, mantienilo come stringa
+      if (noConvertFields.includes(key)) {
+        sanitized[key] = value;
+        continue;
+      }
+
+      // Se è una stringa, prova a convertirla nel tipo appropriato
+      if (typeof value === 'string') {
+        // Boolean
+        if (value === 'true' || value === '1') {
+          sanitized[key] = true;
+        } else if (value === 'false' || value === '0') {
+          sanitized[key] = false;
+        }
+        // Numero intero
+        else if (/^\d+$/.test(value)) {
+          sanitized[key] = parseInt(value, 10);
+        }
+        // Numero decimale
+        else if (/^\d+\.\d+$/.test(value)) {
+          sanitized[key] = parseFloat(value);
+        }
+        // Stringa normale
+        else {
+          sanitized[key] = value;
+        }
+      } else {
+        sanitized[key] = value;
+      }
+    }
+
+    return sanitized;
+  }
+
   async updateRecord(tableName: string, id: string, data: any, userId: number) {
     const tableConfig = this.managedTables[tableName];
     if (!tableConfig) {
@@ -145,11 +442,16 @@ export class DataManagementService {
     }
 
     try {
-      // Rimuovi campi non aggiornabili
-      const { id: _, createdAt, ...updateData } = data;
+      // Rimuovi campi non aggiornabili (rimuovi sia 'id' che il primaryKey custom se presente)
+      const pkField = tableConfig.primaryKey || 'id';
+      const { id: _, createdAt, [pkField]: __, ...rawUpdateData } = data;
 
-      const updated = await this.prisma[tableConfig.model].update({
-        where: { id: parseInt(id, 10) },
+      // Sanitizza i dati per convertire i tipi correttamente
+      const updateData = this.sanitizeUpdateData(rawUpdateData, tableName);
+
+      const parsedId = this.parseId(id, tableConfig.idType);
+      const updated = await (this.prisma as any)[tableConfig.model].update({
+        where: { [pkField]: parsedId },
         data: updateData,
       });
 
@@ -176,16 +478,18 @@ export class DataManagementService {
     }
 
     try {
-      const record = await this.prisma[tableConfig.model].findUnique({
-        where: { id: parseInt(id, 10) },
+      const parsedId = this.parseId(id, tableConfig.idType);
+      const pkField = tableConfig.primaryKey || 'id';
+      const record = await (this.prisma as any)[tableConfig.model].findUnique({
+        where: { [pkField]: parsedId },
       });
 
       if (!record) {
         throw new NotFoundException('Record non trovato');
       }
 
-      await this.prisma[tableConfig.model].delete({
-        where: { id: parseInt(id, 10) },
+      await (this.prisma as any)[tableConfig.model].delete({
+        where: { [pkField]: parsedId },
       });
 
       // Log dell'operazione

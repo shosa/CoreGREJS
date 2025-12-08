@@ -144,10 +144,20 @@ export default function SpoolModal({ open, onClose }: Props) {
 
   const handleOpenSelected = async (idsOverride?: string[]) => {
     const ids = idsOverride ?? Array.from(selectedIds);
-    if (!ids.length) return;
+    if (!ids.length) {
+      showError('Nessun file selezionato');
+      return;
+    }
+
     try {
       const list = getCurrentList();
       const selectedJobs = list.filter(j => ids.includes(j.id));
+
+      if (selectedJobs.length === 0) {
+        showError('File non trovati');
+        return;
+      }
+
       // tutti devono essere PDF
       if (!selectedJobs.every(j => (j.outputMime || '').toLowerCase().includes('pdf'))) {
         showError('Apri funziona solo con PDF');
@@ -163,11 +173,23 @@ export default function SpoolModal({ open, onClose }: Props) {
       }
 
       // multipli: merge server-side
+      console.log('Merging PDFs with IDs:', selectedJobs.map(j => j.id));
       const response = await jobsApi.mergePdf(selectedJobs.map(j => j.id));
+      console.log('Merge response:', response);
+      console.log('Response data type:', typeof response.data);
+      console.log('Response data size:', response.data?.size || response.data?.byteLength || 'unknown');
+
+      if (!response.data || (response.data.size === 0 && response.data.byteLength === 0)) {
+        showError('Risposta vuota dal server');
+        return;
+      }
+
       const blob = new Blob([response.data], { type: 'application/pdf' });
+      console.log('Created blob:', blob.size, 'bytes');
       openBlobInNewTab(blob);
     } catch (err: any) {
-      showError(err?.response?.data?.message || 'Errore apertura PDF');
+      console.error('Error opening PDFs:', err);
+      showError(err?.response?.data?.message || err?.message || 'Errore apertura PDF');
     }
   };
 

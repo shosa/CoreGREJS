@@ -313,13 +313,10 @@ export class RiparazioniService {
   }
 
   /**
-   * Get all linee
+   * Get all linee - DEPRECATED - table removed
    */
   async findAllLinee() {
-    return this.prisma.linea.findMany({
-      where: { attivo: true },
-      orderBy: { ordine: 'asc' },
-    });
+    return [];
   }
 
   /**

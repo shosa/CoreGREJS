@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 interface BreadcrumbItem {
   label: string;
   href?: string;
+  onClick?: () => void;
   icon?: string;
 }
 
@@ -35,6 +36,14 @@ export default function Breadcrumb({ items }: BreadcrumbProps) {
                 {item.icon && <i className={`fas ${item.icon} mr-2`}></i>}
                 {item.label}
               </Link>
+            ) : item.onClick ? (
+              <button
+                onClick={item.onClick}
+                className="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white transition-colors"
+              >
+                {item.icon && <i className={`fas ${item.icon} mr-2`}></i>}
+                {item.label}
+              </button>
             ) : (
               <span className="inline-flex items-center text-sm font-medium text-gray-500 dark:text-gray-400">
                 {item.icon && <i className={`fas ${item.icon} mr-2`}></i>}
