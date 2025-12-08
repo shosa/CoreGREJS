@@ -20,4 +20,4 @@ CREATE TABLE `auth_widget_config` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Add foreign key
-ALTER TABLE `auth_widget_config` ADD CONSTRAINT `auth_widget_config_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `auth_user`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `auth_widget_config` ADD CONSTRAINT `auth_widget_config_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `auth_users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

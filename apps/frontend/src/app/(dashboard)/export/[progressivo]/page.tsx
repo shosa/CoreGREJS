@@ -219,7 +219,7 @@ export default function DocumentDetailPage() {
   });
 
   const [vociDoganaliEdit, setVociDoganaliEdit] = useState<
-    Array<{ voce: string; peso: number }>
+    Array<{ voce: string; peso: number; umSums?: Record<string, number> }>
   >([]);
 
   useEffect(() => {
@@ -3138,7 +3138,7 @@ export default function DocumentDetailPage() {
                   onClick={() => {
                     const hasSottopiedi = vociDoganaliEdit.some(v => v.voce === 'SOTTOPIEDI');
                     if (!hasSottopiedi) {
-                      setVociDoganaliEdit([...vociDoganaliEdit, { voce: 'SOTTOPIEDI', peso: 0, umSums: {} }]);
+                      setVociDoganaliEdit([...vociDoganaliEdit, { voce: 'SOTTOPIEDI', peso: 0 }]);
                     }
                   }}
                   disabled={vociDoganaliEdit.some(v => v.voce === 'SOTTOPIEDI')}

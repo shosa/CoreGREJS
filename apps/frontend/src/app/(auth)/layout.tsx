@@ -10,7 +10,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, darkMode, token } = useAuthStore();
+  const { isAuthenticated, token } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export default function AuthLayout({
   }
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'dark' : ''}`}>
+    <div className="min-h-screen">
       {children}
     </div>
   );

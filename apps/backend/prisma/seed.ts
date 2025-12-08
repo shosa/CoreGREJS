@@ -4,18 +4,18 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding database...');
+  console.log('Seeding iniziale del database...');
 
   // Create admin user
-  const adminPassword = await bcrypt.hash('admin123', 12);
+  const adminPassword = await bcrypt.hash('stefano', 12);
   const admin = await prisma.user.upsert({
-    where: { userName: 'admin' },
+    where: { userName: 'stefanos' },
     update: {},
     create: {
-      userName: 'admin',
-      nome: 'Amministratore',
+      userName: 'stefanos',
+      nome: 'Stefano Solidoro',
       password: adminPassword,
-      mail: 'admin@coregre.local',
+      mail: 'stefano.solidoro@mgmshoes.it',
       userType: 'admin',
     },
   });
@@ -40,42 +40,9 @@ async function main() {
     },
   });
 
-  // Create operator user
-  const operatorPassword = await bcrypt.hash('operator123', 12);
-  const operator = await prisma.user.upsert({
-    where: { userName: 'operatore' },
-    update: {},
-    create: {
-      userName: 'operatore',
-      nome: 'Operatore Test',
-      password: operatorPassword,
-      mail: 'operatore@coregre.local',
-      userType: 'operator',
-    },
-  });
-
-  // Create operator permissions
-  await prisma.permission.upsert({
-    where: { userId: operator.id },
-    update: {},
-    create: {
-      userId: operator.id,
-      permessi: {
-        riparazioni: true,
-        qualita: true,
-        produzione: true,
-        export: false,
-        scm_admin: false,
-        tracking: true,
-        mrp: false,
-        users: false,
-        settings: false,
-      },
-    },
-  });
 
   // Create some reparti
-  const reparti = ['Montaggio', 'Cucitura', 'Finissaggio', 'Controllo Qualità', 'Magazzino'];
+  const reparti = ['MANOVIA 1', 'MANOVIA 2', 'ORLATURA 1', 'ORLATURA 2', 'ORLATURA 3', 'ORLATURA 4', 'ORLATURA 5', 'TAGLIO 1', 'TAGLIO 2'];
   for (const nome of reparti) {
     await prisma.reparto.upsert({
       where: { id: reparti.indexOf(nome) + 1 },
@@ -89,42 +56,6 @@ async function main() {
     });
   }
 
-  // Linee table removed - deprecated
-
-  // Create quality departments
-  const departments = ['Controllo Entrata', 'Controllo Processo', 'Controllo Finale'];
-  for (const nome of departments) {
-    await prisma.qualityDepartment.upsert({
-      where: { id: departments.indexOf(nome) + 1 },
-      update: {},
-      create: {
-        nome,
-        codice: `CQ${departments.indexOf(nome) + 1}`,
-        attivo: true,
-        ordine: departments.indexOf(nome),
-      },
-    });
-  }
-
-  // Create defect types
-  const defects = [
-    { nome: 'Difetto estetico', gravita: 2 },
-    { nome: 'Difetto funzionale', gravita: 4 },
-    { nome: 'Difetto critico', gravita: 5 },
-    { nome: 'Non conformità materiale', gravita: 3 },
-  ];
-  for (const defect of defects) {
-    await prisma.qualityDefectType.upsert({
-      where: { id: defects.indexOf(defect) + 1 },
-      update: {},
-      create: {
-        nome: defect.nome,
-        codice: `DEF${defects.indexOf(defect) + 1}`,
-        gravita: defect.gravita,
-        attivo: true,
-      },
-    });
-  }
 
   // Create production phases and departments
   const productionPhases = [
@@ -193,7 +124,7 @@ async function main() {
   // Create default settings
   const settings = [
     { key: 'app_name', value: 'CoreGRE', type: 'string', group: 'general' },
-    { key: 'app_version', value: '1.0.0', type: 'string', group: 'general' },
+    { key: 'app_version', value: '2.0.0', type: 'string', group: 'general' },
     { key: 'company_name', value: 'MGM Shoes', type: 'string', group: 'company' },
     { key: 'timezone', value: 'Europe/Rome', type: 'string', group: 'general' },
     { key: 'date_format', value: 'dd/MM/yyyy', type: 'string', group: 'general' },
@@ -209,8 +140,7 @@ async function main() {
   console.log('Database seeded successfully!');
   console.log('');
   console.log('Default users:');
-  console.log('  Admin: admin / admin123');
-  console.log('  Operator: operatore / operator123');
+  console.log('  Admin: stefanos / stefano');
 }
 
 main()

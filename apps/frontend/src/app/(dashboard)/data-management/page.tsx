@@ -6,6 +6,13 @@ import { showSuccess, showError, showWarning } from '@/store/notifications';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
+interface BreadcrumbItem {
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  icon?: string;
+}
+
 interface TableInfo {
   name: string;
   displayName: string;
@@ -397,7 +404,7 @@ export default function DataManagementPage() {
     }
   };
 
-  const breadcrumbItems = [
+  const breadcrumbItems: BreadcrumbItem[] = [
     {
       label: 'Home',
       href: '/',

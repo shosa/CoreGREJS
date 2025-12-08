@@ -49,7 +49,6 @@ const moduleColors: Record<string, string> = {
   riparazioni: "red",
   quality: "green",
   users: "teal",
-  tracking: "purple",
   settings: "orange",
   system: "gray",
   export: "purple",

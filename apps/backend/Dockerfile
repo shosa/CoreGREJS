@@ -1,38 +1,73 @@
-FROM node:18-alpine AS builder
+# Multi-stage build for NestJS Backend in Monorepo
+
+# Stage 1: Dependencies
+FROM node:18-alpine AS deps
+RUN apk add --no-cache libc6-compat openssl
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY prisma ./prisma/
+# Copy root workspace files
+COPY package.json package-lock.json* ./
+COPY apps/backend/package.json ./apps/backend/
 
-# Install dependencies
-RUN npm ci
+# Install ALL dependencies (including workspaces)
+RUN npm install --workspace=@coregre/backend --include-workspace-root
 
-# Copy source code
-COPY . .
+# Stage 2: Build
+FROM node:18-alpine AS builder
+RUN apk add --no-cache libc6-compat openssl
 
-# Generate Prisma client
-RUN npx prisma generate
+WORKDIR /app
 
-# Build application
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/backend/node_modules ./apps/backend/node_modules
+
+# Copy root workspace config
+COPY package.json package-lock.json* ./
+
+# Copy backend source code (including prisma schema)
+COPY apps/backend ./apps/backend
+
+# Generate Prisma Client for Alpine Linux
+ENV PRISMA_CLI_BINARY_TARGETS=linux-musl-openssl-3.0.x
+ENV PRISMA_SCHEMA_PATH=/app/apps/backend/prisma/schema.prisma
+
+# Generate using root prisma binary, pointing to backend schema
+WORKDIR /app
+RUN node_modules/.bin/prisma generate --schema=./apps/backend/prisma/schema.prisma
+
+# Now change to backend directory and build
+WORKDIR /app/apps/backend
 RUN npm run build
 
-# Production stage
+# Stage 3: Runner
 FROM node:18-alpine AS runner
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 
-# Copy necessary files from builder
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/prisma ./prisma
-
-# Set environment
 ENV NODE_ENV=production
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nestjs
+
+# Copy necessary files from builder
+COPY --from=builder --chown=nestjs:nodejs /app/apps/backend/dist ./dist
+COPY --from=builder --chown=nestjs:nodejs /app/apps/backend/prisma ./prisma
+COPY --from=builder --chown=nestjs:nodejs /app/apps/backend/package.json ./package.json
+
+# Copy node_modules from ROOT (workspace) - includes Prisma Client
+COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
+
+# Create storage directories with correct permissions
+RUN mkdir -p /app/storage/export/temp /app/storage/uploads /app/storage/logs && \
+    chown -R nestjs:nodejs /app/storage
+
+USER nestjs
 
 EXPOSE 3011
 
 # Run migrations and start
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
+CMD sh -c "npx prisma migrate deploy || true && node dist/src/main"
