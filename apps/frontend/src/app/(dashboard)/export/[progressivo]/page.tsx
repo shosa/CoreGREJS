@@ -219,7 +219,7 @@ export default function DocumentDetailPage() {
   });
 
   const [vociDoganaliEdit, setVociDoganaliEdit] = useState<
-    Array<{ voce: string; peso: number; umSums?: Record<string, number> }>
+    Array<{ voce: string; peso: number; }>
   >([]);
 
   useEffect(() => {
@@ -505,7 +505,7 @@ export default function DocumentDetailPage() {
     if (!document) return;
 
     // Ottieni le voci doganali uniche dalle righe del documento e calcola somme per UM
-    const vociData = new Map<string, { peso: number; umSums: Map<string, number> }>();
+    const vociData = new Map<string, { peso: number;}>();
 
     document.righe.forEach((riga) => {
       const voce =
@@ -515,14 +515,14 @@ export default function DocumentDetailPage() {
 
       if (voce) {
         if (!vociData.has(voce)) {
-          vociData.set(voce, { peso: 0, umSums: new Map() });
+          vociData.set(voce, { peso: 0});
         }
 
         const data = vociData.get(voce)!;
         const um = riga.tipoRiga === "articolo" ? (riga.article?.um || "PZ") : "PZ";
         const qtaReale = riga.qtaReale || 0;
 
-        data.umSums.set(um, (data.umSums.get(um) || 0) + qtaReale);
+        
       }
     });
 
@@ -534,7 +534,7 @@ export default function DocumentDetailPage() {
     const inizializzate = Array.from(vociData.entries()).map(([voce, data]) => ({
       voce,
       peso: vociMap.get(voce) || 0,
-      umSums: Object.fromEntries(data.umSums),
+      
     }));
 
     // Aggiungi voci salvate che non sono nelle righe (es. SOTTOPIEDI)
@@ -543,7 +543,7 @@ export default function DocumentDetailPage() {
         inizializzate.push({
           voce: existingVoce.voce,
           peso: existingVoce.peso || 0,
-          umSums: {},
+         
         });
       }
     }
@@ -3164,9 +3164,7 @@ export default function DocumentDetailPage() {
                         <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                           Voce Doganale
                         </th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                          Qtà per UM
-                        </th>
+                       
                         <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                           Peso (kg)
                         </th>
@@ -3192,19 +3190,7 @@ export default function DocumentDetailPage() {
                                 item.voce
                               )}
                             </td>
-                            <td className="px-4 py-2">
-                              {item.umSums && Object.keys(item.umSums).length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                  {Object.entries(item.umSums).map(([um, qty]) => (
-                                    <span key={um} className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                                      {um}: {Number(qty).toFixed(2)}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className="text-xs text-gray-400">-</span>
-                              )}
-                            </td>
+                           
                             <td className="px-4 py-2">
                               <input
                                 type="number"
@@ -3315,7 +3301,7 @@ export default function DocumentDetailPage() {
 
       {/* Offcanvas Mancanti da altri DDT */}
       {showMancantiOffcanvas && (
-        <div className="fixed inset-0 z-50 flex">
+        <div className="fixed inset-0 z-[10001] flex">
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => setShowMancantiOffcanvas(false)}

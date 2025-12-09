@@ -112,7 +112,6 @@ export class SettingsController {
   // ==================== PRODUZIONE EMAIL CONFIGURATION ====================
 
   @Get('produzione/emails')
-  @UseGuards(AdminGuard)
   async getProduzioneEmailConfig() {
     return this.settingsService.getProduzioneEmailConfig();
   }

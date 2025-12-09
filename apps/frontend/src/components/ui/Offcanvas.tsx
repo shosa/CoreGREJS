@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { ReactNode } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { ReactNode } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface OffcanvasProps {
   open: boolean;
@@ -12,8 +12,8 @@ interface OffcanvasProps {
   headerBg?: string;
   children: ReactNode;
   footer?: ReactNode;
-  width?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
-  position?: 'left' | 'right';
+  width?: "sm" | "md" | "lg" | "xl" | "2xl";
+  position?: "left" | "right";
   searchValue?: string;
   onSearchChange?: (value: string) => void;
   searchPlaceholder?: string;
@@ -21,30 +21,30 @@ interface OffcanvasProps {
 }
 
 const widthClasses = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-xl',
-  '2xl': 'max-w-2xl',
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg",
+  xl: "max-w-xl",
+  "2xl": "max-w-2xl",
 };
 
 export default function Offcanvas({
   open,
   onClose,
   title,
-  icon = 'fa-bars',
-  iconColor = 'text-blue-500',
-  headerBg = 'bg-gray-50 dark:bg-gray-900/20',
+  icon = "fa-bars",
+  iconColor = "text-blue-500",
+  headerBg = "bg-gray-50 dark:bg-gray-900/20",
   children,
   footer,
-  width = '2xl',
-  position = 'right',
+  width = "2xl",
+  position = "right",
   searchValue,
   onSearchChange,
-  searchPlaceholder = 'Cerca...',
+  searchPlaceholder = "Cerca...",
   loading = false,
 }: OffcanvasProps) {
-  const isRight = position === 'right';
+  const isRight = position === "right";
   const hasSearch = searchValue !== undefined && onSearchChange !== undefined;
 
   return (
@@ -62,15 +62,19 @@ export default function Offcanvas({
 
           {/* Panel */}
           <motion.div
-            initial={{ x: isRight ? '100%' : '-100%' }}
+            initial={{ x: isRight ? "100%" : "-100%" }}
             animate={{ x: 0 }}
-            exit={{ x: isRight ? '100%' : '-100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className={`fixed ${isRight ? 'right-0' : 'left-0'} inset-y-0 w-full ${widthClasses[width]} bg-white dark:bg-gray-800 shadow-2xl z-[1001] flex flex-col`}
+            exit={{ x: isRight ? "100%" : "-100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className={`fixed ${isRight ? "right-0" : "left-0"} inset-y-0 w-full ${widthClasses[width]} bg-white dark:bg-gray-800 shadow-2xl z-[10001] flex flex-col`}
           >
             {/* Header */}
-            <div className={`p-4 border-b border-gray-200 dark:border-gray-700 ${headerBg}`}>
-              <div className={`flex items-center justify-between ${hasSearch ? 'mb-4' : ''}`}>
+            <div
+              className={`p-4 border-b border-gray-200 dark:border-gray-700 ${headerBg}`}
+            >
+              <div
+                className={`flex items-center justify-between ${hasSearch ? "mb-4" : ""}`}
+              >
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                   <i className={`fas ${icon} ${iconColor}`}></i>
                   {title}
@@ -99,12 +103,16 @@ export default function Offcanvas({
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-auto mt-4">
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
                     className="h-8 w-8 rounded-full border-4 border-blue-500 border-t-transparent"
                   />
                 </div>
