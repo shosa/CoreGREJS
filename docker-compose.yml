@@ -64,7 +64,7 @@ services:
     environment:
       # Application
       NODE_ENV: ${NODE_ENV:-production}
-      PORT: 3010
+      PORT: 3010:3000
 
       # Backend API URL
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3011}
