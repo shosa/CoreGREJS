@@ -16,6 +16,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import Breadcrumb from "@/components/layout/Breadcrumb";
 import Footer from "@/components/layout/Footer";
 import EditableCell from "@/components/export/EditableCell";
+import Offcanvas from "@/components/ui/Offcanvas";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -3098,346 +3099,273 @@ export default function DocumentDetailPage() {
       )}
 
       {/* OFFCANVAS: Voci Doganali */}
-      {showVociDoganaliOffcanvas && (
-        <div className="fixed inset-0 z-50 flex">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setShowVociDoganaliOffcanvas(false)}
-          ></div>
+      <Offcanvas
+        open={showVociDoganaliOffcanvas}
+        onClose={() => setShowVociDoganaliOffcanvas(false)}
+        title="Gestisci Voci Doganali"
+      
+        iconColor="text-blue-500"
+        width="xl"
+        footer={
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowVociDoganaliOffcanvas(false)}
+              className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={handleSaveVociDoganali}
+              className="flex-1 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:shadow-lg"
+              disabled={vociDoganaliEdit.length === 0}
+            >
+              <i className="fas fa-save mr-2"></i>
+              Salva
+            </button>
+          </div>
+        }
+      >
+        <div className="px-6">
+          {/* Pulsante per aggiungere SOTTOPIEDI */}
+          <div className="mb-4">
+            <button
+              onClick={() => {
+                const hasSottopiedi = vociDoganaliEdit.some(v => v.voce === 'SOTTOPIEDI');
+                if (!hasSottopiedi) {
+                  setVociDoganaliEdit([...vociDoganaliEdit, { voce: 'SOTTOPIEDI', peso: 0 }]);
+                }
+              }}
+              disabled={vociDoganaliEdit.some(v => v.voce === 'SOTTOPIEDI')}
+              className="rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <i className="fas fa-plus mr-2"></i>
+              Aggiungi SOTTOPIEDI
+            </button>
+          </div>
 
-          {/* Offcanvas Panel */}
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "tween", duration: 0.3 }}
-            className="relative ml-auto h-full w-full max-w-3xl overflow-y-auto bg-white shadow-2xl dark:bg-gray-800"
-          >
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Gestisci Voci Doganali
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Voci uniche dalle righe del documento
-                </p>
-              </div>
-              <button
-                onClick={() => setShowVociDoganaliOffcanvas(false)}
-                className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <i className="fas fa-times text-xl"></i>
-              </button>
+          {vociDoganaliEdit.length === 0 ? (
+            <div className="py-12 text-center">
+              <i className="fas fa-inbox mb-4 text-5xl text-gray-400"></i>
+              <p className="text-gray-500">
+                Nessuna voce doganale trovata nelle righe del documento
+              </p>
             </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm dark:border-gray-700">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-900">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Voce Doganale
+                    </th>
 
-            <div className="p-6">
-              {/* Pulsante per aggiungere SOTTOPIEDI */}
-              <div className="mb-4">
-                <button
-                  onClick={() => {
-                    const hasSottopiedi = vociDoganaliEdit.some(v => v.voce === 'SOTTOPIEDI');
-                    if (!hasSottopiedi) {
-                      setVociDoganaliEdit([...vociDoganaliEdit, { voce: 'SOTTOPIEDI', peso: 0 }]);
-                    }
-                  }}
-                  disabled={vociDoganaliEdit.some(v => v.voce === 'SOTTOPIEDI')}
-                  className="rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <i className="fas fa-plus mr-2"></i>
-                  Aggiungi SOTTOPIEDI
-                </button>
-              </div>
+                    <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Peso (kg)
+                    </th>
+                    <th className="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Azioni
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {[...vociDoganaliEdit]
+                    .sort((a, b) => {
+                      // SOTTOPIEDI sempre per ultimo
+                      if (a.voce === 'SOTTOPIEDI') return 1;
+                      if (b.voce === 'SOTTOPIEDI') return -1;
+                      return (a.voce || "").localeCompare(b.voce || "", undefined, { numeric: true });
+                    })
+                    .map((item, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/60">
+                        <td className="px-4 py-2 font-mono text-sm font-bold text-gray-900 dark:text-white">
+                          {item.voce === 'SOTTOPIEDI' ? (
+                            <span className="text-purple-600 dark:text-purple-400">{item.voce}</span>
+                          ) : (
+                            item.voce
+                          )}
+                        </td>
 
-              {vociDoganaliEdit.length === 0 ? (
-                <div className="py-12 text-center">
-                  <i className="fas fa-inbox mb-4 text-5xl text-gray-400"></i>
-                  <p className="text-gray-500">
-                    Nessuna voce doganale trovata nelle righe del documento
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm dark:border-gray-700">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-900">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                          Voce Doganale
-                        </th>
-                       
-                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                          Peso (kg)
-                        </th>
-                        <th className="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                          Azioni
-                        </th>
+                        <td className="px-4 py-2">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={item.peso}
+                            onChange={(e) => {
+                              const newVoci = [...vociDoganaliEdit];
+                              const actualIdx = newVoci.findIndex(v => v.voce === item.voce);
+                              newVoci[actualIdx].peso = parseFloat(e.target.value) || 0;
+                              setVociDoganaliEdit(newVoci);
+                            }}
+                            className="w-32 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                          />
+                        </td>
+                        <td className="px-4 py-2 text-center">
+                          {item.voce === 'SOTTOPIEDI' && (
+                            <button
+                              onClick={() => {
+                                setVociDoganaliEdit(vociDoganaliEdit.filter(v => v.voce !== 'SOTTOPIEDI'));
+                              }}
+                              className="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+                              title="Rimuovi SOTTOPIEDI"
+                            >
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          )}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {[...vociDoganaliEdit]
-                        .sort((a, b) => {
-                          // SOTTOPIEDI sempre per ultimo
-                          if (a.voce === 'SOTTOPIEDI') return 1;
-                          if (b.voce === 'SOTTOPIEDI') return -1;
-                          return (a.voce || "").localeCompare(b.voce || "", undefined, { numeric: true });
-                        })
-                        .map((item, idx) => (
-                          <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/60">
-                            <td className="px-4 py-2 font-mono text-sm font-bold text-gray-900 dark:text-white">
-                              {item.voce === 'SOTTOPIEDI' ? (
-                                <span className="text-purple-600 dark:text-purple-400">{item.voce}</span>
-                              ) : (
-                                item.voce
-                              )}
-                            </td>
-                           
-                            <td className="px-4 py-2">
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={item.peso}
-                                onChange={(e) => {
-                                  const newVoci = [...vociDoganaliEdit];
-                                  const actualIdx = newVoci.findIndex(v => v.voce === item.voce);
-                                  newVoci[actualIdx].peso = parseFloat(e.target.value) || 0;
-                                  setVociDoganaliEdit(newVoci);
-                                }}
-                                className="w-32 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                              />
-                            </td>
-                            <td className="px-4 py-2 text-center">
-                              {item.voce === 'SOTTOPIEDI' && (
-                                <button
-                                  onClick={() => {
-                                    setVociDoganaliEdit(vociDoganaliEdit.filter(v => v.voce !== 'SOTTOPIEDI'));
-                                  }}
-                                  className="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
-                                  title="Rimuovi SOTTOPIEDI"
-                                >
-                                  <i className="fas fa-trash"></i>
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                    ))}
+                </tbody>
+              </table>
             </div>
-
-            <div className="sticky bottom-0 border-t border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowVociDoganaliOffcanvas(false)}
-                  className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                >
-                  Annulla
-                </button>
-                <button
-                  onClick={handleSaveVociDoganali}
-                  className="flex-1 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:shadow-lg"
-                  disabled={vociDoganaliEdit.length === 0}
-                >
-                  <i className="fas fa-save mr-2"></i>
-                  Salva
-                </button>
-              </div>
-            </div>
-          </motion.div>
+          )}
         </div>
-      )}
+      </Offcanvas>
 
-      {/* Modal Commento */}
-      {showCommentoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-800"
-          >
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700">
-                <i className="fas fa-comment text-xl text-gray-600 dark:text-gray-400"></i>
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                  Commento Documento
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Aggiungi o modifica nota
-                </p>
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <textarea
-                value={commentoText}
-                onChange={(e) => setCommentoText(e.target.value)}
-                placeholder="Inserisci un commento..."
-                rows={4}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowCommentoModal(false)}
-                className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-              >
-                Annulla
-              </button>
-              <button
-                onClick={handleSaveCommento}
-                className="flex-1 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:shadow-lg"
-              >
-                <i className="fas fa-save mr-2"></i>
-                Salva
-              </button>
-            </div>
-          </motion.div>
+      {/* Offcanvas Commento */}
+      <Offcanvas
+        open={showCommentoModal}
+        onClose={() => setShowCommentoModal(false)}
+        title="Commento Documento"
+        icon="fa-comment"
+        iconColor="text-gray-500"
+        width="md"
+        footer={
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowCommentoModal(false)}
+              className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={handleSaveCommento}
+              className="flex-1 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:shadow-lg"
+            >
+              <i className="fas fa-save mr-2"></i>
+              Salva
+            </button>
+          </div>
+        }
+      >
+        <div className="px-6">
+          <textarea
+            value={commentoText}
+            onChange={(e) => setCommentoText(e.target.value)}
+            placeholder="Inserisci un commento..."
+            rows={6}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          />
         </div>
-      )}
+      </Offcanvas>
 
       {/* Offcanvas Mancanti da altri DDT */}
-      {showMancantiOffcanvas && (
-        <div className="fixed inset-0 z-[10001] flex">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setShowMancantiOffcanvas(false)}
-          ></div>
-
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "tween", duration: 0.3 }}
-            className="relative ml-auto h-full w-full max-w-3xl overflow-y-auto bg-white shadow-2xl dark:bg-gray-800"
-          >
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                  Integra Mancanti da Altri DDT
-                </h3>
+      <Offcanvas
+        open={showMancantiOffcanvas}
+        onClose={() => setShowMancantiOffcanvas(false)}
+        title="Aggiungi Mancanti attivi"
+        iconColor="text-yellow-500"
+        width="xl"
+        loading={loadingMancanti}
+        footer={
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowMancantiOffcanvas(false)}
+              className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={handleIntegrateMancanti}
+              disabled={selectedMancanti.size === 0 || loadingMancanti}
+              className="flex-1 rounded-lg bg-gradient-to-r from-yellow-500 to-yellow-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <i className="fas fa-check mr-2"></i>
+              Integra Selezionati ({selectedMancanti.size})
+            </button>
+          </div>
+        }
+      >
+        <div className="px-6">
+          {mancantiFromClosed.length === 0 ? (
+            <div className="text-center py-12">
+              <i className="fas fa-inbox text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
+              <p className="text-gray-500 dark:text-gray-400">
+                Nessun mancante trovato in DDT chiusi di questo terzista
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="mb-4 flex items-center justify-between">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Seleziona mancanti da DDT chiusi per integrarli in questo
-                  documento
+                  Trovati <span className="font-bold">{mancantiFromClosed.length}</span> mancanti da {new Set(mancantiFromClosed.map(m => m.documento.progressivo)).size} documenti
                 </p>
+                <button
+                  onClick={() => {
+                    if (selectedMancanti.size === mancantiFromClosed.length) {
+                      setSelectedMancanti(new Set());
+                    } else {
+                      setSelectedMancanti(new Set(mancantiFromClosed.map(m => m.id)));
+                    }
+                  }}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  {selectedMancanti.size === mancantiFromClosed.length ? 'Deseleziona tutti' : 'Seleziona tutti'}
+                </button>
               </div>
-              <button
-                onClick={() => setShowMancantiOffcanvas(false)}
-                className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <i className="fas fa-times text-gray-600 dark:text-gray-400"></i>
-              </button>
-            </div>
 
-            <div className="p-6">
-              {loadingMancanti ? (
-                <div className="flex justify-center py-12">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
-                </div>
-              ) : mancantiFromClosed.length === 0 ? (
-                <div className="text-center py-12">
-                  <i className="fas fa-inbox text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
-                  <p className="text-gray-500 dark:text-gray-400">
-                    Nessun mancante trovato in DDT chiusi di questo terzista
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="mb-4 flex items-center justify-between">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Trovati <span className="font-bold">{mancantiFromClosed.length}</span> mancanti da {new Set(mancantiFromClosed.map(m => m.documento.progressivo)).size} documenti
-                    </p>
-                    <button
-                      onClick={() => {
-                        if (selectedMancanti.size === mancantiFromClosed.length) {
-                          setSelectedMancanti(new Set());
-                        } else {
-                          setSelectedMancanti(new Set(mancantiFromClosed.map(m => m.id)));
-                        }
-                      }}
-                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      {selectedMancanti.size === mancantiFromClosed.length ? 'Deseleziona tutti' : 'Seleziona tutti'}
-                    </button>
-                  </div>
-
-                  {mancantiFromClosed.map((mancante) => (
-                    <label
-                      key={mancante.id}
-                      className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-all ${
-                        selectedMancanti.has(mancante.id)
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedMancanti.has(mancante.id)}
-                        onChange={(e) => {
-                          const newSet = new Set(selectedMancanti);
-                          if (e.target.checked) {
-                            newSet.add(mancante.id);
-                          } else {
-                            newSet.delete(mancante.id);
-                          }
-                          setSelectedMancanti(newSet);
-                        }}
-                        className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="font-mono text-sm font-bold text-gray-900 dark:text-white">
-                              {mancante.article.codiceArticolo}
-                            </span>
-                            {mancante.article.descrizione && (
-                              <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                                {mancante.article.descrizione}
-                              </span>
-                            )}
-                          </div>
-                          <span className="font-bold text-yellow-600 dark:text-yellow-400">
-                            {Number(mancante.qtaMancante).toFixed(3).replace('.', ',')}
+              {mancantiFromClosed.map((mancante) => (
+                <label
+                  key={mancante.id}
+                  className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-all ${
+                    selectedMancanti.has(mancante.id)
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedMancanti.has(mancante.id)}
+                    onChange={(e) => {
+                      const newSet = new Set(selectedMancanti);
+                      if (e.target.checked) {
+                        newSet.add(mancante.id);
+                      } else {
+                        newSet.delete(mancante.id);
+                      }
+                      setSelectedMancanti(newSet);
+                    }}
+                    className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-mono text-sm font-bold text-gray-900 dark:text-white">
+                          {mancante.article.codiceArticolo}
+                        </span>
+                        {mancante.article.descrizione && (
+                          <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                            {mancante.article.descrizione}
                           </span>
-                        </div>
-                        <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                          <i className="fas fa-file-alt"></i>
-                          <span>DDT {mancante.documento.progressivo}</span>
-                          <span>-</span>
-                          <i className="fas fa-calendar"></i>
-                          <span>{new Date(mancante.documento.data).toLocaleDateString('it-IT')}</span>
-                        </div>
+                        )}
                       </div>
-                    </label>
-                  ))}
-                </div>
-              )}
+                      <span className="font-bold text-yellow-600 dark:text-yellow-400">
+                        {Number(mancante.qtaMancante).toFixed(3).replace('.', ',')}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      <i className="fas fa-file-alt"></i>
+                      <span>DDT {mancante.documento.progressivo}</span>
+                      <span>-</span>
+                      <i className="fas fa-calendar"></i>
+                      <span>{new Date(mancante.documento.data).toLocaleDateString('it-IT')}</span>
+                    </div>
+                  </div>
+                </label>
+              ))}
             </div>
-
-            <div className="sticky bottom-0 border-t bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900/30">
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowMancantiOffcanvas(false)}
-                  className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                >
-                  Annulla
-                </button>
-                <button
-                  onClick={handleIntegrateMancanti}
-                  disabled={selectedMancanti.size === 0 || loadingMancanti}
-                  className="flex-1 rounded-lg bg-gradient-to-r from-yellow-500 to-yellow-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <i className="fas fa-check mr-2"></i>
-                  Integra Selezionati ({selectedMancanti.size})
-                </button>
-              </div>
-            </div>
-          </motion.div>
+          )}
         </div>
-      )}
+      </Offcanvas>
 
       {/* Modal Selezione Articoli per Etichette Materiali */}
       {showGrigliaModal && (

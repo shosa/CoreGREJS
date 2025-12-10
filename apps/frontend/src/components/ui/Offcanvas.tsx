@@ -1,6 +1,7 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface OffcanvasProps {
@@ -46,8 +47,15 @@ export default function Offcanvas({
 }: OffcanvasProps) {
   const isRight = position === "right";
   const hasSearch = searchValue !== undefined && onSearchChange !== undefined;
+  const [mounted, setMounted] = useState(false);
 
-  return (
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  const modalContent = (
     <AnimatePresence>
       {open && (
         <>
@@ -56,7 +64,7 @@ export default function Offcanvas({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed top-0 left-0 right-0 bottom-0 w-screen h-screen bg-black/50 z-[1000]"
+            className="fixed top-0 left-0 right-0 bottom-0 w-screen h-screen bg-black/50 z-[9998]"
             onClick={onClose}
           />
 
@@ -66,7 +74,7 @@ export default function Offcanvas({
             animate={{ x: 0 }}
             exit={{ x: isRight ? "100%" : "-100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className={`fixed ${isRight ? "right-0" : "left-0"} inset-y-0 w-full ${widthClasses[width]} bg-white dark:bg-gray-800 shadow-2xl z-[10001] flex flex-col`}
+            className={`fixed ${isRight ? "right-0" : "left-0"} inset-y-0 w-full ${widthClasses[width]} bg-white dark:bg-gray-800 shadow-2xl z-[9999] flex flex-col`}
           >
             {/* Header */}
             <div
@@ -132,4 +140,6 @@ export default function Offcanvas({
       )}
     </AnimatePresence>
   );
+
+  return createPortal(modalContent, document.body);
 }

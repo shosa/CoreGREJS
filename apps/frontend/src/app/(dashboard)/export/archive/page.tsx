@@ -163,7 +163,19 @@ export default function ArchivePage() {
 
   return (
     <motion.div initial="hidden" animate="visible" variants={containerVariants}>
-      <PageHeader title="Archivio DDT" subtitle="Tutti i documenti di trasporto" />
+      <PageHeader
+        title="Archivio DDT"
+        subtitle="Tutti i documenti di trasporto"
+        actions={
+          <button
+            onClick={() => router.push('/export/create')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:shadow-lg transition-all duration-200"
+          >
+            <i className="fas fa-plus"></i>
+            Nuovo DDT
+          </button>
+        }
+      />
 
       <Breadcrumb
         items={[
