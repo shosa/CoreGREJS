@@ -15,6 +15,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { LogActivity } from '../../common/decorators/log-activity.decorator';
 import { ExportService } from './export.service';
 import { ExcelProcessorService } from './excel-processor.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -47,6 +48,7 @@ export class ExportController {
   }
 
   @Post('articles-master')
+  @LogActivity({ module: 'export', action: 'create', entity: 'ArticleMaster', description: 'Creazione articolo master' })
   async createArticleMaster(@Body() data: {
     codiceArticolo: string;
     descrizione?: string;
@@ -58,6 +60,7 @@ export class ExportController {
   }
 
   @Put('articles-master/:id')
+  @LogActivity({ module: 'export', action: 'update', entity: 'ArticleMaster', description: 'Modifica articolo master' })
   async updateArticleMaster(
     @Param('id') id: string,
     @Body() data: Partial<{
@@ -72,6 +75,7 @@ export class ExportController {
   }
 
   @Delete('articles-master/:id')
+  @LogActivity({ module: 'export', action: 'delete', entity: 'ArticleMaster', description: 'Eliminazione articolo master' })
   async deleteArticleMaster(@Param('id') id: string) {
     return this.exportService.deleteArticleMaster(parseInt(id));
   }
@@ -89,6 +93,7 @@ export class ExportController {
   }
 
   @Post('terzisti')
+  @LogActivity({ module: 'export', action: 'create', entity: 'Terzista', description: 'Creazione terzista' })
   async createTerzista(@Body() data: {
     ragioneSociale: string;
     indirizzo1?: string;
@@ -102,6 +107,7 @@ export class ExportController {
   }
 
   @Put('terzisti/:id')
+  @LogActivity({ module: 'export', action: 'update', entity: 'Terzista', description: 'Modifica terzista' })
   async updateTerzista(
     @Param('id') id: string,
     @Body() data: Partial<{
@@ -119,6 +125,7 @@ export class ExportController {
   }
 
   @Delete('terzisti/:id')
+  @LogActivity({ module: 'export', action: 'delete', entity: 'Terzista', description: 'Eliminazione terzista' })
   async deleteTerzista(@Param('id') id: string) {
     return this.exportService.deleteTerzista(parseInt(id));
   }
@@ -154,6 +161,7 @@ export class ExportController {
   }
 
   @Post('documents')
+  @LogActivity({ module: 'export', action: 'create', entity: 'Document', description: 'Creazione DDT' })
   async createDocument(@Body() data: {
     progressivo: string;
     terzistaId: number;
@@ -165,6 +173,7 @@ export class ExportController {
   }
 
   @Put('documents/:progressivo')
+  @LogActivity({ module: 'export', action: 'update', entity: 'Document', description: 'Modifica DDT' })
   async updateDocument(
     @Param('progressivo') progressivo: string,
     @Body() data: Partial<{
@@ -180,16 +189,19 @@ export class ExportController {
   }
 
   @Delete('documents/:progressivo')
+  @LogActivity({ module: 'export', action: 'delete', entity: 'Document', description: 'Eliminazione DDT' })
   async deleteDocument(@Param('progressivo') progressivo: string) {
     return this.exportService.deleteDocument(progressivo);
   }
 
   @Post('documents/:progressivo/close')
+  @LogActivity({ module: 'export', action: 'close', entity: 'Document', description: 'Chiusura DDT' })
   async closeDocument(@Param('progressivo') progressivo: string) {
     return this.exportService.closeDocument(progressivo);
   }
 
   @Post('documents/:progressivo/reopen')
+  @LogActivity({ module: 'export', action: 'reopen', entity: 'Document', description: 'Riapertura DDT' })
   async reopenDocument(@Param('progressivo') progressivo: string) {
     return this.exportService.reopenDocument(progressivo);
   }
@@ -197,6 +209,7 @@ export class ExportController {
   // ==================== RIGHE DOCUMENTO ====================
 
   @Post('document-items')
+  @LogActivity({ module: 'export', action: 'create', entity: 'DocumentItem', description: 'Aggiunta riga DDT' })
   async addDocumentItem(@Body() data: {
     documentoId: number;
     articleId?: number;
@@ -215,6 +228,7 @@ export class ExportController {
   }
 
   @Put('document-items/:id')
+  @LogActivity({ module: 'export', action: 'update', entity: 'DocumentItem', description: 'Modifica riga DDT' })
   async updateDocumentItem(
     @Param('id') id: string,
     @Body() data: {
@@ -235,6 +249,7 @@ export class ExportController {
   }
 
   @Delete('document-items/:id')
+  @LogActivity({ module: 'export', action: 'delete', entity: 'DocumentItem', description: 'Eliminazione riga DDT' })
   async deleteDocumentItem(@Param('id') id: string) {
     return this.exportService.deleteDocumentItem(parseInt(id));
   }
@@ -242,6 +257,7 @@ export class ExportController {
   // ==================== PIEDE DOCUMENTO ====================
 
   @Post('document-footer')
+  @LogActivity({ module: 'export', action: 'update', entity: 'DocumentFooter', description: 'Modifica piede DDT' })
   async upsertDocumentFooter(@Body() data: {
     documentoId: number;
     aspettoColli?: string;
@@ -263,6 +279,7 @@ export class ExportController {
   // ==================== MANCANTI ====================
 
   @Post('missing-data')
+  @LogActivity({ module: 'export', action: 'create', entity: 'MissingData', description: 'Aggiunta dati mancanti' })
   async addMissingData(@Body() data: {
     documentoId: number;
     articleId: number;
@@ -282,6 +299,7 @@ export class ExportController {
   }
 
   @Delete('missing-data/:id')
+  @LogActivity({ module: 'export', action: 'delete', entity: 'MissingData', description: 'Eliminazione dati mancanti' })
   async deleteMissingData(@Param('id') id: string) {
     return this.exportService.deleteMissingData(parseInt(id));
   }
@@ -289,6 +307,7 @@ export class ExportController {
   // ==================== LANCI ====================
 
   @Post('launch-data')
+  @LogActivity({ module: 'export', action: 'create', entity: 'LaunchData', description: 'Aggiunta lanci' })
   async addLaunchData(@Body() data: {
     documentoId: number;
     lancio: string;
@@ -305,6 +324,7 @@ export class ExportController {
   }
 
   @Delete('launch-data/:id')
+  @LogActivity({ module: 'export', action: 'delete', entity: 'LaunchData', description: 'Eliminazione lanci' })
   async deleteLaunchData(@Param('id') id: string) {
     return this.exportService.deleteLaunchData(parseInt(id));
   }
@@ -313,6 +333,7 @@ export class ExportController {
 
   @Post('documents/:progressivo/upload-excel')
   @UseInterceptors(FileInterceptor('file'))
+  @LogActivity({ module: 'export', action: 'upload', entity: 'Excel', description: 'Upload file Excel' })
   async uploadExcelFile(
     @Param('progressivo') progressivo: string,
     @UploadedFile() file: Express.Multer.File,
@@ -330,6 +351,7 @@ export class ExportController {
   }
 
   @Post('documents/:progressivo/process-excel')
+  @LogActivity({ module: 'export', action: 'process', entity: 'Excel', description: 'Elaborazione file Excel' })
   async processExcelFile(
     @Param('progressivo') progressivo: string,
     @Body() body: { fileName: string },
@@ -338,6 +360,7 @@ export class ExportController {
   }
 
   @Delete('documents/:progressivo/uploaded-files/:fileName')
+  @LogActivity({ module: 'export', action: 'delete', entity: 'Excel', description: 'Eliminazione file Excel' })
   async deleteUploadedFile(
     @Param('progressivo') progressivo: string,
     @Param('fileName') fileName: string,
@@ -347,6 +370,7 @@ export class ExportController {
   }
 
   @Post('documents/:progressivo/save-excel-data')
+  @LogActivity({ module: 'export', action: 'save', entity: 'ExcelData', description: 'Salvataggio dati Excel' })
   async saveExcelData(
     @Param('progressivo') progressivo: string,
     @Body()
@@ -374,6 +398,7 @@ export class ExportController {
   }
 
   @Post('documents/:progressivo/generate-ddt')
+  @LogActivity({ module: 'export', action: 'generate', entity: 'DDT', description: 'Generazione DDT da Excel' })
   async generateDDT(@Param('progressivo') progressivo: string) {
     // Generate DDT from processed Excel files
     return this.excelProcessor.generateDDT(progressivo);
