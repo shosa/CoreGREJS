@@ -366,7 +366,7 @@ export const trackingApi = {
   },
 
   // ==================== TREE DATA (TreeView) ====================
-  getTreeData: async (search?: string, page = 1, limit = 100) => {
+  getTreeData: async (search?: string, page = 1, limit = 25) => {
     const params = new URLSearchParams();
     if (search) params.append('search', search);
     params.append('page', String(page));

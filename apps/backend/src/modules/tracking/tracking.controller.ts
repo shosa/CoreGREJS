@@ -89,7 +89,7 @@ export class TrackingController {
     return this.trackingService.getTreeData(
       search,
       page ? parseInt(page) : 1,
-      limit ? parseInt(limit) : 100,
+      limit ? parseInt(limit) : 25,
     );
   }
 

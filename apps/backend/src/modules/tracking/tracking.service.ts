@@ -195,7 +195,7 @@ export class TrackingService {
   }
 
   // ==================== TREE DATA (treeview) ====================
-  async getTreeData(searchQuery?: string, page = 1, limit = 100) {
+  async getTreeData(searchQuery?: string, page = 1, limit = 25) {
     const offset = (page - 1) * limit;
 
     // Se searchQuery è "*" o vuoto, mostra tutto
@@ -205,7 +205,7 @@ export class TrackingService {
     if (!isShowAll && searchQuery) {
       whereClause = {
         OR: [
-          { lot: { contains: searchQuery } },
+          { lot: { startsWith: searchQuery } },
           { cartel: isNaN(parseInt(searchQuery)) ? undefined : parseInt(searchQuery) },
         ],
       };
@@ -224,11 +224,25 @@ export class TrackingService {
     const total = await this.prisma.trackLink.count({ where: whereClause });
 
     // Raggruppa per cartellino > tipo > lotti
-    const grouped: Record<number, { cartel: number; types: Record<number, { type: any; lots: any[] }> }> = {};
+    const grouped: Record<number, { cartel: number; commessa: string; articolo: string; types: Record<number, { type: any; lots: any[] }> }> = {};
 
     for (const link of links) {
       if (!grouped[link.cartel]) {
-        grouped[link.cartel] = { cartel: link.cartel, types: {} };
+        // Carica dati core_dati per il cartellino
+        const coreData = await this.prisma.coreData.findFirst({
+          where: { cartel: link.cartel },
+          select: {
+            commessaCli: true,
+            articolo: true,
+          },
+        });
+
+        grouped[link.cartel] = {
+          cartel: link.cartel,
+          commessa: coreData?.commessaCli || '',
+          articolo: coreData?.articolo || '',
+          types: {}
+        };
       }
       if (!grouped[link.cartel].types[link.typeId]) {
         grouped[link.cartel].types[link.typeId] = { type: link.type, lots: [] };
@@ -244,6 +258,8 @@ export class TrackingService {
     return {
       tree: Object.values(grouped).map(g => ({
         cartel: g.cartel,
+        commessa: g.commessa,
+        articolo: g.articolo,
         types: Object.values(g.types),
       })),
       total,

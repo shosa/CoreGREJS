@@ -77,6 +77,8 @@ interface TypeGroup {
 
 interface TreeItem {
   cartel: number;
+  commessa: string;
+  articolo: string;
   types: TypeGroup[];
 }
 
@@ -100,7 +102,7 @@ export default function TreeViewPage() {
 
     setLoading(true);
     try {
-      const result = await trackingApi.getTreeData(search, newPage, 100);
+      const result = await trackingApi.getTreeData(search, newPage, 25);
       setTree(result.tree || []);
       setTotalPages(result.totalPages || 1);
       setTotal(result.total || 0);
@@ -199,7 +201,7 @@ export default function TreeViewPage() {
 
       {/* Results */}
       {tree.length > 0 && (
-        <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+        <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden font-mono">
           <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
             <span className="text-sm text-gray-600 dark:text-gray-400">
               {total} collegamenti trovati - {tree.length} cartellini
@@ -212,14 +214,20 @@ export default function TreeViewPage() {
                 {/* Cartellino Header */}
                 <div
                   onClick={() => toggleExpand(item.cartel)}
-                  className="flex items-center px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 transition"
+                  className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 transition"
                 >
-                  <i className={`fas fa-chevron-${expandedCartelli.has(item.cartel) ? 'down' : 'right'} mr-3 text-gray-400`}></i>
                   <div className="flex items-center gap-2">
+                    <i className={`fas fa-chevron-${expandedCartelli.has(item.cartel) ? 'down' : 'right'} mr-3 text-gray-400`}></i>
                     <i className="fas fa-tag text-blue-500"></i>
                     <span className="font-bold text-gray-900 dark:text-white">Cartellino #{item.cartel}</span>
-                    <span className="text-sm text-gray-500">({item.types.length} tipi)</span>
+                    {item.commessa && (
+                      <span className="text-sm text-gray-600 dark:text-gray-400">({item.commessa})</span>
+                    )}
+                    <span className="text-sm text-gray-500">• {item.types.length} link</span>
                   </div>
+                  {item.articolo && (
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{item.articolo}</span>
+                  )}
                 </div>
 
                 {/* Expanded Content */}

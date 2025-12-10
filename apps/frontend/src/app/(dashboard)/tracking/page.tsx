@@ -185,7 +185,7 @@ export default function TrackingPage() {
                   Inserimento Manuale
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Inserisci cartellini manualmente con verifica real-time (30 input)
+                  Inserisci cartellini manualmente con verifica real-time
                 </p>
                 <div className="flex items-center text-blue-600 dark:text-blue-400 font-medium group-hover:translate-x-2 transition-transform duration-300">
                   Apri <i className="fas fa-arrow-right ml-2"></i>

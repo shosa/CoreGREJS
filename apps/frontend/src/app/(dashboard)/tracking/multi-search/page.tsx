@@ -45,9 +45,11 @@ export default function MultiSearchPage() {
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [allResults, setAllResults] = useState<SearchResult[]>([]); // Tutti i risultati per calcolo paia
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const handleSearch = async (newPage = 1) => {
     // Check if at least one filter is set
@@ -62,13 +64,26 @@ export default function MultiSearchPage() {
       const response = await trackingApi.searchData({
         ...filters,
         page: newPage,
-        limit: 50,
+        limit: 100, // Aumentato a 100 per ridurre numero pagine
       });
       setResults(response.data || []);
       setTotalPages(response.totalPages || 1);
       setTotal(response.total || 0);
       setPage(newPage);
-      setSelectedIds([]);
+
+      // Se è la prima pagina, resetta allResults, altrimenti aggiungi
+      if (newPage === 1) {
+        setAllResults(response.data || []);
+      } else {
+        // Aggiorna allResults aggiungendo i nuovi risultati (senza duplicati)
+        setAllResults(prev => {
+          const existingIds = new Set(prev.map(r => r.id));
+          const newItems = (response.data || []).filter(r => !existingIds.has(r.id));
+          return [...prev, ...newItems];
+        });
+      }
+
+      // NON resettare selectedIds per mantenere selezioni tra pagine
 
       if ((response.data || []).length === 0) {
         showError('Nessun risultato trovato');
@@ -91,13 +106,40 @@ export default function MultiSearchPage() {
       ordine: '',
     });
     setResults([]);
+    setAllResults([]);
     setSelectedIds([]);
+    setExpandedGroups(new Set());
   };
 
   const toggleSelect = (id: number) => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
+  };
+
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        next.add(groupKey);
+      }
+      return next;
+    });
+  };
+
+  const selectGroupAll = (items: SearchResult[]) => {
+    const groupIds = items.map(i => i.id);
+    setSelectedIds(prev => {
+      const newSet = new Set([...prev, ...groupIds]);
+      return Array.from(newSet);
+    });
+  };
+
+  const deselectGroupAll = (items: SearchResult[]) => {
+    const groupIds = new Set(items.map(i => i.id));
+    setSelectedIds(prev => prev.filter(id => !groupIds.has(id)));
   };
 
   const selectAll = () => {
@@ -117,12 +159,12 @@ export default function MultiSearchPage() {
     router.push('/tracking/process-links');
   };
 
-  // Calculate total pairs for selected items
+  // Calculate total pairs for selected items (usa allResults, non solo results della pagina)
   const totalPaia = useMemo(() => {
-    return results
+    return allResults
       .filter(r => selectedIds.includes(r.id))
       .reduce((sum, r) => sum + (r.paia || 0), 0);
-  }, [results, selectedIds]);
+  }, [allResults, selectedIds]);
 
   // Group results by articolo (modello) con descrizione
   const groupedResults: Record<string, { descrizione: string; items: SearchResult[] }> = {};
@@ -271,18 +313,36 @@ export default function MultiSearchPage() {
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {Object.entries(groupedResults).map(([articolo, { descrizione, items }]) => {
               const groupPaia = items.reduce((sum, i) => sum + (i.paia || 0), 0);
+              const isExpanded = expandedGroups.has(articolo);
+              const groupSelectedCount = items.filter(i => selectedIds.includes(i.id)).length;
+              const allGroupSelected = groupSelectedCount === items.length;
+
               return (
               <div key={articolo}>
                 <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700/50 font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3">
+                  <button
+                    onClick={() => toggleGroup(articolo)}
+                    className="flex items-center justify-center w-6 h-6 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+                  >
+                    <i className={`fas fa-chevron-${isExpanded ? 'down' : 'right'} text-sm`}></i>
+                  </button>
                   <span className="text-blue-600 dark:text-blue-400">{articolo}</span>
                   {descrizione && <span className="text-gray-500 dark:text-gray-400">- {descrizione}</span>}
-                  <span className="ml-auto flex items-center gap-2">
+                  <span className="ml-auto flex items-center gap-3">
+                    <button
+                      onClick={() => allGroupSelected ? deselectGroupAll(items) : selectGroupAll(items)}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      {allGroupSelected ? 'Deseleziona gruppo' : 'Seleziona gruppo'}
+                      {groupSelectedCount > 0 && ` (${groupSelectedCount}/${items.length})`}
+                    </button>
                     <span className="text-sm text-gray-500 dark:text-gray-400">{groupPaia} paia</span>
                     <span className="text-sm bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded">{items.length}</span>
                   </span>
                 </div>
-                <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {items.map(item => (
+                {isExpanded && (
+                  <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {items.map(item => (
                     <div
                       key={item.id}
                       onClick={() => toggleSelect(item.id)}
@@ -326,10 +386,13 @@ export default function MultiSearchPage() {
                       </div>
                     </div>
                   ))}
-                </div>
+                  </div>
+                )}
               </div>
             );
             })}
+            {/* Riga footer bianca - chiusura tabella */}
+            <div className="px-4 py-2 bg-white dark:bg-gray-800 rounded-b-xl"></div>
           </div>
 
           {/* Pagination */}
