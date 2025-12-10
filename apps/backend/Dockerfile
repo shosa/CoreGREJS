@@ -29,6 +29,9 @@ COPY package.json package-lock.json* ./
 # Copy backend source code (including prisma schema)
 COPY apps/backend ./apps/backend
 
+# Copy frontend public folder (for PDF generation assets)
+COPY apps/frontend/public ./apps/frontend/public
+
 # Generate Prisma Client for Alpine Linux
 ENV PRISMA_CLI_BINARY_TARGETS=linux-musl-openssl-3.0.x
 ENV PRISMA_SCHEMA_PATH=/app/apps/backend/prisma/schema.prisma
@@ -61,8 +64,11 @@ COPY --from=builder --chown=nestjs:nodejs /app/apps/backend/package.json ./packa
 # Copy node_modules from ROOT (workspace) - includes Prisma Client
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 
+# Copy frontend public assets (needed for PDF generation)
+COPY --from=builder --chown=nestjs:nodejs /app/apps/frontend/public ./public
+
 # Create storage directories with correct permissions
-RUN mkdir -p /app/storage/export/temp /app/storage/uploads /app/storage/logs && \
+RUN mkdir -p /app/storage/export/temp /app/storage/export/src /app/storage/jobs /app/storage/uploads /app/storage/logs && \
     chown -R nestjs:nodejs /app/storage
 
 USER nestjs
