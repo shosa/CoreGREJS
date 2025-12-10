@@ -38,4 +38,4 @@ volumes/
 
 
 # storage
-apps/back/storage/
+apps/back/storage

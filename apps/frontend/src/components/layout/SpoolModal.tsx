@@ -137,25 +137,26 @@ export default function SpoolModal({ open, onClose }: Props) {
     URL.revokeObjectURL(url);
   };
 
-  const openBlobInNewTab = (blob: Blob) => {
-    const win = window.open('about:blank');
+  const openBlobInNewTab = (blob: Blob, filename: string) => {
+    // Crea un nuovo blob con il type corretto per assicurare che il browser lo riconosca
+    const properBlob = new Blob([blob], { type: blob.type || 'application/pdf' });
+    const url = URL.createObjectURL(properBlob);
+
+    // Apri in una nuova finestra
+    const win = window.open(url, '_blank');
     if (!win) {
       showError('Popup bloccato: consenti le nuove schede per aprire il PDF');
+      URL.revokeObjectURL(url);
       return;
     }
-    const url = URL.createObjectURL(blob);
-    win.location.href = url;
+
+    // Il browser userà il MIME type per determinare come aprire il file
+    // Per PDF, lo aprirà nel visualizzatore integrato
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const handleOpenSelected = async (idsOverride?: string[]) => {
     const ids = idsOverride ?? Array.from(selectedIds);
-
-    console.log('handleOpenSelected called');
-    console.log('selectedIds Set:', selectedIds);
-    console.log('selectedIds size:', selectedIds.size);
-    console.log('ids array:', ids);
-    console.log('ids length:', ids.length);
 
     if (!ids.length) {
       showError('Nessun file selezionato');
@@ -164,10 +165,7 @@ export default function SpoolModal({ open, onClose }: Props) {
 
     try {
       const list = getCurrentList();
-      console.log('Current list:', list);
-      console.log('Looking for IDs:', ids);
       const selectedJobs = list.filter(j => ids.includes(j.id));
-      console.log('Selected jobs found:', selectedJobs);
 
       if (selectedJobs.length === 0) {
         showError('File non trovati');
@@ -184,7 +182,8 @@ export default function SpoolModal({ open, onClose }: Props) {
         const job = selectedJobs[0];
         const response = await jobsApi.download(job.id);
         const blob = new Blob([response.data], { type: job.outputMime || 'application/pdf' });
-        openBlobInNewTab(blob);
+        const filename = job.outputName || 'document.pdf';
+        openBlobInNewTab(blob, filename);
         return;
       }
 
@@ -202,7 +201,8 @@ export default function SpoolModal({ open, onClose }: Props) {
 
       const blob = new Blob([response.data], { type: 'application/pdf' });
       console.log('Created blob:', blob.size, 'bytes');
-      openBlobInNewTab(blob);
+      const mergedFilename = `merged_${Date.now()}.pdf`;
+      openBlobInNewTab(blob, mergedFilename);
     } catch (err: any) {
       console.error('Error opening PDFs:', err);
       showError(err?.response?.data?.message || err?.message || 'Errore apertura PDF');
