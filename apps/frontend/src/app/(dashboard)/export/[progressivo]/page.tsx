@@ -866,7 +866,7 @@ export default function DocumentDetailPage() {
     try {
       const result = await exportApi.generateDDT(progressivo);
       if (result.success) {
-        showSuccess(result.message || "DDT generato con successo!");
+        showSuccess("Il lavoro è stato messo in coda.");
         // Refresh document to show new items and lanci
         await fetchDocument();
         // Switch to Righe tab to see results

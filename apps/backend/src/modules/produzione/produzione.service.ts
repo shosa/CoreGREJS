@@ -1,6 +1,8 @@
 import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import * as PDFDocument from 'pdfkit';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class ProduzioneService {
@@ -1053,5 +1055,119 @@ export class ProduzioneService {
     });
 
     doc.y = startY + boxHeight;
+  }
+
+  // ==================== CSV PROCESSING ====================
+
+  /**
+   * Process uploaded CSV file for production report
+   * Format: Commessa;Fase;Data;Articolo;Qta
+   * Example: 2025 - 40094695 - S;04 - ORLATURA;05/09/2025 07:44;HE222297Z005--ME;20
+   */
+  async processCsv(file: Express.Multer.File, userId: number) {
+    if (!file.buffer) {
+      throw new BadRequestException('File buffer non presente');
+    }
+
+    const processedData = [];
+    let lineNumber = 0;
+
+    // Parse CSV from buffer
+    const lines = file.buffer.toString('utf-8').split('\n');
+
+    // Skip header
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      lineNumber++;
+      const data = line.split(';');
+
+      if (data.length < 5) {
+        continue; // Skip incomplete rows
+      }
+
+      const commessaCsv = data[0]?.trim() || '';
+      const fase = data[1]?.trim() || '';
+      const dataStr = data[2]?.trim() || '';
+      const articolo = data[3]?.trim() || '';
+      const qta = parseInt(data[4]?.trim() || '0', 10);
+
+      // Extract commessa number (e.g., "2025 - 40094695 - S" -> "94695")
+      const commessaEstratta = this.extractCommessaNumber(commessaCsv);
+
+      // Find client by cartellino from core_dati table
+      const cliente = await this.findClienteByCartellino(commessaEstratta);
+
+      processedData.push({
+        commessa_csv: commessaCsv,
+        commessa_estratta: commessaEstratta,
+        fase,
+        data: dataStr,
+        articolo,
+        qta,
+        cliente,
+      });
+    }
+
+    // Store data for report generation (using cache or temporary storage)
+    // For now, we'll return the data and let the frontend handle it
+    // The report generation will be triggered separately via job queue
+
+    return {
+      success: true,
+      data: processedData,
+      message: `Elaborati ${lineNumber} record`,
+      count: lineNumber,
+    };
+  }
+
+  /**
+   * Extract commessa number from CSV format
+   * Pattern: "2025 - 40094695 - S" -> takes last 5 digits from middle number
+   */
+  private extractCommessaNumber(commessaString: string): string | null {
+    // Find the middle number between dashes
+    const match = commessaString.match(/\d+\s*-\s*(\d+)\s*-/);
+    if (match && match[1]) {
+      const numeroCompleto = match[1];
+      // Take last 5 digits
+      return numeroCompleto.slice(-5);
+    }
+    return null;
+  }
+
+  /**
+   * Find client from core_dati table using cartellino
+   */
+  private async findClienteByCartellino(cartellino: string): Promise<string | null> {
+    if (!cartellino) return null;
+
+    try {
+      const result = await this.prisma.coreData.findFirst({
+        where: { cartel: parseInt(cartellino, 10) },
+        select: {
+          ragioneSociale: true,
+          commessaCli: true,
+        },
+      });
+
+      if (result) {
+        return `${result.ragioneSociale} (${result.commessaCli})`;
+      }
+
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Get processed CSV data for report generation
+   * This would typically come from a cache/session storage
+   * For now, clients will need to pass the data directly
+   */
+  async getCsvDataForReport(data: any[]) {
+    return data;
   }
 }

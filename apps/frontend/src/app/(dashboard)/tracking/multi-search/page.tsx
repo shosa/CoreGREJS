@@ -176,6 +176,15 @@ export default function MultiSearchPage() {
     groupedResults[key].items.push(r);
   });
 
+  // Ordina i cartellini in modo ascendente all'interno di ogni gruppo
+  Object.values(groupedResults).forEach(group => {
+    group.items.sort((a, b) => {
+      const cartelA = a.cartellino || a.id || 0;
+      const cartelB = b.cartellino || b.id || 0;
+      return Number(cartelA) - Number(cartelB);
+    });
+  });
+
   return (
     <motion.div
       initial={{ opacity: 0 }}

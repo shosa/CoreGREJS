@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import { useNotificationStore } from '@/store/notifications';
 
 const iconMap = {
@@ -18,15 +19,60 @@ const colorMap = {
 
 export default function Notifications() {
   const { notifications, removeNotification } = useNotificationStore();
+  const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
+  const [displayedNotifications, setDisplayedNotifications] = useState(notifications);
+  const prevNotificationsRef = useRef(notifications);
 
-  if (notifications.length === 0) return null;
+  // Sincronizza le notifiche e gestisci l'animazione di uscita
+  useEffect(() => {
+    const prev = prevNotificationsRef.current;
+    const current = notifications;
+
+    // Trova notifiche rimosse
+    const removedIds = prev
+      .filter(p => !current.find(c => c.id === p.id))
+      .map(n => n.id);
+
+    if (removedIds.length > 0) {
+      // Avvia animazione di uscita
+      setExitingIds(prev => {
+        const newSet = new Set(prev);
+        removedIds.forEach(id => newSet.add(id));
+        return newSet;
+      });
+
+      // Rimuovi dalla visualizzazione dopo l'animazione
+      setTimeout(() => {
+        setDisplayedNotifications(current);
+        setExitingIds(prev => {
+          const newSet = new Set(prev);
+          removedIds.forEach(id => newSet.delete(id));
+          return newSet;
+        });
+      }, 400); // Durata animazione slide-out
+    } else {
+      // Aggiungi nuove notifiche immediatamente
+      setDisplayedNotifications(current);
+    }
+
+    prevNotificationsRef.current = current;
+  }, [notifications]);
+
+  const handleRemove = (id: string) => {
+    setExitingIds(prev => new Set(prev).add(id));
+    setTimeout(() => {
+      removeNotification(id);
+    }, 400);
+  };
+
+  if (displayedNotifications.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-99999 flex flex-col gap-2 w-96 max-w-full">
-      {notifications.map((notification) => (
+    <div className="fixed bottom-4 right-4 z-99999 flex flex-col gap-2 w-96 max-w-full">
+      {displayedNotifications.map((notification) => (
         <div
           key={notification.id}
-          className={`animate-fade-in rounded-lg border p-4 shadow-lg ${colorMap[notification.type]}`}
+          className={`${exitingIds.has(notification.id) ? 'animate-slide-out' : 'animate-slide-in'} rounded-lg border p-4 shadow-lg ${colorMap[notification.type]}`}
         >
           <div className="flex items-start">
             <div className="flex-shrink-0">
@@ -37,7 +83,7 @@ export default function Notifications() {
             </div>
             <div className="ml-auto pl-3">
               <button
-                onClick={() => removeNotification(notification.id)}
+                onClick={() => handleRemove(notification.id)}
                 className="inline-flex rounded-md p-1.5 hover:bg-black/5 focus:outline-none"
               >
                 <i className="fas fa-times"></i>

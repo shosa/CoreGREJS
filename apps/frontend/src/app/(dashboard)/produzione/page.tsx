@@ -72,7 +72,7 @@ export default function ProduzioneDashboard() {
 
   const fetchRecentRecords = async () => {
     try {
-      const data = await produzioneApi.getRecentRecords(10);
+      const data = await produzioneApi.getRecentRecords(5);
       setRecentRecords(data);
     } catch (error) {
       showError("Errore nel caricamento delle registrazioni recenti");
@@ -266,6 +266,31 @@ export default function ProduzioneDashboard() {
                 </div>
               </div>
               <div className="flex items-center text-emerald-600 dark:text-emerald-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-300">
+                Apri <i className="fas fa-arrow-right ml-2"></i>
+              </div>
+            </div>
+          </Link>
+          
+          <Link
+            href="/produzione/csv"
+            className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-orange-50 dark:from-orange-900/10 dark:to-orange-800/10"></div>
+            <div className="relative p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
+                  <i className="fas fa-file-csv text-white text-xl"></i>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                    Report da CSV
+                  </h3>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                   Genera report di produzione da file CSV  
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center text-orange-600 dark:text-orange-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-300">
                 Apri <i className="fas fa-arrow-right ml-2"></i>
               </div>
             </div>

@@ -72,7 +72,7 @@ const menuItems: MenuItem[] = [
       { name: 'Nuova', href: '/produzione/new', icon: 'fa-plus' },
       { name: 'Calendario', href: '/produzione/calendario', icon: 'fa-calendar' },
       { name: 'Statistiche', href: '/produzione/statistics', icon: 'fa-chart-simple' },
-      { name: 'Configurazione', href: '/produzione/config', icon: 'fa-cog' },
+      { name: 'Report', href: '/produzione/csv', icon: 'fa-file-csv' },
     ]
   },
   {

@@ -152,8 +152,8 @@ export default function RiparazioneDetailPage() {
     if (!riparazione) return;
     try {
       setPrinting(true);
-      const { jobId } = await jobsApi.enqueue('riparazioni.cedola-pdf', { id: riparazione.id });
-      showSuccess(`Stampa avviata. Job ${jobId} nello spool`);
+      await jobsApi.enqueue('riparazioni.cedola-pdf', { id: riparazione.id });
+      showSuccess('Il lavoro è stato messo in coda.');
     } catch (error: any) {
       showError(error.response?.data?.message || 'Errore nella stampa');
     } finally {

@@ -317,6 +317,20 @@ export const produzioneApi = {
     const response = await api.get(`/produzione/month?${params}`);
     return response.data;
   },
+
+  // CSV Report
+  processCsv: async (formData: FormData) => {
+    const response = await api.post('/produzione/process-csv', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+  generateCsvReport: async (data: { csvData: any[] }) => {
+    const response = await api.post('/produzione/generate-csv-report', data);
+    return response.data;
+  },
 };
 
 // Tracking API

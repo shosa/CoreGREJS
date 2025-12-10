@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { useAuthStore } from '@/store/auth';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
+import Notifications from '@/components/ui/Notifications';
 
 export default function DashboardLayout({
   children,
@@ -53,6 +54,9 @@ export default function DashboardLayout({
     <div className="h-screen overflow-hidden">
       {/* Sidebar */}
       <Sidebar />
+
+      {/* Toast Notifications */}
+      <Notifications />
 
       {/* Content Area */}
       <div

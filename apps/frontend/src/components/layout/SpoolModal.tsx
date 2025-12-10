@@ -33,6 +33,12 @@ export default function SpoolModal({ open, onClose }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
 
+  // Reset selezione quando cambio tab
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setLastSelectedIndex(null);
+  }, [activeTab]);
+
   const files = useMemo(
     () => jobs.filter(j => j.status === 'done' && j.outputName),
     [jobs]
@@ -144,6 +150,13 @@ export default function SpoolModal({ open, onClose }: Props) {
 
   const handleOpenSelected = async (idsOverride?: string[]) => {
     const ids = idsOverride ?? Array.from(selectedIds);
+
+    console.log('handleOpenSelected called');
+    console.log('selectedIds Set:', selectedIds);
+    console.log('selectedIds size:', selectedIds.size);
+    console.log('ids array:', ids);
+    console.log('ids length:', ids.length);
+
     if (!ids.length) {
       showError('Nessun file selezionato');
       return;
@@ -151,7 +164,10 @@ export default function SpoolModal({ open, onClose }: Props) {
 
     try {
       const list = getCurrentList();
+      console.log('Current list:', list);
+      console.log('Looking for IDs:', ids);
       const selectedJobs = list.filter(j => ids.includes(j.id));
+      console.log('Selected jobs found:', selectedJobs);
 
       if (selectedJobs.length === 0) {
         showError('File non trovati');
@@ -315,7 +331,7 @@ export default function SpoolModal({ open, onClose }: Props) {
                 {activeTab === 'files' && (
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={handleOpenSelected}
+                      onClick={() => handleOpenSelected()}
                       disabled={selectedIds.size === 0}
                       className="h-9 w-9 rounded-full border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40"
                       title="Apri (solo PDF; merge se multipli)"

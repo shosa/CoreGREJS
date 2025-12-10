@@ -10,7 +10,10 @@ import {
   UseGuards,
   Request,
   BadRequestException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -256,5 +259,36 @@ export class ProduzioneController {
   ) {
     const userId = req.user?.userId || req.user?.id;
     return this.produzioneService.upsert(date, data, userId);
+  }
+
+  // ==================== CSV REPORT ====================
+
+  // POST /produzione/process-csv - Upload and process CSV file
+  @Post('process-csv')
+  @UseInterceptors(FileInterceptor('csvFile'))
+  @LogActivity({ module: 'produzione', action: 'upload_csv', entity: 'CSV', description: 'Upload e elaborazione CSV produzione' })
+  async processCsv(
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File CSV non presente');
+    }
+
+    const userId = req.user?.userId || req.user?.id;
+    return this.produzioneService.processCsv(file, userId);
+  }
+
+  // POST /produzione/generate-csv-report - Generate PDF report from processed CSV
+  @Post('generate-csv-report')
+  @LogActivity({ module: 'produzione', action: 'generate_csv_report', entity: 'CSV', description: 'Generazione report PDF da CSV' })
+  async generateCsvReport(@Body() body: { csvData: any[] }, @Request() req) {
+    const userId = req.user?.userId || req.user?.id;
+
+    if (!body.csvData || body.csvData.length === 0) {
+      throw new BadRequestException('Dati CSV non presenti');
+    }
+
+    return this.jobsQueueService.enqueue('prod.csv-report-pdf', { csvData: body.csvData }, userId);
   }
 }

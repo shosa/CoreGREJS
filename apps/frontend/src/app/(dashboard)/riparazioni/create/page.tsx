@@ -224,8 +224,8 @@ export default function CreateRiparazionePage() {
       // Auto-print if checkbox is enabled
       if (autoPrint && createdRiparazione?.id) {
         try {
-          const { jobId } = await jobsApi.enqueue('riparazioni.cedola-pdf', { id: createdRiparazione.id });
-          showSuccess(`Stampa avviata automaticamente. Job ${jobId} nello spool`);
+          await jobsApi.enqueue('riparazioni.cedola-pdf', { id: createdRiparazione.id });
+          showSuccess('Il lavoro è stato messo in coda.');
         } catch (error: any) {
           showError(error.response?.data?.message || 'Errore nella stampa automatica');
         }

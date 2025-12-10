@@ -17,7 +17,8 @@ const QUEUE_NAME = 'coregre-jobs';
 type ReportPayload =
   | { lots: string[] }
   | { cartelli: number[] }
-  | { date: string };
+  | { date: string }
+  | { csvData: any[] };
 
 @Injectable()
 export class JobsQueueService implements OnModuleInit, OnModuleDestroy {
