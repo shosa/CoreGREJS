@@ -35,3 +35,7 @@ yarn-error.log*
 
 # Docker volumes (persistent data on host)
 volumes/
+
+
+# storage
+apps/back/storage/
