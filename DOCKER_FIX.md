@@ -25,11 +25,30 @@ I file verranno ora salvati su host in `CoreGREJS/volumes/backend/storage/`.
 
 ## Deploy in Produzione
 
-### 1. Rebuild dei Container
+### ⚠️ IMPORTANTE: Inizializza i Volumi Prima del Deploy
+
+I volumi Docker devono essere creati **prima** di avviare i container, altrimenti il mount sovrascrive le directory create nel Dockerfile.
+
+#### Su Linux/Mac:
 ```bash
 cd CoreGREJS
 
-# Stop containers
+# 1. Inizializza volumi (crea directory structure + permessi)
+chmod +x init-volumes.sh
+./init-volumes.sh
+```
+
+#### Su Windows:
+```bash
+cd CoreGREJS
+
+# 1. Inizializza volumi (crea directory structure)
+init-volumes.bat
+```
+
+### 2. Rebuild e Avvio Container
+```bash
+# Stop containers (se già running)
 docker-compose down
 
 # Rebuild images
@@ -39,26 +58,38 @@ docker-compose build --no-cache
 docker-compose up -d
 ```
 
-### 2. Verifica Volumi
+### 3. Verifica Volumi Creati
 ```bash
-# Check volume directories are created
+# Check volume directories
 ls -la volumes/backend/storage/
 
 # Should show:
-# - export/
+# - export/temp/
+# - export/src/
 # - jobs/
 # - uploads/
 # - logs/
 ```
 
-### 3. Permessi (se necessario)
-Se i container hanno problemi di permessi:
+### 4. Verifica Logs Container
 ```bash
-# Set ownership to container user (UID 1001)
-sudo chown -R 1001:1001 volumes/backend/storage/
+# Check backend started correctly
+docker logs coregrejs-backend
+
+# Should NOT show: "EACCES: permission denied, mkdir '/app/storage/export/temp'"
 ```
 
-### 4. Test Funzionalità
+### 5. Fix Permessi (solo se errori)
+Se vedi ancora errori di permessi:
+```bash
+# Set ownership to container user (UID 1001 = nestjs)
+sudo chown -R 1001:1001 volumes/backend/storage/
+
+# Restart container
+docker-compose restart backend
+```
+
+### 6. Test Funzionalità
 
 #### Test Export Storage
 1. Vai su Export → Documenti → Apri un DDT

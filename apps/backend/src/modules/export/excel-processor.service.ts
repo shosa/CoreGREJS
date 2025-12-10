@@ -27,12 +27,18 @@ export class ExcelProcessorService {
     this.tempDir = path.join(process.cwd(), 'storage', 'export', 'temp');
     this.srcDir = path.join(process.cwd(), 'storage', 'export', 'src');
 
-    // Ensure directories exist
-    if (!fs.existsSync(this.tempDir)) {
-      fs.mkdirSync(this.tempDir, { recursive: true });
-    }
-    if (!fs.existsSync(this.srcDir)) {
-      fs.mkdirSync(this.srcDir, { recursive: true });
+    // Ensure directories exist (with error handling for Docker volumes)
+    try {
+      if (!fs.existsSync(this.tempDir)) {
+        fs.mkdirSync(this.tempDir, { recursive: true });
+      }
+      if (!fs.existsSync(this.srcDir)) {
+        fs.mkdirSync(this.srcDir, { recursive: true });
+      }
+    } catch (error) {
+      // Log warning but don't crash - directories might be mounted as volumes
+      console.warn('⚠️  Could not create storage directories (might already exist as mounted volumes):', error.message);
+      console.warn('   If running in Docker, ensure volumes are properly initialized.');
     }
   }
 
