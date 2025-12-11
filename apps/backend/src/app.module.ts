@@ -21,7 +21,7 @@ import { DataManagementModule } from './modules/data-management/data-management.
 import { SearchModule } from './modules/search/search.module';
 import { EtichetteModule } from './modules/etichette/etichette.module';
 import { InworkModule } from './modules/inwork/inwork.module';
-import { MobileApiModule } from './modules/mobile-api/mobile-api.module';
+import { MobileModule } from './modules/mobile/mobile.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { HealthModule } from './modules/health/health.module';
 
@@ -53,8 +53,8 @@ import { HealthModule } from './modules/health/health.module';
     SearchModule,
     EtichetteModule,
     InworkModule,
-    MobileApiModule,
     JobsModule,
+    MobileModule,
   ],
 })
 export class AppModule {}

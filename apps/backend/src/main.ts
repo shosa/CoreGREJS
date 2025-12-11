@@ -10,27 +10,27 @@ async function bootstrap() {
   const logger = new LoggerService();
 
   try {
-    logger.log('🚀 Inizializzazione CoreGRE Backend...', 'Bootstrap');
+    logger.log('[✓] Inizializzazione CoreGRE Backend...', 'Bootstrap');
 
     const app = await NestFactory.create(AppModule, {
       logger: logger,
     });
 
-    logger.success('✓ Applicazione NestJS creata', 'Bootstrap');
+    logger.success('[✓] Applicazione NestJS creata', 'Bootstrap');
 
     // CORS configuration
     app.enableCors({
       origin: process.env.FRONTEND_URL || 'http://localhost:3010',
       credentials: true,
     });
-    logger.success('✓ CORS configurato', 'Bootstrap');
+    logger.success('[✓] CORS configurato', 'Bootstrap');
 
     // Global filters - L'ordine è importante: prima specifici, poi generali
     app.useGlobalFilters(
       new PrismaExceptionFilter(), // Gestisce errori Prisma specifici
       new AllExceptionsFilter(),   // Gestisce tutte le altre eccezioni
     );
-    logger.success('✓ Filtri eccezioni globali registrati', 'Bootstrap');
+    logger.success('[✓] Filtri eccezioni globali registrati', 'Bootstrap');
 
     // Global validation pipe
     app.setGlobalPrefix('api');
@@ -69,7 +69,7 @@ async function bootstrap() {
         },
       }),
     );
-    logger.success('✓ Validation pipe configurato', 'Bootstrap');
+    logger.success('[✓] Validation pipe configurato', 'Bootstrap');
 
     // Swagger documentation
     const config = new DocumentBuilder()
@@ -80,7 +80,7 @@ async function bootstrap() {
       .build();
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document);
-    logger.success('✓ Documentazione Swagger configurata', 'Bootstrap');
+    logger.success('[✓] Documentazione Swagger configurata', 'Bootstrap');
 
     const port = process.env.PORT || 3011;
     await app.listen(port);
@@ -88,7 +88,7 @@ async function bootstrap() {
     // Log di avvio con informazioni utili
     logger.logServerStart(port);
   } catch (error: any) {
-    logger.error('💥 ERRORE FATALE durante l\'avvio dell\'applicazione', error.stack, 'Bootstrap');
+    logger.error('[✗] ERRORE FATALE durante l\'avvio dell\'applicazione', error.stack, 'Bootstrap');
     logger.error(`   Messaggio: ${error.message}`, undefined, 'Bootstrap');
     process.exit(1);
   }
