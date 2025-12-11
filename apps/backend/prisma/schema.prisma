@@ -274,88 +274,60 @@ model Numerata {
 // ==================== QUALITY CONTROL ====================
 
 model QualityRecord {
-  id            Int      @id @default(autoincrement())
-  cartellino    String   @db.VarChar(50)
-  commessa      String?  @db.VarChar(100)
-  modello       String?  @db.VarChar(100)
-  colore        String?  @db.VarChar(100)
-  taglia        String?  @db.VarChar(20)
-  quantita      Int      @default(1)
-  esito         String   @db.VarChar(20) // ok, ko, rework
-  departmentId  Int?     @map("department_id")
-  operatorId    Int?     @map("operator_id")
-  defectTypeId  Int?     @map("defect_type_id")
-  note          String?  @db.Text
-  foto          String?  @db.VarChar(255)
-  dataControllo DateTime @default(now()) @map("data_controllo")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id              Int                 @id @default(autoincrement())
+  numeroCartellino String             @map("numero_cartellino") @db.VarChar(50)
+  reparto         String?             @db.VarChar(255)
+  dataControllo   DateTime            @default(now()) @map("data_controllo")
+  operatore       String              @db.VarChar(255)
+  tipoCq          String              @default("INTERNO") @map("tipo_cq") @db.VarChar(20)
+  paiaTotali      Int                 @map("paia_totali")
+  codArticolo     String              @map("cod_articolo") @db.VarChar(50)
+  articolo        String              @db.VarChar(255)
+  linea           String              @db.VarChar(2)
+  note            String?             @db.VarChar(10000)
+  haEccezioni     Boolean             @default(false) @map("ha_eccezioni")
 
-  department QualityDepartment? @relation(fields: [departmentId], references: [id])
-  operator   QualityOperator?   @relation(fields: [operatorId], references: [id])
-  defectType QualityDefectType? @relation(fields: [defectTypeId], references: [id])
+  exceptions      QualityException[]
 
+  @@index([dataControllo])
+  @@index([reparto])
+  @@index([operatore])
   @@map("cq_records")
 }
 
 model QualityDepartment {
-  id          Int      @id @default(autoincrement())
-  nome        String   @db.VarChar(100)
-  codice      String?  @db.VarChar(20)
-  descrizione String?  @db.Text
-  attivo      Boolean  @default(true)
-  ordine      Int      @default(0)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  records QualityRecord[]
+  id            Int      @id @default(autoincrement())
+  nomeReparto   String   @unique @map("nome_reparto") @db.VarChar(255)
+  attivo        Boolean  @default(true)
+  ordine        Int      @default(0)
+  dataCreazione DateTime @default(now()) @map("data_creazione")
 
   @@map("cq_departments")
 }
 
-model QualityOperator {
-  id        Int      @id @default(autoincrement())
-  nome      String   @db.VarChar(100)
-  cognome   String?  @db.VarChar(100)
-  matricola String?  @unique @db.VarChar(50)
-  pin       String?  @db.VarChar(10)
-  attivo    Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  records QualityRecord[]
-
-  @@map("cq_operators")
-}
-
 model QualityDefectType {
-  id          Int      @id @default(autoincrement())
-  nome        String   @db.VarChar(100)
-  codice      String?  @db.VarChar(20)
-  categoria   String?  @db.VarChar(50)
-  gravita     Int      @default(1) // 1-5
-  descrizione String?  @db.Text
-  attivo      Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  records QualityRecord[]
+  id            Int      @id @default(autoincrement())
+  descrizione   String   @unique @db.VarChar(255)
+  categoria     String?  @db.VarChar(100)
+  attivo        Boolean  @default(true)
+  ordine        Int      @default(0)
+  dataCreazione DateTime @default(now()) @map("data_creazione")
 
   @@map("cq_deftypes")
 }
 
 model QualityException {
-  id          Int       @id @default(autoincrement())
-  commessa    String?   @db.VarChar(100)
-  modello     String?   @db.VarChar(100)
-  tipo        String    @db.VarChar(50)
-  descrizione String?   @db.Text
-  attivo      Boolean   @default(true)
-  dataInizio  DateTime? @map("data_inizio")
-  dataFine    DateTime? @map("data_fine")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id             Int      @id @default(autoincrement())
+  cartellinoId   Int      @map("cartellino_id")
+  taglia         String   @db.VarChar(10)
+  tipoDifetto    String   @map("tipo_difetto") @db.VarChar(255)
+  noteOperatore  String?  @map("note_operatore") @db.VarChar(1000)
+  fotoPath       String?  @db.VarChar(500)
+  dataCreazione  DateTime @default(now()) @map("data_creazione")
 
+  record QualityRecord @relation(fields: [cartellinoId], references: [id], onDelete: Cascade)
+
+  @@index([cartellinoId])
   @@map("cq_exceptions")
 }
 

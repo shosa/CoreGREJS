@@ -1145,4 +1145,172 @@ export const activityLogApi = {
   },
 };
 
+// ==================== QUALITY CONTROL API ====================
+
+export const qualityApi = {
+  // Dashboard
+  getDashboardStats: async () => {
+    const response = await api.get('/quality/dashboard/stats');
+    return response.data;
+  },
+  getWeeklyRecords: async () => {
+    const response = await api.get('/quality/dashboard/weekly-records');
+    return response.data;
+  },
+  getExceptionsByDepartment: async () => {
+    const response = await api.get('/quality/dashboard/exceptions-by-department');
+    return response.data;
+  },
+  getDefectRateByDepartment: async () => {
+    const response = await api.get('/quality/dashboard/defect-rate-by-department');
+    return response.data;
+  },
+
+  // Departments
+  getDepartments: async (onlyActive = false) => {
+    const params = onlyActive ? '?active=true' : '';
+    const response = await api.get(`/quality/departments${params}`);
+    return response.data;
+  },
+  getDepartmentById: async (id: number) => {
+    const response = await api.get(`/quality/departments/${id}`);
+    return response.data;
+  },
+  createDepartment: async (data: { nomeReparto: string; attivo?: boolean; ordine?: number }) => {
+    const response = await api.post('/quality/departments', data);
+    return response.data;
+  },
+  updateDepartment: async (id: number, data: { nomeReparto?: string; attivo?: boolean; ordine?: number }) => {
+    const response = await api.put(`/quality/departments/${id}`, data);
+    return response.data;
+  },
+  deleteDepartment: async (id: number) => {
+    const response = await api.delete(`/quality/departments/${id}`);
+    return response.data;
+  },
+
+  // Defect Types
+  getDefectTypes: async (onlyActive = false) => {
+    const params = onlyActive ? '?active=true' : '';
+    const response = await api.get(`/quality/defect-types${params}`);
+    return response.data;
+  },
+  getDefectTypeById: async (id: number) => {
+    const response = await api.get(`/quality/defect-types/${id}`);
+    return response.data;
+  },
+  createDefectType: async (data: { descrizione: string; categoria?: string; attivo?: boolean; ordine?: number }) => {
+    const response = await api.post('/quality/defect-types', data);
+    return response.data;
+  },
+  updateDefectType: async (id: number, data: { descrizione?: string; categoria?: string; attivo?: boolean; ordine?: number }) => {
+    const response = await api.put(`/quality/defect-types/${id}`, data);
+    return response.data;
+  },
+  deleteDefectType: async (id: number) => {
+    const response = await api.delete(`/quality/defect-types/${id}`);
+    return response.data;
+  },
+
+  // Operators
+  getOperators: async () => {
+    const response = await api.get('/quality/operators');
+    return response.data;
+  },
+  getOperatorByUsername: async (username: string) => {
+    const response = await api.get(`/quality/operators/${username}`);
+    return response.data;
+  },
+  authenticateOperator: async (username: string, pin: string) => {
+    const response = await api.post('/quality/operators/authenticate', { username, pin });
+    return response.data;
+  },
+
+  // Quality Records
+  getRecords: async (filters?: {
+    dataInizio?: string;
+    dataFine?: string;
+    reparto?: string;
+    operatore?: string;
+    tipoCq?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.dataInizio) params.append('dataInizio', filters.dataInizio);
+    if (filters?.dataFine) params.append('dataFine', filters.dataFine);
+    if (filters?.reparto) params.append('reparto', filters.reparto);
+    if (filters?.operatore) params.append('operatore', filters.operatore);
+    if (filters?.tipoCq) params.append('tipoCq', filters.tipoCq);
+    const response = await api.get(`/quality/records?${params}`);
+    return response.data;
+  },
+  getRecordById: async (id: number) => {
+    const response = await api.get(`/quality/records/${id}`);
+    return response.data;
+  },
+  createRecord: async (data: {
+    numeroCartellino: string;
+    reparto?: string;
+    operatore: string;
+    tipoCq?: string;
+    paiaTotali: number;
+    codArticolo: string;
+    articolo: string;
+    linea: string;
+    note?: string;
+    haEccezioni?: boolean;
+    exceptions?: Array<{
+      cartellinoId: number;
+      taglia: string;
+      tipoDifetto: string;
+      noteOperatore?: string;
+      fotoPath?: string;
+    }>;
+  }) => {
+    const response = await api.post('/quality/records', data);
+    return response.data;
+  },
+  checkCartellino: async (numeroCartellino: string) => {
+    const response = await api.post('/quality/check-cartellino', { numeroCartellino });
+    return response.data;
+  },
+  checkCommessa: async (commessa: string) => {
+    const response = await api.post('/quality/check-commessa', { commessa });
+    return response.data;
+  },
+
+  // Operator Summary
+  getOperatorDailySummary: async (operatore: string, date: string) => {
+    const params = new URLSearchParams();
+    params.append('operatore', operatore);
+    params.append('date', date);
+    const response = await api.get(`/quality/operator-summary?${params}`);
+    return response.data;
+  },
+
+  // Utilities
+  getUniqueOperators: async () => {
+    const response = await api.get('/quality/unique-operators');
+    return response.data;
+  },
+  getDefectCategories: async () => {
+    const response = await api.get('/quality/defect-categories');
+    return response.data;
+  },
+  getOptions: async () => {
+    const response = await api.get('/quality/options');
+    return response.data;
+  },
+
+  // Reports
+  generateReport: async (data: {
+    dataInizio: string;
+    dataFine?: string;
+    formato: 'pdf' | 'excel';
+    reparto?: string;
+  }) => {
+    const response = await api.post('/quality/generate-report', data);
+    return response.data;
+  },
+};
+
 export default api;
