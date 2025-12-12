@@ -118,4 +118,29 @@ export class QualityApiController {
   ) {
     return this.qualityApiService.uploadPhoto(file, body);
   }
+
+  /**
+   * API per ottenere taglie per numerata
+   * GET /api/quality/taglie?nu=UF
+   */
+  @Get('taglie')
+  @Public()
+  async getTaglie(@Query('nu') nu: string) {
+    if (!nu) {
+      return {
+        status: 'error',
+        message: 'Parametro nu mancante',
+      };
+    }
+
+    const result = await this.qualityApiService.getTaglieByNu(nu);
+    return {
+      status: 'success',
+      message: 'Taglie recuperate con successo',
+      data: {
+        calzate: result.calzate,
+        taglie: result.taglie,
+      },
+    };
+  }
 }

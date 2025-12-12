@@ -1,8 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { Injectable, BadRequestException } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { writeFile, mkdir } from "fs/promises";
+import { join } from "path";
+import { existsSync } from "fs";
 
 @Injectable()
 export class QualityApiService {
@@ -21,12 +21,12 @@ export class QualityApiService {
         cognome: true,
         reparto: true,
       },
-      orderBy: { matricola: 'asc' },
+      orderBy: { matricola: "asc" },
     });
 
     return {
-      status: 'success',
-      message: 'Utenti recuperati con successo',
+      status: "success",
+      message: "Utenti recuperati con successo",
       data: users.map((u) => ({
         id: u.id,
         user: u.matricola,
@@ -57,8 +57,8 @@ export class QualityApiService {
 
     if (user) {
       return {
-        status: 'success',
-        message: 'Login effettuato con successo',
+        status: "success",
+        message: "Login effettuato con successo",
         data: {
           id: user.id,
           user: user.matricola,
@@ -68,8 +68,8 @@ export class QualityApiService {
       };
     } else {
       return {
-        status: 'error',
-        message: 'Credenziali non valide',
+        status: "error",
+        message: "Credenziali non valide",
       };
     }
   }
@@ -79,7 +79,7 @@ export class QualityApiService {
    */
   async checkCartellino(cartellino: string) {
     if (!cartellino) {
-      return { status: 'error', message: 'Parametro cartellino mancante' };
+      return { status: "error", message: "Parametro cartellino mancante" };
     }
 
     const cartel = parseInt(cartellino, 10);
@@ -90,16 +90,16 @@ export class QualityApiService {
 
     if (exists) {
       return {
-        status: 'success',
+        status: "success",
         exists: true,
-        message: 'Cartellino trovato',
+        message: "Cartellino trovato",
         data: { Cartel: exists.cartel },
       };
     } else {
       return {
-        status: 'success',
+        status: "success",
         exists: false,
-        message: 'Cartellino non trovato',
+        message: "Cartellino non trovato",
       };
     }
   }
@@ -109,7 +109,7 @@ export class QualityApiService {
    */
   async getCartellinoDetails(cartellino: string) {
     if (!cartellino) {
-      return { status: 'error', message: 'Parametro cartellino mancante' };
+      return { status: "error", message: "Parametro cartellino mancante" };
     }
 
     const cartel = parseInt(cartellino, 10);
@@ -119,55 +119,36 @@ export class QualityApiService {
 
     if (!informazione) {
       return {
-        status: 'error',
-        message: 'Informazioni cartellino non trovate',
+        status: "error",
+        message: "Informazioni cartellino non trovate",
       };
     }
 
-    // Ottieni informazioni sulla linea (se disponibile)
-    let descrizioneLinea = '';
-    if (informazione.ln) {
-      // Query diretta per linea
-      const lineaInfo = await this.prisma.$queryRaw<Array<{descrizione: string}>>`
-        SELECT descrizione FROM linee WHERE sigla = ${informazione.ln} LIMIT 1
-      `;
-      descrizioneLinea = lineaInfo[0]?.descrizione || '';
-    }
+    // L'app si aspetta questa struttura ESATTA
+    const cartellinoInfo = {
+      cartellino: informazione.cartel,
+      codice_articolo: informazione.articolo,
+      descrizione_articolo: informazione.descrizioneArticolo,
+      paia: informazione.tot,
+      cliente: informazione.ragioneSociale,
+      commessa: informazione.commessaCli,
+      nu: informazione.nu,
+    };
 
-    // Calcolo del nuovo testid
-    const maxTestid = await this.prisma.qualityRecord.findFirst({
-      orderBy: { id: 'desc' },
-      select: { id: true },
-    });
-    const newTestid = (maxTestid?.id || 0) + 1;
-
-    const now = new Date();
-    const data = now.toLocaleDateString('it-IT');
-    const orario = now.toLocaleTimeString('it-IT', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const lineaInfo = {
+      sigla: informazione.ln,
+    };
 
     return {
-      status: 'success',
-      message: 'Dettagli cartellino trovati',
+      status: "success",
       data: {
-        cartellino_info: {
-          cartellino: informazione.cartel,
-          commessa: informazione.commessaCli,
-          codice_articolo: informazione.articolo,
-          descrizione_articolo: informazione.descrizioneArticolo,
-          cliente: informazione.ragioneSociale,
-          paia: informazione.tot,
-        },
-        linea_info: {
-          sigla: informazione.ln,
-          descrizione: descrizioneLinea,
-        },
-        test_info: {
-          testid: newTestid,
-          data,
-          orario,
+        numero: cartellino,
+        cartellino_info: cartellinoInfo,
+        linea_info: lineaInfo,
+        numerata: informazione.nu,
+        details: {
+          cartellino_info: cartellinoInfo,
+          linea_info: lineaInfo,
         },
       },
     };
@@ -178,7 +159,7 @@ export class QualityApiService {
    */
   async checkCommessa(commessa: string) {
     if (!commessa) {
-      return { status: 'error', message: 'Parametro commessa mancante' };
+      return { status: "error", message: "Parametro commessa mancante" };
     }
 
     const result = await this.prisma.coreData.findFirst({
@@ -188,16 +169,16 @@ export class QualityApiService {
 
     if (result) {
       return {
-        status: 'success',
+        status: "success",
         exists: true,
-        message: 'Commessa trovata',
+        message: "Commessa trovata",
         data: { cartellino: result.cartel },
       };
     } else {
       return {
-        status: 'success',
+        status: "success",
         exists: false,
-        message: 'Commessa non trovata',
+        message: "Commessa non trovata",
       };
     }
   }
@@ -205,8 +186,10 @@ export class QualityApiService {
   /**
    * Ottieni opzioni per form
    */
+  
   async getOptions(cartellino?: string) {
     let calzateOptions: string[] = [];
+    let taglieData: any[] = [];
 
     // Se è stato fornito un cartellino, recupera le calzate specifiche
     if (cartellino) {
@@ -217,19 +200,9 @@ export class QualityApiService {
       });
 
       if (datiResult && datiResult.nu) {
-        const idNumerate = await this.prisma.numerata.findUnique({
-          where: { id: parseInt(datiResult.nu) },
-        });
-
-        if (idNumerate) {
-          for (let j = 1; j <= 20; j++) {
-            const field = `n${String(j).padStart(2, '0')}` as keyof typeof idNumerate;
-            const value = idNumerate[field];
-            if (value && typeof value === 'string' && value.trim()) {
-              calzateOptions.push(value);
-            }
-          }
-        }
+        const taglieResult = await this.getTaglieByNu(datiResult.nu);
+        calzateOptions = taglieResult.calzate;
+        taglieData = taglieResult.taglie;
       }
     }
 
@@ -237,28 +210,36 @@ export class QualityApiService {
     const repartiOptions = await this.prisma.qualityDepartment.findMany({
       where: { attivo: true },
       select: { nomeReparto: true },
-      orderBy: [{ ordine: 'asc' }, { nomeReparto: 'asc' }],
+      orderBy: [{ ordine: "asc" }, { nomeReparto: "asc" }],
     });
 
     // Recupera reparti HERMES
     const repartiHermesOptions = await this.prisma.qualityDepartment.findMany({
       where: { attivo: true },
       select: { id: true, nomeReparto: true },
-      orderBy: [{ ordine: 'asc' }, { nomeReparto: 'asc' }],
+      orderBy: [{ ordine: "asc" }, { nomeReparto: "asc" }],
     });
 
     // Recupera tipi di difetti HERMES
     const difettiOptions = await this.prisma.qualityDefectType.findMany({
       where: { attivo: true },
       select: { id: true, descrizione: true, categoria: true },
-      orderBy: [{ ordine: 'asc' }, { descrizione: 'asc' }],
+      orderBy: [{ ordine: "asc" }, { descrizione: "asc" }],
     });
 
+    // Converti taglie in formato P01, P02, etc. per compatibilità app
+    const taglieWithPFormat = taglieData.map((t) => ({
+      numero: t.numero,
+      nome: t.nome,
+      field: `P${String(t.numero).padStart(2, "0")}`,
+    }));
+
     return {
-      status: 'success',
-      message: 'Opzioni recuperate con successo',
+      status: "success",
+      message: "Opzioni recuperate con successo",
       data: {
         calzate: calzateOptions,
+        taglie: taglieWithPFormat,
         reparti: repartiOptions.map((r) => r.nomeReparto),
         reparti_hermes: repartiHermesOptions.map((r) => ({
           id: r.id,
@@ -279,16 +260,16 @@ export class QualityApiService {
   async saveHermesCq(data: any) {
     // Campi obbligatori
     const requiredFields = [
-      'numero_cartellino',
-      'reparto',
-      'operatore',
-      'tipo_cq',
-      'paia_totali',
-      'cod_articolo',
-      'articolo',
-      'linea',
-      'note',
-      'user',
+      "numero_cartellino",
+      "reparto",
+      "operatore",
+      "tipo_cq",
+      "paia_totali",
+      "cod_articolo",
+      "articolo",
+      "linea",
+      "note",
+      "user",
     ];
 
     for (const field of requiredFields) {
@@ -298,7 +279,9 @@ export class QualityApiService {
     }
 
     const hasExceptions =
-      data.eccezioni && Array.isArray(data.eccezioni) && data.eccezioni.length > 0;
+      data.eccezioni &&
+      Array.isArray(data.eccezioni) &&
+      data.eccezioni.length > 0;
 
     // Usa transazione Prisma
     const result = await this.prisma.$transaction(async (tx) => {
@@ -340,8 +323,8 @@ export class QualityApiService {
     });
 
     return {
-      status: 'success',
-      message: 'Record salvato con successo',
+      status: "success",
+      message: "Record salvato con successo",
       data: { record_id: result.id },
     };
   }
@@ -351,7 +334,7 @@ export class QualityApiService {
    */
   async getOperatorDailySummary(operatore: string, data?: string) {
     if (!operatore) {
-      throw new BadRequestException('Parametro operatore mancante');
+      throw new BadRequestException("Parametro operatore mancante");
     }
 
     const targetDate = data ? new Date(data) : new Date();
@@ -363,7 +346,7 @@ export class QualityApiService {
     });
 
     if (!operatorRecord) {
-      return { status: 'error', message: 'Operatore non trovato' };
+      return { status: "error", message: "Operatore non trovato" };
     }
 
     const fullName = `${operatorRecord.nome} ${operatorRecord.cognome}`;
@@ -391,7 +374,7 @@ export class QualityApiService {
       include: {
         exceptions: true,
       },
-      orderBy: { dataControllo: 'desc' },
+      orderBy: { dataControllo: "desc" },
     });
 
     // Conta eccezioni
@@ -408,10 +391,10 @@ export class QualityApiService {
     });
 
     return {
-      status: 'success',
-      message: 'Riepilogo giornaliero recuperato con successo',
+      status: "success",
+      message: "Riepilogo giornaliero recuperato con successo",
       data: {
-        data: targetDate.toLocaleDateString('it-IT'),
+        data: targetDate.toLocaleDateString("it-IT"),
         total_controls: totalControls,
         total_exceptions: totalExceptions,
         controls_list: controlsList.map((r) => ({
@@ -419,7 +402,7 @@ export class QualityApiService {
           numero_cartellino: r.numeroCartellino,
           articolo: r.articolo,
           reparto: r.reparto,
-          ora_controllo: r.dataControllo.toLocaleTimeString('it-IT'),
+          ora_controllo: r.dataControllo.toLocaleTimeString("it-IT"),
           tipo_cq: r.tipoCq,
           numero_eccezioni: r.exceptions.length,
         })),
@@ -432,7 +415,7 @@ export class QualityApiService {
    */
   async getRecordDetails(recordId: number) {
     if (!recordId) {
-      return { status: 'error', message: 'Parametro record_id mancante' };
+      return { status: "error", message: "Parametro record_id mancante" };
     }
 
     const record = await this.prisma.qualityRecord.findUnique({
@@ -443,12 +426,12 @@ export class QualityApiService {
     });
 
     if (!record) {
-      return { status: 'error', message: 'Record non trovato' };
+      return { status: "error", message: "Record non trovato" };
     }
 
     return {
-      status: 'success',
-      message: 'Dettagli record recuperati',
+      status: "success",
+      message: "Dettagli record recuperati",
       data: {
         record,
         exceptions: record.exceptions,
@@ -461,39 +444,77 @@ export class QualityApiService {
    */
   async uploadPhoto(
     file: Express.Multer.File,
-    body: { cartellino_id: string; tipo_difetto: string; calzata?: string; note?: string },
+    body: {
+      cartellino_id: string;
+      tipo_difetto: string;
+      calzata?: string;
+      note?: string;
+    }
   ) {
     if (!file) {
-      return { status: 'error', message: 'Nessun file ricevuto' };
+      return { status: "error", message: "Nessun file ricevuto" };
     }
 
     if (!body.cartellino_id || !body.tipo_difetto) {
       return {
-        status: 'error',
-        message: 'Parametri cartellino_id e tipo_difetto sono obbligatori',
+        status: "error",
+        message: "Parametri cartellino_id e tipo_difetto sono obbligatori",
       };
     }
 
-    const uploadDir = join(process.cwd(), 'storage', 'quality', 'cq_uploads');
+    const uploadDir = join(process.cwd(), "storage", "quality", "cq_uploads");
 
     // Crea directory se non esiste
     if (!existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true });
     }
 
-    const fileExtension = file.originalname.split('.').pop() || 'jpg';
+    const fileExtension = file.originalname.split(".").pop() || "jpg";
     const filename = `eccezione_${body.cartellino_id}_${Date.now()}.${fileExtension}`;
     const filePath = join(uploadDir, filename);
 
     await writeFile(filePath, file.buffer);
 
     return {
-      status: 'success',
-      message: 'Foto caricata con successo',
+      status: "success",
+      message: "Foto caricata con successo",
       data: {
         filename,
         url: `/storage/quality/cq_uploads/${filename}`,
       },
+    };
+  }
+
+  /**
+   * Ottieni taglie per numerata (helper method)
+   */
+  async getTaglieByNu(nu: string) {
+    const calzateOptions: string[] = [];
+    const taglieData: any[] = [];
+
+    // Cerca nella tabella numerata usando il campo id_numerata
+    const idNumerate = await this.prisma.numerata.findFirst({
+      where: { idNumerata: nu },
+    });
+
+    if (idNumerate) {
+      for (let j = 1; j <= 20; j++) {
+        const field = `n${String(j).padStart(2, "0")}` as keyof typeof idNumerate;
+        const value = idNumerate[field];
+        if (value && typeof value === "string" && value.trim()) {
+          calzateOptions.push(value);
+          taglieData.push({
+            numero: j,
+            nome: value,
+            field: field,
+          });
+        }
+      }
+    }
+
+    return {
+      calzate: calzateOptions,
+      taglie: taglieData,
     };
   }
 }

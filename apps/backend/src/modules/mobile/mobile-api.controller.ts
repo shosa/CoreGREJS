@@ -9,15 +9,31 @@ export class MobileApiController {
   /**
    * Login unificato per tutte le app mobile
    * POST /api/mobile/login
+   * Supporta due azioni:
+   * - action: 'get_users' - Lista operatori attivi
+   * - action: 'login' - Login con credenziali
    */
   @Post('login')
   @Public()
   async login(
-    @Body() body: { action: string; username: string; password: string; app_type?: string },
+    @Body() body: { action: string; username?: string; password?: string; app_type?: string },
     @Headers('x-app-type') appTypeHeader?: string,
   ) {
     const appType = body.app_type || appTypeHeader || 'quality';
-    return this.mobileApiService.login(body.username, body.password, appType);
+    const action = body.action || '';
+
+    if (action === 'get_users') {
+      // Lista operatori attivi
+      return this.mobileApiService.getUsers(appType);
+    } else if (action === 'login' && body.username && body.password) {
+      // Login con credenziali
+      return this.mobileApiService.login(body.username, body.password);
+    } else {
+      return {
+        status: 'error',
+        message: 'Parametri mancanti o non validi',
+      };
+    }
   }
 
   /**
@@ -42,11 +58,16 @@ export class MobileApiController {
     @Query('data') data: string,
     @Headers('x-app-type') appType?: string,
   ) {
-    return this.mobileApiService.getDailySummary(
+    const result = await this.mobileApiService.getDailySummary(
       parseInt(id),
       data,
       appType || 'quality',
     );
+    // L'app si aspetta { status: 'success', data: {...} }
+    return {
+      status: 'success',
+      data: result,
+    };
   }
 
   /**
@@ -59,7 +80,12 @@ export class MobileApiController {
     @Query('type') type: string = 'all',
     @Query('nu') nu?: string,
   ) {
-    return this.mobileApiService.getSystemData(type, nu);
+    const data = await this.mobileApiService.getSystemData(type, nu);
+    // L'app si aspetta { status: 'success', data: {...} }
+    return {
+      status: 'success',
+      data,
+    };
   }
 
   /**

@@ -7,9 +7,37 @@ export class MobileApiService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Login unificato per tutte le app mobile
+   * Lista operatori attivi (action: get_users)
    */
-  async login(username: string, password: string, appType: string) {
+  async getUsers(appType: string) {
+    const users = await this.prisma.inworkOperator.findMany({
+      where: { attivo: true },
+      select: {
+        id: true,
+        matricola: true,
+        nome: true,
+        cognome: true,
+        reparto: true,
+      },
+      orderBy: { matricola: 'asc' },
+    });
+
+    // L'app si aspetta data come ARRAY DIRETTO di operatori
+    return {
+      status: 'success',
+      data: users.map((u) => ({
+        id: u.id,
+        user: u.matricola,
+        full_name: `${u.nome} ${u.cognome}`,
+        reparto: u.reparto,
+      })),
+    };
+  }
+
+  /**
+   * Login unificato per tutte le app mobile (action: login)
+   */
+  async login(username: string, password: string) {
     // Trova operatore per username (matricola o cognome)
     const operator = await this.prisma.inworkOperator.findFirst({
       where: {
@@ -22,30 +50,35 @@ export class MobileApiService {
     });
 
     if (!operator) {
-      throw new UnauthorizedException('Credenziali non valide');
+      return {
+        status: 'error',
+        message: 'Credenziali non valide',
+      };
     }
 
-    // Verifica PIN (per ora confronto semplice, poi vedremo se serve bcrypt)
-    if (operator.pin.toString() !== password) {
-      throw new UnauthorizedException('Credenziali non valide');
+    // Verifica PIN
+    if (operator.pin !== password) {
+      return {
+        status: 'error',
+        message: 'Credenziali non valide',
+      };
     }
 
-    // Costruisci risposta con dati app-specific
-    const response = {
+    // Recupera moduli abilitati per l'operatore
+    const enabledModules = await this.getOperatorEnabledModules(operator.id);
+
+    // L'app salva questi dati in localStorage e usa: user.id, user.user, user.full_name
+    // I moduli abilitati determinano quali funzionalità l'operatore può usare
+    return {
       status: 'success',
-      message: 'Login effettuato con successo',
       data: {
         id: operator.id,
         user: operator.matricola,
         full_name: `${operator.nome} ${operator.cognome}`,
         reparto: operator.reparto,
-        app_type: appType,
-        permissions: this.getPermissions(appType),
-        features: this.getFeatures(appType),
+        enabled_modules: enabledModules, // ['quality', 'repairs', etc.]
       },
     };
-
-    return response;
   }
 
   /**
@@ -75,23 +108,34 @@ export class MobileApiService {
    * Riepilogo giornaliero per app specifica
    */
   async getDailySummary(id: number, data: string, appType: string) {
+    console.log(`[getDailySummary] Parametri ricevuti: id=${id}, data="${data}", appType="${appType}"`);
+
     const operator = await this.prisma.inworkOperator.findUnique({
       where: { id },
     });
 
     if (!operator) {
+      console.log(`[getDailySummary] Operatore ${id} non trovato`);
       throw new NotFoundException('Operatore non trovato');
     }
 
-    // Parse data (formato: YYYY-MM-DD)
-    const targetDate = new Date(data);
-    const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
+    const fullName = `${operator.nome} ${operator.cognome}`;
+    console.log(`[getDailySummary] Operatore trovato: "${fullName}"`);
+
+    // Parse data (formato: YYYY-MM-DD dall'app)
+    // Crea date separate per evitare mutazioni dell'oggetto
+    const startOfDay = new Date(data);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(data);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    console.log(`[getDailySummary] Range date: ${startOfDay.toISOString()} -> ${endOfDay.toISOString()}`);
 
     if (appType === 'quality') {
       const records = await this.prisma.qualityRecord.findMany({
         where: {
-          operatore: `${operator.nome} ${operator.cognome}`,
+          operatore: fullName,
           dataControllo: {
             gte: startOfDay,
             lte: endOfDay,
@@ -100,15 +144,40 @@ export class MobileApiService {
         include: {
           exceptions: true,
         },
+        orderBy: { dataControllo: 'desc' },
       });
 
-      return {
-        data,
-        totale_controlli: records.length,
-        controlli_ok: records.filter((r) => !r.haEccezioni).length,
-        controlli_ko: records.filter((r) => r.haEccezioni).length,
-        records,
+      console.log(`[getDailySummary] Records trovati: ${records.length}`);
+      if (records.length > 0) {
+        console.log(`[getDailySummary] Primo record:`, {
+          id: records[0].id,
+          operatore: records[0].operatore,
+          dataControllo: records[0].dataControllo,
+          numeroCartellino: records[0].numeroCartellino,
+        });
+      }
+
+      // L'app si aspetta: { data, summary: { totale, controlli: [...] } }
+      const controlli = records.map((r) => ({
+        id: r.id,
+        numero_cartellino: r.numeroCartellino,
+        articolo: r.articolo,
+        reparto: r.reparto,
+        ora_controllo: r.dataControllo.toLocaleTimeString('it-IT'),
+        tipo_cq: r.tipoCq,
+        numero_eccezioni: r.exceptions.length,
+      }));
+
+      const result = {
+        data: new Date(data).toLocaleDateString('it-IT'),
+        summary: {
+          totale: records.length,
+          controlli,
+        },
       };
+
+      console.log(`[getDailySummary] Risposta:`, JSON.stringify(result, null, 2));
+      return result;
     }
 
     return { data, message: 'App type non supportato' };
@@ -161,9 +230,10 @@ export class MobileApiService {
         orderBy: { ordine: 'asc' },
       });
 
+      // L'app si aspetta "nome" non "nome_reparto"
       data.reparti_hermes = reparti.map((r) => ({
         id: r.id,
-        nome_reparto: r.nomeReparto,
+        nome: r.nomeReparto,
         ordine: r.ordine,
       }));
 
@@ -178,7 +248,7 @@ export class MobileApiService {
     return data;
   }
 
-  /**
+ /**
    * Verifica cartellino/commessa
    */
   async checkData(type: string, value: string) {
@@ -190,45 +260,80 @@ export class MobileApiService {
 
       if (!coreData) {
         return {
-          status: 'error',
+          status: 'success',
+          exists: false,
           message: 'Cartellino non trovato',
         };
       }
 
       return {
         status: 'success',
+        exists: true,
+        message: 'Cartellino trovato',
         data: {
           cartellino: coreData.cartel,
-          articolo: coreData.articolo,
+          codice_articolo: coreData.articolo,
           descrizione_articolo: coreData.descrizioneArticolo,
           commessa: coreData.commessaCli,
           cliente: coreData.ragioneSociale,
           linea: coreData.ln,
           paia: coreData.tot,
+          nu: coreData.nu,
+        },
+      };
+    } else if (type === 'commessa') {
+      const coreData = await this.prisma.coreData.findFirst({
+        where: { commessaCli: value },
+      });
+
+      if (!coreData) {
+        return {
+          status: 'success',
+          exists: false,
+          message: 'Commessa non trovata',
+        };
+      }
+
+      return {
+        status: 'success',
+        exists: true,
+        message: 'Commessa trovata',
+        data: {
+          cartellino: coreData.cartel,
+          codice_articolo: coreData.articolo,
+          descrizione_articolo: coreData.descrizioneArticolo,
+          cliente: coreData.ragioneSociale,
+          paia: coreData.tot,
+          linea: coreData.ln,
+          nu: coreData.nu,
         },
       };
     }
 
     return {
       status: 'error',
-      message: 'Tipo verifica non supportato',
+      message: 'Tipo non valido. Usa "cartellino" o "commessa"',
     };
   }
 
   // Helper methods
 
-  private getPermissions(appType: string): string[] {
-    if (appType === 'quality') {
-      return ['cq_view', 'cq_create', 'cq_edit'];
-    }
-    return [];
-  }
+  /**
+   * Recupera i moduli abilitati per un operatore
+   * Moduli possibili: 'quality', 'repairs', etc.
+   */
+  private async getOperatorEnabledModules(operatorId: number): Promise<string[]> {
+    const permissions = await this.prisma.inworkModulePermission.findMany({
+      where: {
+        operatorId,
+        enabled: true,
+      },
+      select: {
+        module: true,
+      },
+    });
 
-  private getFeatures(appType: string): string[] {
-    if (appType === 'quality') {
-      return ['hermes_cq', 'photo_upload', 'barcode_scan', 'reports'];
-    }
-    return [];
+    return permissions.map((p) => p.module);
   }
 
   private async getStatsByAppType(operatorId: number, appType: string) {
