@@ -132,7 +132,7 @@ export default function ReportsPage() {
     try {
       setGenerating(true);
       const result = await qualityApi.generatePdfReport(filters);
-      showSuccess(result.message || "Report PDF in generazione");
+      showSuccess(result.message || "Il lavoro è stato messo in coda");
     } catch (error) {
       showError("Errore nella generazione del report");
     } finally {
@@ -243,7 +243,7 @@ export default function ReportsPage() {
 
       <Breadcrumb
         items={[
-          { label: "Dashboard", href: "/" },
+          { label: "Dashboard", href: "/", icon: "fa-home" },
           { label: "Controllo Qualità", href: "/quality" },
           { label: "Reportistica" },
         ]}

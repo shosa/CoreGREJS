@@ -379,6 +379,12 @@ export const trackingApi = {
     return response.data;
   },
 
+  // Generate PDF report for created links
+  generateLinksPdfReport: async (data: { typeId: number; lots: string[]; cartelli: number[] }) => {
+    const response = await api.post('/tracking/generate-links-pdf', data);
+    return response.data;
+  },
+
   // ==================== TREE DATA (TreeView) ====================
   getTreeData: async (search?: string, page = 1, limit = 25) => {
     const params = new URLSearchParams();
@@ -1326,6 +1332,38 @@ export const qualityApi = {
     tipoCq?: string;
   }) => {
     const response = await api.post('/quality/reports/generate-pdf', filters || {});
+    return response.data;
+  },
+};
+
+// ==================== INWORK API ====================
+export const inworkApi = {
+  getAllOperators: async () => {
+    const response = await api.get('/inwork/operators');
+    return response.data;
+  },
+  getOperatorById: async (id: number) => {
+    const response = await api.get(`/inwork/operators/${id}`);
+    return response.data;
+  },
+  createOperator: async (data: any) => {
+    const response = await api.post('/inwork/operators', data);
+    return response.data;
+  },
+  updateOperator: async (id: number, data: any) => {
+    const response = await api.put(`/inwork/operators/${id}`, data);
+    return response.data;
+  },
+  deleteOperator: async (id: number) => {
+    const response = await api.delete(`/inwork/operators/${id}`);
+    return response.data;
+  },
+  toggleOperatorStatus: async (id: number) => {
+    const response = await api.post(`/inwork/operators/${id}/toggle-status`);
+    return response.data;
+  },
+  getAvailableModules: async () => {
+    const response = await api.get('/inwork/modules');
     return response.data;
   },
 };

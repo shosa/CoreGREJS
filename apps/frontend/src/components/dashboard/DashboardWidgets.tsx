@@ -197,20 +197,67 @@ export function ProduzioneWidget({ stats }: { stats: DashboardStats | null }) {
 
 // Quality Widget
 export function QualityWidget({ stats }: { stats: DashboardStats | null }) {
+  const depts = stats?.qualityByDept || {};
+  const total = stats?.qualityRecordsToday || 0;
+  const withDefects = stats?.qualityRecordsWithDefects || 0;
+
   return (
-    <BaseStatWidget
-      stats={stats}
-      icon="check-circle"
-      title="Quality"
-      value={stats?.qualityRecordsToday || 0}
-      label="Controlli QC oggi"
-      href="/quality"
-      gradientFrom="from-green-50"
-      gradientTo="to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20"
-      iconFrom="from-green-500"
-      iconTo="to-emerald-600"
-      textColor="text-green-600"
-    />
+    <motion.div
+      className="h-full w-full group relative overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 dark:border-gray-700 p-3 sm:p-4 lg:p-6 shadow-lg backdrop-blur-sm cursor-pointer flex flex-col"
+      onClick={() => (window.location.href = '/quality')}
+    >
+      <div className="absolute top-0 right-0 w-32 h-32 text-green-600/10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+      <div className="relative flex-1 flex flex-col min-h-0">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-2 sm:mb-4 flex-shrink-0">
+          <div className="flex h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 shadow-lg group-hover:scale-110 transition-transform duration-300">
+            <i className="fas fa-check-circle text-white text-sm sm:text-lg lg:text-xl"></i>
+          </div>
+          <span className="text-[10px] sm:text-xs font-semibold text-green-600 dark:text-green-600 uppercase tracking-wider">Quality</span>
+        </div>
+
+        {/* Total */}
+        <div className="flex-shrink-0 mb-2 sm:mb-3">
+          <h3 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1 truncate">
+            {total}
+          </h3>
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
+            Controlli oggi
+          </p>
+        </div>
+
+        {/* With defects */}
+        {withDefects > 0 && (
+          <div className="flex-shrink-0 mb-2">
+            <p className="text-xs sm:text-sm text-red-600 dark:text-red-400">
+              <i className="fas fa-exclamation-triangle mr-1"></i>
+              {withDefects} con difetti
+            </p>
+          </div>
+        )}
+
+        {/* Departments breakdown */}
+        <div className="flex-1 overflow-y-auto min-h-0 space-y-1 sm:space-y-2">
+          {Object.keys(depts).length > 0 ? (
+            Object.entries(depts).map(([dept, count]) => (
+              <div key={dept} className="flex items-center justify-between text-xs sm:text-sm">
+                <span className="text-gray-700 dark:text-gray-300 truncate mr-2">{dept}</span>
+                <span className="font-semibold text-green-700 dark:text-green-500 flex-shrink-0">
+                  {count}
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="text-xs text-gray-500 dark:text-gray-400 italic">Nessun controllo oggi</p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end pt-2 sm:pt-3 border-t border-green-200 dark:border-green-800 flex-shrink-0 mt-auto">
+          <i className="fas fa-arrow-right text-green-600 group-hover:translate-x-1 transition-transform text-xs sm:text-sm"></i>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 

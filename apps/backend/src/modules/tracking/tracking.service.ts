@@ -663,4 +663,30 @@ export class TrackingService {
       allTypeNames
     };
   }
+
+  async getLinksReportData(typeId: number, cartelliIds: number[]) {
+    // Get type information
+    const type = await this.prisma.trackType.findUnique({
+      where: { id: typeId },
+    });
+
+    // Get cartelli details from coreData
+    const cartelliDetails = await this.prisma.coreData.findMany({
+      where: {
+        cartel: { in: cartelliIds },
+      },
+      select: {
+        cartel: true,
+        commessaCli: true,
+        articolo: true,
+        descrizioneArticolo: true,
+        ragioneSociale: true,
+      },
+    });
+
+    return {
+      type,
+      cartelliDetails,
+    };
+  }
 }

@@ -79,6 +79,32 @@ export class TrackingController {
     return this.trackingService.saveLinks(body);
   }
 
+  @Post('generate-links-pdf')
+  @LogActivity({ module: 'tracking', action: 'generate_links_pdf', entity: 'Job', description: 'Generazione PDF report collegamenti' })
+  async generateLinksPdf(
+    @Body() body: {
+      typeId: number;
+      lots: string[];
+      cartelli: number[];
+    },
+    @Req() req: any,
+  ) {
+    const userId = req.user?.userId || req.user?.id;
+    if (!userId) throw new Error('Utente non autenticato');
+
+    const job = await this.jobsQueueService.enqueue(
+      'track.links-report-pdf',
+      body as any,
+      userId,
+    );
+
+    return {
+      success: true,
+      jobId: job.id,
+      message: 'Report collegamenti in generazione...',
+    };
+  }
+
   // ==================== TREEVIEW ====================
   @Get('tree-data')
   async getTreeData(

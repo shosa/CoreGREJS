@@ -7,6 +7,7 @@ import { trackingApi } from '@/lib/api';
 import { showSuccess, showError } from '@/store/notifications';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
+import Footer from '@/components/layout/Footer';
 
 interface TrackType {
   id: number;
@@ -95,7 +96,22 @@ export default function ProcessLinksPage() {
         lots,
         cartelli,
       });
+
       showSuccess(`${result.created} collegamenti creati con successo`);
+
+      // Generate PDF report via job
+      try {
+        const pdfJob = await trackingApi.generateLinksPdfReport({
+          typeId: selectedTypeId,
+          lots,
+          cartelli,
+        });
+        showSuccess('Il lavoro è stato messo in coda');
+      } catch (pdfError) {
+        console.error('PDF generation error:', pdfError);
+        // Non blocchiamo l'operazione se il PDF fallisce
+      }
+
       sessionStorage.removeItem('selectedCartelli');
       router.push('/tracking/tree-view');
     } catch (error) {
@@ -251,26 +267,41 @@ export default function ProcessLinksPage() {
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-4 justify-end">
-        <button
-          onClick={handleCancel}
-          className="px-6 py-3 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-        >
-          Annulla
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={saving || !selectedTypeId || !lotsText.trim()}
-          className="px-8 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {saving ? (
-            <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</>
-          ) : (
-            <><i className="fas fa-save mr-2"></i>Salva Collegamenti</>
-          )}
-        </button>
-      </div>
+      {/* Footer with Action Buttons */}
+      <Footer>
+        <div className="flex items-center justify-between gap-4">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            <i className="fas fa-info-circle mr-2"></i>
+            {cartelli.length} cartellini • {lotsText.split('\n').filter(l => l.trim()).length} lotti
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleCancel}
+              className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
+            >
+              <i className="fas fa-times mr-2"></i>
+              Annulla
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || !selectedTypeId || !lotsText.trim()}
+              className="px-8 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            >
+              {saving ? (
+                <>
+                  <i className="fas fa-spinner fa-spin mr-2"></i>
+                  Salvataggio...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-save mr-2"></i>
+                  Salva e Genera Report
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </Footer>
     </motion.div>
   );
 }

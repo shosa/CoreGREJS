@@ -50,12 +50,18 @@ const handler: JobHandler = async (payload, helpers) => {
         doc.font('Helvetica').fontSize(9).fillColor('#333333');
 
         for (let r = 0; r < maxRows; r++) {
+          const rowY = doc.y;
+          let maxHeight = 12; // minimum height
+
           typeNames.forEach((typeName, idx) => {
             const lots = (types as Record<string, string[]>)[typeName] || [];
             const lotValue = lots[r] || '';
-            doc.text(lotValue, startX + colWidth * idx, doc.y, { width: colWidth, align: 'center' });
+            const cellHeight = doc.heightOfString(lotValue, { width: colWidth, align: 'center' });
+            maxHeight = Math.max(maxHeight, cellHeight);
+            doc.text(lotValue, startX + colWidth * idx, rowY, { width: colWidth, align: 'center' });
           });
-          doc.y += 12;
+
+          doc.y = rowY + maxHeight + 2;
         }
 
         doc.moveDown(0.5);

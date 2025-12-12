@@ -389,7 +389,7 @@ export class QualityController {
     return {
       success: true,
       jobId: job.id,
-      message: 'Report in generazione. Controlla lo stato nella sezione Job.',
+      message: 'Il lavoro è stato messo in coda.',
     };
   }
 }

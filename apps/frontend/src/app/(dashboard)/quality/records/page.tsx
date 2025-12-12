@@ -141,7 +141,7 @@ export default function RecordsPage() {
 
       <Breadcrumb
         items={[
-          { label: "Dashboard", href: "/" },
+          { label: "Dashboard", href: "/", icon: "fa-home" },
           { label: "Controllo Qualità", href: "/quality" },
           { label: "Consulto Record" },
         ]}

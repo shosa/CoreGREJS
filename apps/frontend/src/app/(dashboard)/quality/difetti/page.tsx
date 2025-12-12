@@ -141,7 +141,7 @@ export default function DifettiPage() {
 
       <Breadcrumb
         items={[
-          { label: "Dashboard", href: "/" },
+          { label: "Dashboard", href: "/", icon: "fa-home" },
           { label: "Controllo Qualità", href: "/quality" },
           { label: "Tipi Difetti" },
         ]}

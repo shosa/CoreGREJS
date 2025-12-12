@@ -67,6 +67,8 @@ export class WidgetsService {
       exportOggi,
       exportSettimana,
       exportMese,
+      qualityRecordsWithDefects,
+      qualityRecordsByDept,
     ] = await Promise.all([
       this.prisma.riparazione.count({ where: { completa: false } }),
       this.prisma.qualityRecord.count({
@@ -97,12 +99,36 @@ export class WidgetsService {
           stato: { not: 'bozza' },
         },
       }),
+      this.prisma.qualityRecord.count({
+        where: {
+          dataControllo: { gte: startOfDay },
+          haEccezioni: true,
+        },
+      }),
+      this.prisma.qualityRecord.findMany({
+        where: {
+          dataControllo: { gte: startOfDay },
+        },
+        select: {
+          reparto: true,
+        },
+      }),
     ]);
+
+    // Count quality records by department
+    const qualityByDept: Record<string, number> = {};
+    qualityRecordsByDept.forEach(r => {
+      if (r.reparto) {
+        qualityByDept[r.reparto] = (qualityByDept[r.reparto] || 0) + 1;
+      }
+    });
 
     return {
       riparazioniAperte,
       riparazioniMie: 0,
       qualityRecordsToday,
+      qualityRecordsWithDefects,
+      qualityByDept,
       ddtBozze,
       scmLanciAttivi,
       produzioneOggi: produzioneOggi.total,

@@ -247,11 +247,11 @@ async function generateQualityReportPdf(
         doc.rect(50, tableTop - 5, 495, 18).fill();
 
         // Header text
-        doc.fillColor('#000').text('Reparto', 55, tableTop);
-        doc.text('Totale', 255, tableTop);
-        doc.text('OK', 325, tableTop);
-        doc.text('Eccezioni', 385, tableTop);
-        doc.text('% Successo', 475, tableTop);
+        doc.fillColor('#000').text('Reparto', 55, tableTop, { width: 185, ellipsis: true });
+        doc.text('Totale', 255, tableTop, { width: 55, ellipsis: true });
+        doc.text('OK', 325, tableTop, { width: 45, ellipsis: true });
+        doc.text('Eccezioni', 385, tableTop, { width: 75, ellipsis: true });
+        doc.text('% Successo', 475, tableTop, { width: 65, ellipsis: true });
 
         // Vertical lines for column separation
         doc.strokeColor('#CCCCCC').lineWidth(0.5);
@@ -276,11 +276,11 @@ async function generateQualityReportPdf(
             }
 
             doc.fillColor('#000');
-            doc.text(dept.substring(0, 30), 55, y);
-            doc.text(stats.total.toString(), 255, y);
-            doc.text(stats.ok.toString(), 325, y);
-            doc.text(stats.exceptions.toString(), 385, y);
-            doc.text(`${rate}%`, 475, y);
+            doc.text(dept.substring(0, 30), 55, y, { width: 185, ellipsis: true });
+            doc.text(stats.total.toString(), 255, y, { width: 55, ellipsis: true });
+            doc.text(stats.ok.toString(), 325, y, { width: 45, ellipsis: true });
+            doc.text(stats.exceptions.toString(), 385, y, { width: 75, ellipsis: true });
+            doc.text(`${rate}%`, 475, y, { width: 65, ellipsis: true });
 
             // Vertical lines for column separation
             doc.strokeColor('#CCCCCC').lineWidth(0.5);
@@ -316,11 +316,11 @@ async function generateQualityReportPdf(
         doc.rect(50, tableTop - 5, 495, 18).fill();
 
         // Header text
-        doc.fillColor('#000').text('Operatore', 55, tableTop);
-        doc.text('Totale', 255, tableTop);
-        doc.text('OK', 325, tableTop);
-        doc.text('Eccezioni', 385, tableTop);
-        doc.text('% Successo', 475, tableTop);
+        doc.fillColor('#000').text('Operatore', 55, tableTop, { width: 185, ellipsis: true });
+        doc.text('Totale', 255, tableTop, { width: 55, ellipsis: true });
+        doc.text('OK', 325, tableTop, { width: 45, ellipsis: true });
+        doc.text('Eccezioni', 385, tableTop, { width: 75, ellipsis: true });
+        doc.text('% Successo', 475, tableTop, { width: 65, ellipsis: true });
 
         // Vertical lines for column separation
         doc.strokeColor('#CCCCCC').lineWidth(0.5);
@@ -345,11 +345,11 @@ async function generateQualityReportPdf(
             }
 
             doc.fillColor('#000');
-            doc.text(op.substring(0, 30), 55, y);
-            doc.text(stats.total.toString(), 255, y);
-            doc.text(stats.ok.toString(), 325, y);
-            doc.text(stats.exceptions.toString(), 385, y);
-            doc.text(`${rate}%`, 475, y);
+            doc.text(op.substring(0, 30), 55, y, { width: 185, ellipsis: true });
+            doc.text(stats.total.toString(), 255, y, { width: 55, ellipsis: true });
+            doc.text(stats.ok.toString(), 325, y, { width: 45, ellipsis: true });
+            doc.text(stats.exceptions.toString(), 385, y, { width: 75, ellipsis: true });
+            doc.text(`${rate}%`, 475, y, { width: 65, ellipsis: true });
 
             // Vertical lines for column separation
             doc.strokeColor('#CCCCCC').lineWidth(0.5);
@@ -385,8 +385,8 @@ async function generateQualityReportPdf(
         doc.rect(50, tableTop - 5, 495, 18).fill();
 
         // Header text
-        doc.fillColor('#000').text('Tipo Difetto', 55, tableTop);
-        doc.text('Occorrenze', 405, tableTop);
+        doc.fillColor('#000').text('Tipo Difetto', 55, tableTop, { width: 335, ellipsis: true });
+        doc.text('Occorrenze', 405, tableTop, { width: 135, ellipsis: true });
 
         // Vertical line for column separation
         doc.strokeColor('#CCCCCC').lineWidth(0.5);
@@ -405,8 +405,8 @@ async function generateQualityReportPdf(
             }
 
             doc.fillColor('#000');
-            doc.text(type.substring(0, 50), 55, y);
-            doc.text(count.toString(), 405, y);
+            doc.text(type.substring(0, 50), 55, y, { width: 335, ellipsis: true });
+            doc.text(count.toString(), 405, y, { width: 135, ellipsis: true });
 
             // Vertical line for column separation
             doc.strokeColor('#CCCCCC').lineWidth(0.5);

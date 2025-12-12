@@ -28,6 +28,8 @@ interface DashboardStats {
   riparazioniAperte: number;
   riparazioniMie: number;
   qualityRecordsToday: number;
+  qualityRecordsWithDefects?: number;
+  qualityByDept?: Record<string, number>;
   ddtBozze: number;
   scmLanciAttivi: number;
   produzioneOggi: number;
@@ -308,7 +310,7 @@ export default function DashboardPage() {
         )}
 
         {/* Quality */}
-        {isWidgetVisible('quality', 'quality', 'quality') && (
+        {isWidgetVisible('quality', 'qualita', 'qualita') && (
           <div key="quality" className={isEditMode ? 'drag-handle cursor-move' : ''}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
