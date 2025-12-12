@@ -114,17 +114,17 @@ export default function RepartiPage() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Gestione Reparti"
+        description="Configura i reparti per il controllo qualità"
+      />
+
       <Breadcrumb
         items={[
           { label: "Dashboard", href: "/" },
           { label: "Controllo Qualità", href: "/quality" },
           { label: "Reparti" },
         ]}
-      />
-
-      <PageHeader
-        title="Gestione Reparti"
-        description="Configura i reparti per il controllo qualità"
       />
 
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
@@ -198,18 +198,22 @@ export default function RepartiPage() {
                       {new Date(dept.dataCreazione).toLocaleDateString("it-IT")}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleOpenModal(dept)}
-                        className="mr-3 text-primary hover:text-primary/80"
-                      >
-                        Modifica
-                      </button>
-                      <button
-                        onClick={() => handleDelete(dept.id)}
-                        className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                      >
-                        Elimina
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleOpenModal(dept)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 transition-colors"
+                          title="Modifica reparto"
+                        >
+                          <i className="fas fa-edit text-sm"></i>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(dept.id)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 transition-colors"
+                          title="Elimina reparto"
+                        >
+                          <i className="fas fa-trash text-sm"></i>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

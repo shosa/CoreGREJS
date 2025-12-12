@@ -1302,13 +1302,30 @@ export const qualityApi = {
   },
 
   // Reports
-  generateReport: async (data: {
-    dataInizio: string;
+  getReportStatistics: async (filters?: {
+    dataInizio?: string;
     dataFine?: string;
-    formato: 'pdf' | 'excel';
     reparto?: string;
+    operatore?: string;
+    tipoCq?: string;
   }) => {
-    const response = await api.post('/quality/generate-report', data);
+    const params = new URLSearchParams();
+    if (filters?.dataInizio) params.append('dataInizio', filters.dataInizio);
+    if (filters?.dataFine) params.append('dataFine', filters.dataFine);
+    if (filters?.reparto) params.append('reparto', filters.reparto);
+    if (filters?.operatore) params.append('operatore', filters.operatore);
+    if (filters?.tipoCq) params.append('tipoCq', filters.tipoCq);
+    const response = await api.get(`/quality/reports/statistics?${params}`);
+    return response.data;
+  },
+  generatePdfReport: async (filters?: {
+    dataInizio?: string;
+    dataFine?: string;
+    reparto?: string;
+    operatore?: string;
+    tipoCq?: string;
+  }) => {
+    const response = await api.post('/quality/reports/generate-pdf', filters || {});
     return response.data;
   },
 };

@@ -108,19 +108,13 @@ export class MobileApiService {
    * Riepilogo giornaliero per app specifica
    */
   async getDailySummary(id: number, data: string, appType: string) {
-    console.log(`[getDailySummary] Parametri ricevuti: id=${id}, data="${data}", appType="${appType}"`);
-
     const operator = await this.prisma.inworkOperator.findUnique({
       where: { id },
     });
 
     if (!operator) {
-      console.log(`[getDailySummary] Operatore ${id} non trovato`);
       throw new NotFoundException('Operatore non trovato');
     }
-
-    const fullName = `${operator.nome} ${operator.cognome}`;
-    console.log(`[getDailySummary] Operatore trovato: "${fullName}"`);
 
     // Parse data (formato: YYYY-MM-DD dall'app)
     // Crea date separate per evitare mutazioni dell'oggetto
@@ -130,12 +124,11 @@ export class MobileApiService {
     const endOfDay = new Date(data);
     endOfDay.setHours(23, 59, 59, 999);
 
-    console.log(`[getDailySummary] Range date: ${startOfDay.toISOString()} -> ${endOfDay.toISOString()}`);
-
     if (appType === 'quality') {
+      // Nella tabella cq_records il campo operatore contiene la matricola, non il nome completo
       const records = await this.prisma.qualityRecord.findMany({
         where: {
-          operatore: fullName,
+          operatore: operator.matricola,
           dataControllo: {
             gte: startOfDay,
             lte: endOfDay,
@@ -146,16 +139,6 @@ export class MobileApiService {
         },
         orderBy: { dataControllo: 'desc' },
       });
-
-      console.log(`[getDailySummary] Records trovati: ${records.length}`);
-      if (records.length > 0) {
-        console.log(`[getDailySummary] Primo record:`, {
-          id: records[0].id,
-          operatore: records[0].operatore,
-          dataControllo: records[0].dataControllo,
-          numeroCartellino: records[0].numeroCartellino,
-        });
-      }
 
       // L'app si aspetta: { data, summary: { totale, controlli: [...] } }
       const controlli = records.map((r) => ({
@@ -168,16 +151,13 @@ export class MobileApiService {
         numero_eccezioni: r.exceptions.length,
       }));
 
-      const result = {
+      return {
         data: new Date(data).toLocaleDateString('it-IT'),
         summary: {
           totale: records.length,
           controlli,
         },
       };
-
-      console.log(`[getDailySummary] Risposta:`, JSON.stringify(result, null, 2));
-      return result;
     }
 
     return { data, message: 'App type non supportato' };

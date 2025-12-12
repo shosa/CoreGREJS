@@ -599,4 +599,172 @@ export class QualityService {
       .map((c) => c.categoria)
       .sort();
   }
+
+  // ==================== REPORTISTICA ====================
+
+  async getReportStatistics(filters?: FilterRecordsDto) {
+    const where: any = {};
+
+    if (filters?.dataInizio || filters?.dataFine) {
+      where.dataControllo = {};
+      if (filters.dataInizio) {
+        where.dataControllo.gte = new Date(filters.dataInizio);
+      }
+      if (filters.dataFine) {
+        const endDate = new Date(filters.dataFine);
+        endDate.setHours(23, 59, 59, 999);
+        where.dataControllo.lte = endDate;
+      }
+    }
+
+    if (filters?.reparto) where.reparto = filters.reparto;
+    if (filters?.operatore) where.operatore = filters.operatore;
+    if (filters?.tipoCq) where.tipoCq = filters.tipoCq;
+
+    // Get all records with exceptions
+    const records = await this.prisma.qualityRecord.findMany({
+      where,
+      include: {
+        exceptions: true,
+      },
+    });
+
+    // Get all operators to map matricola -> nome completo
+    const operators = await this.prisma.inworkOperator.findMany({
+      select: {
+        matricola: true,
+        nome: true,
+        cognome: true,
+      },
+    });
+
+    // Get all departments to map id -> nome_reparto
+    const departments = await this.prisma.qualityDepartment.findMany({
+      select: {
+        id: true,
+        nomeReparto: true,
+      },
+    });
+
+    // Get all defect types to map id -> descrizione
+    const defectTypes = await this.prisma.qualityDefectType.findMany({
+      select: {
+        id: true,
+        descrizione: true,
+      },
+    });
+
+    // Create operator map: matricola -> nome completo
+    const operatorMap = new Map<string, string>();
+    operators.forEach((op) => {
+      operatorMap.set(op.matricola, `${op.nome} ${op.cognome}`);
+    });
+
+    // Create department map: id -> nome_reparto
+    const departmentMap = new Map<string, string>();
+    departments.forEach((dept) => {
+      departmentMap.set(String(dept.id), dept.nomeReparto);
+    });
+
+    // Create defect type map: id -> descrizione
+    const defectTypeMap = new Map<string, string>();
+    defectTypes.forEach((defect) => {
+      defectTypeMap.set(String(defect.id), defect.descrizione);
+    });
+
+    // Calculate statistics
+    const totalRecords = records.length;
+    const recordsWithExceptions = records.filter((r) => r.haEccezioni).length;
+    const recordsOk = totalRecords - recordsWithExceptions;
+    const totalExceptions = records.reduce((sum, r) => sum + r.exceptions.length, 0);
+
+    // Group by department
+    const byDepartment: Record<string, any> = {};
+    records.forEach((r) => {
+      // Map department ID to name
+      const deptName = r.reparto ? (departmentMap.get(r.reparto) || r.reparto) : 'NON SPECIFICATO';
+      if (!byDepartment[deptName]) {
+        byDepartment[deptName] = { total: 0, exceptions: 0, ok: 0, exceptionCount: 0 };
+      }
+      byDepartment[deptName].total++;
+      if (r.haEccezioni) {
+        byDepartment[deptName].exceptions++;
+        byDepartment[deptName].exceptionCount += r.exceptions.length;
+      } else {
+        byDepartment[deptName].ok++;
+      }
+    });
+
+    // Group by operator (with full name)
+    const byOperator: Record<string, any> = {};
+    records.forEach((r) => {
+      // Get operator full name from map, fallback to matricola if not found
+      const operatorName = operatorMap.get(r.operatore) || r.operatore;
+      if (!byOperator[operatorName]) {
+        byOperator[operatorName] = { total: 0, exceptions: 0, ok: 0, exceptionCount: 0 };
+      }
+      byOperator[operatorName].total++;
+      if (r.haEccezioni) {
+        byOperator[operatorName].exceptions++;
+        byOperator[operatorName].exceptionCount += r.exceptions.length;
+      } else {
+        byOperator[operatorName].ok++;
+      }
+    });
+
+    // Group by type
+    const byType: Record<string, any> = {};
+    records.forEach((r) => {
+      const type = r.tipoCq;
+      if (!byType[type]) {
+        byType[type] = { total: 0, exceptions: 0, ok: 0 };
+      }
+      byType[type].total++;
+      if (r.haEccezioni) {
+        byType[type].exceptions++;
+      } else {
+        byType[type].ok++;
+      }
+    });
+
+    // Count exception types
+    const exceptionTypes: Record<string, number> = {};
+    records.forEach((r) => {
+      r.exceptions.forEach((exc) => {
+        // Map defect type ID to description
+        const defectName = defectTypeMap.get(exc.tipoDifetto) || exc.tipoDifetto;
+        exceptionTypes[defectName] = (exceptionTypes[defectName] || 0) + 1;
+      });
+    });
+
+    // Count by date
+    const byDate: Record<string, any> = {};
+    records.forEach((r) => {
+      const date = r.dataControllo.toISOString().split('T')[0];
+      if (!byDate[date]) {
+        byDate[date] = { total: 0, exceptions: 0, ok: 0 };
+      }
+      byDate[date].total++;
+      if (r.haEccezioni) {
+        byDate[date].exceptions++;
+      } else {
+        byDate[date].ok++;
+      }
+    });
+
+    return {
+      summary: {
+        totalRecords,
+        recordsWithExceptions,
+        recordsOk,
+        totalExceptions,
+        successRate: totalRecords > 0 ? ((recordsOk / totalRecords) * 100).toFixed(2) : '0',
+      },
+      byDepartment,
+      byOperator,
+      byType,
+      exceptionTypes,
+      byDate,
+    };
+  }
 }

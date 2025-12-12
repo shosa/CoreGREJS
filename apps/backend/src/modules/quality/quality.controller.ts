@@ -12,6 +12,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { QualityService } from './quality.service';
+import { JobsQueueService } from '../jobs/jobs.queue';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -30,7 +31,10 @@ import {
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('quality')
 export class QualityController {
-  constructor(private readonly qualityService: QualityService) {}
+  constructor(
+    private readonly qualityService: QualityService,
+    private readonly jobsQueueService: JobsQueueService,
+  ) {}
 
   // ==================== DASHBOARD ====================
 
@@ -352,23 +356,40 @@ export class QualityController {
   // ==================== REPORTS ====================
 
   /**
-   * POST /quality/generate-report
-   * Generate quality report (PDF or Excel)
+   * GET /quality/reports/statistics
+   * Get report statistics with filters
+   */
+  @Get('reports/statistics')
+  async getReportStatistics(@Query() filters: FilterRecordsDto) {
+    return this.qualityService.getReportStatistics(filters);
+  }
+
+  /**
+   * POST /quality/reports/generate-pdf
+   * Generate quality PDF report
    * Uses job queue system
    */
-  @Post('generate-report')
+  @Post('reports/generate-pdf')
   @LogActivity({
     module: 'quality',
     action: 'generate_report',
     entity: 'QualityReport',
-    description: 'Generazione report controllo qualità',
+    description: 'Generazione report PDF controllo qualità',
   })
-  async generateReport(@Body() data: GenerateReportDto, @Request() req) {
-    // TODO: Implement job queue for report generation
-    // Similar to produzione CSV report
+  async generatePdfReport(@Body() filters: FilterRecordsDto, @Request() req) {
+    const userId = req.user?.userId || req.user?.id;
+
+    if (!userId) {
+      throw new Error('Utente non autenticato');
+    }
+
+    // Enqueue job for PDF generation
+    const job = await this.jobsQueueService.enqueue('quality.report-pdf', filters as any, userId);
+
     return {
-      message: 'Report generation feature coming soon',
-      data,
+      success: true,
+      jobId: job.id,
+      message: 'Report in generazione. Controlla lo stato nella sezione Job.',
     };
   }
 }

@@ -19,7 +19,21 @@ const nextConfig = {
         source: '/api/:path*',
         destination: 'http://localhost:3011/api/:path*',
       },
+      {
+        source: '/storage/:path*',
+        destination: 'http://localhost:3011/storage/:path*',
+      },
     ];
+  },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3011',
+        pathname: '/storage/**',
+      },
+    ],
   },
 }
 

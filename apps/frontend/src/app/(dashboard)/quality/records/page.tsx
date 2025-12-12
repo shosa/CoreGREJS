@@ -4,8 +4,18 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import PageHeader from "@/components/layout/PageHeader";
 import Breadcrumb from "@/components/layout/Breadcrumb";
+import Offcanvas from "@/components/ui/Offcanvas";
 import { qualityApi } from "@/lib/api";
 import { showError } from "@/store/notifications";
+import Image from "next/image";
+
+type QualityException = {
+  id: number;
+  taglia: string;
+  tipoDifetto: string;
+  noteOperatore: string | null;
+  fotoPath: string | null;
+};
 
 type QualityRecord = {
   id: number;
@@ -20,18 +30,14 @@ type QualityRecord = {
   linea: string;
   note: string | null;
   haEccezioni: boolean;
-  exceptions?: Array<{
-    id: number;
-    taglia: string;
-    tipoDifetto: string;
-    noteOperatore: string | null;
-  }>;
+  exceptions?: QualityException[];
 };
 
 export default function RecordsPage() {
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<QualityRecord[]>([]);
-  const [expandedRecord, setExpandedRecord] = useState<number | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<QualityRecord | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [filters, setFilters] = useState({
     dataInizio: "",
     dataFine: "",
@@ -94,8 +100,24 @@ export default function RecordsPage() {
     setTimeout(() => fetchRecords(), 100);
   };
 
-  const toggleExpand = (recordId: number) => {
-    setExpandedRecord(expandedRecord === recordId ? null : recordId);
+  const handleViewDetails = async (record: QualityRecord) => {
+    try {
+      setDetailsLoading(true);
+      setSelectedRecord(record);
+
+      // Carica i dettagli completi del record se necessario
+      const fullDetails = await qualityApi.getRecordById(record.id);
+      setSelectedRecord(fullDetails);
+    } catch (error) {
+      showError("Errore nel caricamento dei dettagli");
+      console.error(error);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  const handleCloseDetails = () => {
+    setSelectedRecord(null);
   };
 
   if (loading) {
@@ -112,17 +134,17 @@ export default function RecordsPage() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Consulto Record CQ"
+        description="Visualizza e filtra i controlli qualità effettuati"
+      />
+
       <Breadcrumb
         items={[
           { label: "Dashboard", href: "/" },
           { label: "Controllo Qualità", href: "/quality" },
           { label: "Consulto Record" },
         ]}
-      />
-
-      <PageHeader
-        title="Consulto Record CQ"
-        description="Visualizza e filtra i controlli qualità effettuati"
       />
 
       {/* Filters */}
@@ -276,106 +298,249 @@ export default function RecordsPage() {
                 </tr>
               ) : (
                 records.map((record) => (
-                  <>
-                    <tr
-                      key={record.id}
-                      className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                    >
-                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
-                        {record.numeroCartellino}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(record.dataControllo).toLocaleDateString("it-IT")}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                        <div className="max-w-xs truncate">{record.articolo}</div>
-                        <div className="text-xs text-gray-500">{record.codArticolo}</div>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {record.reparto || "-"}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {record.operatore}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                            record.tipoCq === "GRIFFE"
-                              ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
-                              : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-                          }`}
-                        >
-                          {record.tipoCq}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {record.paiaTotali}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                            record.haEccezioni
-                              ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                              : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                          }`}
-                        >
-                          {record.haEccezioni ? "Sì" : "OK"}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                        {record.haEccezioni && record.exceptions && (
-                          <button
-                            onClick={() => toggleExpand(record.id)}
-                            className="text-primary hover:text-primary/80"
-                          >
-                            {expandedRecord === record.id ? "Chiudi" : "Dettagli"}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                    {expandedRecord === record.id && record.exceptions && (
-                      <tr className="bg-gray-50 dark:bg-gray-900/50">
-                        <td colSpan={9} className="px-6 py-4">
-                          <div className="text-sm">
-                            <h4 className="mb-2 font-semibold text-gray-900 dark:text-white">
-                              Eccezioni ({record.exceptions.length})
-                            </h4>
-                            <div className="space-y-2">
-                              {record.exceptions.map((exc) => (
-                                <div
-                                  key={exc.id}
-                                  className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800"
-                                >
-                                  <div className="flex items-start justify-between">
-                                    <div>
-                                      <span className="font-medium text-gray-900 dark:text-white">
-                                        Taglia: {exc.taglia}
-                                      </span>
-                                      <span className="mx-2 text-gray-400">|</span>
-                                      <span className="text-gray-600 dark:text-gray-400">
-                                        Difetto: {exc.tipoDifetto}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  {exc.noteOperatore && (
-                                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                      Note: {exc.noteOperatore}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </>
+                  <tr
+                    key={record.id}
+                    className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  >
+                    <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+                      {record.numeroCartellino}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                      {new Date(record.dataControllo).toLocaleDateString("it-IT")}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                      <div className="max-w-xs truncate">{record.articolo}</div>
+                      <div className="text-xs text-gray-500">{record.codArticolo}</div>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                      {record.reparto || "-"}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                      {record.operatore}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                          record.tipoCq === "GRIFFE"
+                            ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
+                            : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                        }`}
+                      >
+                        {record.tipoCq}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                      {record.paiaTotali}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                          record.haEccezioni
+                            ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                            : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                        }`}
+                      >
+                        {record.haEccezioni ? "Sì" : "OK"}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleViewDetails(record)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 transition-colors"
+                        title="Visualizza dettagli"
+                      >
+                        <i className="fas fa-eye text-sm"></i>
+                      </button>
+                    </td>
+                  </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Offcanvas Dettagli */}
+      <Offcanvas
+        open={!!selectedRecord}
+        onClose={handleCloseDetails}
+        title="Dettagli Controllo Qualità"
+        icon="fa-file-alt"
+        iconColor="text-blue-500"
+        width="xl"
+        loading={detailsLoading}
+      >
+        {selectedRecord && (
+          <div className="space-y-6 px-4">
+            {/* Informazioni Generali */}
+            <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+              <h4 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+                <i className="fas fa-info-circle text-blue-500"></i>
+                Informazioni Generali
+              </h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    Cartellino:
+                  </span>
+                  <p className="mt-1 text-gray-900 dark:text-white">
+                    {selectedRecord.numeroCartellino}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    Data Controllo:
+                  </span>
+                  <p className="mt-1 text-gray-900 dark:text-white">
+                    {new Date(selectedRecord.dataControllo).toLocaleString("it-IT")}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    Operatore:
+                  </span>
+                  <p className="mt-1 text-gray-900 dark:text-white">
+                    {selectedRecord.operatore}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    Reparto:
+                  </span>
+                  <p className="mt-1 text-gray-900 dark:text-white">
+                    {selectedRecord.reparto || "-"}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    Tipo CQ:
+                  </span>
+                  <p className="mt-1">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                        selectedRecord.tipoCq === "GRIFFE"
+                          ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
+                          : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                      }`}
+                    >
+                      {selectedRecord.tipoCq}
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    Paia Totali:
+                  </span>
+                  <p className="mt-1 text-gray-900 dark:text-white">
+                    {selectedRecord.paiaTotali}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    Articolo:
+                  </span>
+                  <p className="mt-1 text-gray-900 dark:text-white">
+                    {selectedRecord.articolo}
+                  </p>
+                  <p className="text-xs text-gray-500">{selectedRecord.codArticolo}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    Linea:
+                  </span>
+                  <p className="mt-1 text-gray-900 dark:text-white">
+                    {selectedRecord.linea}
+                  </p>
+                </div>
+              </div>
+              {selectedRecord.note && (
+                <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    Note:
+                  </span>
+                  <p className="mt-1 text-gray-900 dark:text-white">
+                    {selectedRecord.note}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Eccezioni */}
+            {selectedRecord.haEccezioni && selectedRecord.exceptions && selectedRecord.exceptions.length > 0 && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+                <h4 className="mb-4 flex items-center gap-2 text-lg font-semibold text-red-900 dark:text-red-400">
+                  <i className="fas fa-exclamation-triangle"></i>
+                  Eccezioni ({selectedRecord.exceptions.length})
+                </h4>
+                <div className="space-y-3">
+                  {selectedRecord.exceptions.map((exc, index) => (
+                    <div
+                      key={exc.id}
+                      className="rounded-lg border border-red-300 bg-white p-4 dark:border-red-700 dark:bg-gray-800"
+                    >
+                      <div className="mb-2 flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                              #{index + 1}
+                            </span>
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                              Taglia: {exc.taglia}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-700 dark:text-gray-300">
+                            <span className="font-medium">Tipo Difetto:</span>{" "}
+                            {exc.tipoDifetto}
+                          </div>
+                          {exc.noteOperatore && (
+                            <div className="mt-2 rounded bg-gray-50 p-2 text-sm text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                              <i className="fas fa-comment mr-1.5"></i>
+                              {exc.noteOperatore}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Foto Eccezione */}
+                      {exc.fotoPath && (
+                        <div className="mt-3 border-t border-gray-200 pt-3 dark:border-gray-700">
+                          <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <i className="fas fa-image mr-1.5"></i>
+                            Foto Difetto:
+                          </div>
+                          <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-900">
+                            <Image
+                              src={exc.fotoPath.startsWith('http') ? exc.fotoPath : `/storage/quality/cq_uploads/${exc.fotoPath}`}
+                              alt={`Difetto ${exc.tipoDifetto}`}
+                              fill
+                              className="object-contain"
+                              sizes="(max-width: 768px) 100vw, 600px"
+                              unoptimized
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Nessuna Eccezione */}
+            {!selectedRecord.haEccezioni && (
+              <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
+                <div className="flex items-center gap-3 text-green-800 dark:text-green-400">
+                  <i className="fas fa-check-circle text-2xl"></i>
+                  <div>
+                    <p className="font-semibold">Nessuna Eccezione</p>
+                    <p className="text-sm">Il controllo è stato superato senza problemi</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Offcanvas>
     </div>
   );
 }

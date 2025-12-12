@@ -5,6 +5,8 @@ import { AppModule } from "./app.module";
 import { PrismaExceptionFilter } from "./common/filters/prisma-exception.filter";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { LoggerService } from "./common/services/logger.service";
+import { NestExpressApplication } from "@nestjs/platform-express";
+import { join } from "path";
 
 async function bootstrap() {
   const logger = new LoggerService();
@@ -12,11 +14,17 @@ async function bootstrap() {
   try {
     logger.log("[✓] Inizializzazione CoreGRE Backend...", "Bootstrap");
 
-    const app = await NestFactory.create(AppModule, {
+    const app = await NestFactory.create<NestExpressApplication>(AppModule, {
       logger: logger,
     });
 
     logger.success("[✓] Applicazione NestJS creata", "Bootstrap");
+
+    // Serve static files from storage directory
+    app.useStaticAssets(join(process.cwd(), "storage"), {
+      prefix: "/storage/",
+    });
+    logger.success("[✓] Static assets configurati", "Bootstrap");
 
     // CORS configuration
     app.enableCors({

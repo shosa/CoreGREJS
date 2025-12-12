@@ -56,8 +56,8 @@ const menuItems: MenuItem[] = [
       { name: 'Dashboard', href: '/quality', icon: 'fa-home' },
       { name: 'Consulto Record', href: '/quality/records', icon: 'fa-list' },
       { name: 'Report', href: '/quality/reports', icon: 'fa-file-alt' },
-      { name: 'Reparti', href: '/quality/departments', icon: 'fa-building' },
-      { name: 'Tipi Difetti', href: '/quality/defects', icon: 'fa-bug' },
+      { name: 'Reparti', href: '/quality/reparti', icon: 'fa-building' },
+      { name: 'Tipi Difetti', href: '/quality/difetti', icon: 'fa-circle-exclamation' },
     ]
   },
   {

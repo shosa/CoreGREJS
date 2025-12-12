@@ -134,17 +134,17 @@ export default function DifettiPage() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Gestione Tipi Difetti"
+        description="Configura le tipologie di difetti per il controllo qualità"
+      />
+
       <Breadcrumb
         items={[
           { label: "Dashboard", href: "/" },
           { label: "Controllo Qualità", href: "/quality" },
           { label: "Tipi Difetti" },
         ]}
-      />
-
-      <PageHeader
-        title="Gestione Tipi Difetti"
-        description="Configura le tipologie di difetti per il controllo qualità"
       />
 
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
@@ -230,18 +230,22 @@ export default function DifettiPage() {
                       {new Date(defect.dataCreazione).toLocaleDateString("it-IT")}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleOpenModal(defect)}
-                        className="mr-3 text-primary hover:text-primary/80"
-                      >
-                        Modifica
-                      </button>
-                      <button
-                        onClick={() => handleDelete(defect.id)}
-                        className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                      >
-                        Elimina
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleOpenModal(defect)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 transition-colors"
+                          title="Modifica tipo difetto"
+                        >
+                          <i className="fas fa-edit text-sm"></i>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(defect.id)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 transition-colors"
+                          title="Elimina tipo difetto"
+                        >
+                          <i className="fas fa-trash text-sm"></i>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
