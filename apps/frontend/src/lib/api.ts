@@ -1366,6 +1366,22 @@ export const inworkApi = {
     const response = await api.get('/inwork/modules');
     return response.data;
   },
+  getAllModules: async () => {
+    const response = await api.get('/inwork/modules/all');
+    return response.data;
+  },
+  createModule: async (data: any) => {
+    const response = await api.post('/inwork/modules', data);
+    return response.data;
+  },
+  updateModule: async (id: number, data: any) => {
+    const response = await api.put(`/inwork/modules/${id}`, data);
+    return response.data;
+  },
+  toggleModule: async (id: number) => {
+    const response = await api.post(`/inwork/modules/${id}/toggle`);
+    return response.data;
+  },
 };
 
 export default api;

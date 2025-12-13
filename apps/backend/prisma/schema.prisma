@@ -908,3 +908,16 @@ model InworkModulePermission {
   @@unique([operatorId, module])
   @@map("inwork_module_permissions")
 }
+
+model InworkAvailableModule {
+  id          Int      @id @default(autoincrement())
+  moduleId    String   @unique @map("module_id") @db.VarChar(50)
+  moduleName  String   @map("module_name") @db.VarChar(100)
+  descrizione String?  @db.VarChar(255)
+  attivo      Boolean  @default(true)
+  ordine      Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("inwork_available_modules")
+}

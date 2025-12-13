@@ -209,8 +209,88 @@ export class InworkService {
   }
 
   async getAvailableModules() {
-    return [
-      { id: 'quality', name: 'Quality Control' },
-    ];
+    const modules = await this.prisma.inworkAvailableModule.findMany({
+      where: {
+        attivo: true,
+      },
+      orderBy: {
+        ordine: 'asc',
+      },
+      select: {
+        moduleId: true,
+        moduleName: true,
+        descrizione: true,
+      },
+    });
+
+    return modules.map(m => ({
+      id: m.moduleId,
+      name: m.moduleName,
+      description: m.descrizione,
+    }));
+  }
+
+  async getAllModules() {
+    return this.prisma.inworkAvailableModule.findMany({
+      orderBy: {
+        ordine: 'asc',
+      },
+    });
+  }
+
+  async createModule(data: { moduleId: string; moduleName: string; descrizione?: string; ordine?: number }) {
+    const existing = await this.prisma.inworkAvailableModule.findUnique({
+      where: { moduleId: data.moduleId },
+    });
+
+    if (existing) {
+      throw new BadRequestException(`Modulo con ID ${data.moduleId} già esistente`);
+    }
+
+    return this.prisma.inworkAvailableModule.create({
+      data: {
+        moduleId: data.moduleId,
+        moduleName: data.moduleName,
+        descrizione: data.descrizione,
+        ordine: data.ordine ?? 0,
+      },
+    });
+  }
+
+  async updateModule(id: number, data: any) {
+    const module = await this.prisma.inworkAvailableModule.findUnique({
+      where: { id },
+    });
+
+    if (!module) {
+      throw new NotFoundException(`Modulo con ID ${id} non trovato`);
+    }
+
+    return this.prisma.inworkAvailableModule.update({
+      where: { id },
+      data: {
+        moduleName: data.moduleName,
+        descrizione: data.descrizione,
+        ordine: data.ordine,
+        attivo: data.attivo,
+      },
+    });
+  }
+
+  async toggleModule(id: number) {
+    const module = await this.prisma.inworkAvailableModule.findUnique({
+      where: { id },
+    });
+
+    if (!module) {
+      throw new NotFoundException(`Modulo con ID ${id} non trovato`);
+    }
+
+    return this.prisma.inworkAvailableModule.update({
+      where: { id },
+      data: {
+        attivo: !module.attivo,
+      },
+    });
   }
 }

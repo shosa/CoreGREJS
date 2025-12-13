@@ -53,4 +53,28 @@ export class InworkController {
   async getAvailableModules() {
     return this.inworkService.getAvailableModules();
   }
+
+  @Get('modules/all')
+  @RequirePermissions('admin')
+  async getAllModules() {
+    return this.inworkService.getAllModules();
+  }
+
+  @Post('modules')
+  @RequirePermissions('admin')
+  async createModule(@Body() data: { moduleId: string; moduleName: string; descrizione?: string; ordine?: number }) {
+    return this.inworkService.createModule(data);
+  }
+
+  @Put('modules/:id')
+  @RequirePermissions('admin')
+  async updateModule(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
+    return this.inworkService.updateModule(id, data);
+  }
+
+  @Post('modules/:id/toggle')
+  @RequirePermissions('admin')
+  async toggleModule(@Param('id', ParseIntPipe) id: number) {
+    return this.inworkService.toggleModule(id);
+  }
 }
