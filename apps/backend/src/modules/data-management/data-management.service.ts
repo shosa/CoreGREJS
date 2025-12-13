@@ -288,6 +288,11 @@ export class DataManagementService {
       displayName: 'Permessi Moduli InWork',
       searchFields: ['module'],
     },
+    inworkAvailableModule: {
+      model: 'inworkAvailableModule',
+      displayName: 'Moduli Disponibili InWork',
+      searchFields: ['moduleId', 'moduleName', 'descrizione'],
+    },
   };
 
   getAvailableTables() {

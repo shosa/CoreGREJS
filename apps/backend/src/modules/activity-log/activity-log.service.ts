@@ -157,6 +157,37 @@ export class ActivityLogService {
   }
 
   /**
+   * Get available filter values (distinct modules and actions)
+   */
+  async getAvailableFilters() {
+    const [modules, actions] = await Promise.all([
+      this.prisma.activityLog.findMany({
+        distinct: ['module'],
+        select: {
+          module: true,
+        },
+        orderBy: {
+          module: 'asc',
+        },
+      }),
+      this.prisma.activityLog.findMany({
+        distinct: ['action'],
+        select: {
+          action: true,
+        },
+        orderBy: {
+          action: 'asc',
+        },
+      }),
+    ]);
+
+    return {
+      modules: modules.map((m) => m.module),
+      actions: actions.map((a) => a.action),
+    };
+  }
+
+  /**
    * Delete old logs (cleanup)
    */
   async cleanup(olderThanDays: number = 90): Promise<number> {

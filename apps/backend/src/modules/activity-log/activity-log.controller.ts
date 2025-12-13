@@ -47,4 +47,9 @@ export class ActivityLogController {
       endDate: endDate ? new Date(endDate) : undefined,
     });
   }
+
+  @Get('filters')
+  async getFilters() {
+    return this.activityLogService.getAvailableFilters();
+  }
 }

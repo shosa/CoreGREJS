@@ -332,32 +332,32 @@ export default function InWorkPage() {
               variants={itemVariants}
               className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
             >
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600">
+                  <i className="fas fa-users text-xl text-white"></i>
+                </div>
+                <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
                     Totale Operatori
                   </p>
                   <p className="text-3xl font-bold text-gray-900 dark:text-white">{operators.length}</p>
                 </div>
-                <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-3">
-                  <i className="fas fa-users text-2xl text-blue-600 dark:text-blue-400"></i>
-                </div>
               </div>
             </motion.div>
 
             <motion.div
               variants={itemVariants}
-              className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
+              className="rounded-2xl border border-green-200 bg-green-50 p-6 shadow-lg dark:border-green-800 dark:bg-green-900/20 backdrop-blur-sm"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <div className="flex items-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-green-500 to-emerald-600">
+                  <i className="fas fa-check-circle text-xl text-white"></i>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-1">
                     Operatori Attivi
                   </p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{activeCount}</p>
-                </div>
-                <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-3">
-                  <i className="fas fa-check-circle text-2xl text-green-600 dark:text-green-400"></i>
+                  <p className="text-3xl font-bold text-green-900 dark:text-green-300">{activeCount}</p>
                 </div>
               </div>
             </motion.div>
@@ -366,15 +366,15 @@ export default function InWorkPage() {
               variants={itemVariants}
               className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
             >
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-red-600">
+                  <i className="fas fa-times-circle text-xl text-white"></i>
+                </div>
+                <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
                     Operatori Inattivi
                   </p>
                   <p className="text-3xl font-bold text-gray-900 dark:text-white">{inactiveCount}</p>
-                </div>
-                <div className="rounded-full bg-orange-100 dark:bg-orange-900/30 p-3">
-                  <i className="fas fa-times-circle text-2xl text-orange-600 dark:text-orange-400"></i>
                 </div>
               </div>
             </motion.div>
@@ -551,8 +551,11 @@ export default function InWorkPage() {
               variants={itemVariants}
               className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
             >
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600">
+                  <i className="fas fa-th-large text-xl text-white"></i>
+                </div>
+                <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
                     Totale Moduli
                   </p>
@@ -560,27 +563,24 @@ export default function InWorkPage() {
                     {availableModules.length}
                   </p>
                 </div>
-                <div className="rounded-full bg-purple-100 dark:bg-purple-900/30 p-3">
-                  <i className="fas fa-th-large text-2xl text-purple-600 dark:text-purple-400"></i>
-                </div>
               </div>
             </motion.div>
 
             <motion.div
               variants={itemVariants}
-              className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
+              className="rounded-2xl border border-green-200 bg-green-50 p-6 shadow-lg dark:border-green-800 dark:bg-green-900/20 backdrop-blur-sm"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <div className="flex items-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-green-500 to-emerald-600">
+                  <i className="fas fa-check-circle text-xl text-white"></i>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-1">
                     Moduli Attivi
                   </p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                  <p className="text-3xl font-bold text-green-900 dark:text-green-300">
                     {activeModulesCount}
                   </p>
-                </div>
-                <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-3">
-                  <i className="fas fa-check-circle text-2xl text-green-600 dark:text-green-400"></i>
                 </div>
               </div>
             </motion.div>

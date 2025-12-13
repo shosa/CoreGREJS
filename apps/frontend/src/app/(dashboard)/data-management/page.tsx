@@ -176,8 +176,9 @@ const modulesData: ModuleInfo[] = [
     color: 'lime',
     description: 'App mobile operatori',
     tables: [
-      { name: 'inwork-operators', displayName: 'Operatori', model: 'inworkOperator', tableName: 'inwork_operators', icon: 'fa-user-hard-hat', description: 'Operatori mobile' },
-      { name: 'inwork-permissions', displayName: 'Permessi Moduli', model: 'inworkModulePermission', tableName: 'inwork_module_permissions', icon: 'fa-lock', description: 'Permessi accesso moduli' },
+      { name: 'inwork-operators', displayName: 'Operatori', model: 'inworkOperator', tableName: 'inwork_operators', icon: 'fa-users', description: 'Operatori mobile', relations: ['modulePermissions'] },
+      { name: 'inwork-permissions', displayName: 'Permessi Moduli', model: 'inworkModulePermission', tableName: 'inwork_module_permissions', icon: 'fa-lock', description: 'Permessi accesso moduli', relations: ['operator'] },
+      { name: 'inwork-modules', displayName: 'Moduli Disponibili', model: 'inworkAvailableModule', tableName: 'inwork_available_modules', icon: 'fa-th-large', description: 'Moduli disponibili app' },
     ],
   },
 ];
@@ -363,6 +364,11 @@ export default function DataManagementPage() {
       pink: { gradient: 'from-pink-500 to-pink-600', bg: 'bg-pink-50', text: 'text-pink-600', hover: 'hover:bg-pink-100', border: 'border-pink-200' },
       orange: { gradient: 'from-orange-500 to-orange-600', bg: 'bg-orange-50', text: 'text-orange-600', hover: 'hover:bg-orange-100', border: 'border-orange-200' },
       gray: { gradient: 'from-gray-500 to-gray-600', bg: 'bg-gray-50', text: 'text-gray-600', hover: 'hover:bg-gray-100', border: 'border-gray-200' },
+      indigo: { gradient: 'from-indigo-500 to-indigo-600', bg: 'bg-indigo-50', text: 'text-indigo-600', hover: 'hover:bg-indigo-100', border: 'border-indigo-200' },
+      teal: { gradient: 'from-teal-500 to-teal-600', bg: 'bg-teal-50', text: 'text-teal-600', hover: 'hover:bg-teal-100', border: 'border-teal-200' },
+      cyan: { gradient: 'from-cyan-500 to-cyan-600', bg: 'bg-cyan-50', text: 'text-cyan-600', hover: 'hover:bg-cyan-100', border: 'border-cyan-200' },
+      lime: { gradient: 'from-lime-500 to-lime-600', bg: 'bg-lime-50', text: 'text-lime-600', hover: 'hover:bg-lime-100', border: 'border-lime-200' },
+      red: { gradient: 'from-red-500 to-red-600', bg: 'bg-red-50', text: 'text-red-600', hover: 'hover:bg-red-100', border: 'border-red-200' },
     };
     return colors[color] || colors.blue;
   };
@@ -417,14 +423,12 @@ export default function DataManagementPage() {
     // If we're inside a module or table, make "Gestione Dati" clickable
     breadcrumbItems.push({
       label: 'Gestione Dati',
-      onClick: () => handleBreadcrumbClick('root'),
-      icon: 'fa-database'
+      onClick: () => handleBreadcrumbClick('root')
     });
   } else {
     // If we're at root level, it's the current page
     breadcrumbItems.push({
-      label: 'Gestione Dati',
-      icon: 'fa-database'
+      label: 'Gestione Dati'
     });
   }
 
@@ -433,22 +437,19 @@ export default function DataManagementPage() {
       // If a table is selected, make module clickable
       breadcrumbItems.push({
         label: currentModule.displayName,
-        onClick: () => handleBreadcrumbClick('module'),
-        icon: currentModule.icon
+        onClick: () => handleBreadcrumbClick('module')
       });
     } else {
       // If no table selected, module is current
       breadcrumbItems.push({
-        label: currentModule.displayName,
-        icon: currentModule.icon
+        label: currentModule.displayName
       });
     }
   }
 
   if (selectedTable && currentTable) {
     breadcrumbItems.push({
-      label: currentTable.displayName,
-      icon: currentTable.icon
+      label: currentTable.displayName
     });
   }
 

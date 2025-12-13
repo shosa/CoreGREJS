@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import PageHeader from "@/components/layout/PageHeader";
 import Breadcrumb from "@/components/layout/Breadcrumb";
 import Offcanvas from "@/components/ui/Offcanvas";
+import Pagination from "@/components/ui/Pagination";
 import { qualityApi } from "@/lib/api";
 import { showError } from "@/store/notifications";
 import Image from "next/image";
@@ -47,6 +48,8 @@ export default function RecordsPage() {
   });
   const [departments, setDepartments] = useState<string[]>([]);
   const [operators, setOperators] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   useEffect(() => {
     fetchRecords();
@@ -119,6 +122,28 @@ export default function RecordsPage() {
   const handleCloseDetails = () => {
     setSelectedRecord(null);
   };
+
+  // Pagination
+  const totalPages = Math.ceil(records.length / itemsPerPage);
+  const paginatedRecords = records.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1);
+  };
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   if (loading) {
     return (
@@ -287,7 +312,7 @@ export default function RecordsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {records.length === 0 ? (
+              {paginatedRecords.length === 0 ? (
                 <tr>
                   <td
                     colSpan={9}
@@ -297,7 +322,7 @@ export default function RecordsPage() {
                   </td>
                 </tr>
               ) : (
-                records.map((record) => (
+                paginatedRecords.map((record) => (
                   <tr
                     key={record.id}
                     className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
@@ -358,6 +383,18 @@ export default function RecordsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {records.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            itemsPerPage={itemsPerPage}
+            totalItems={records.length}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
+        )}
       </div>
 
       {/* Offcanvas Dettagli */}

@@ -83,9 +83,17 @@ export default function LogAttivitaPage() {
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
 
+  // Available filter values
+  const [availableModules, setAvailableModules] = useState<string[]>([]);
+  const [availableActions, setAvailableActions] = useState<string[]>([]);
+
   // Offcanvas state
   const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
   const [offcanvasOpen, setOffcanvasOpen] = useState(false);
+
+  useEffect(() => {
+    fetchFilters();
+  }, []);
 
   useEffect(() => {
     fetchLogs();
@@ -122,6 +130,16 @@ export default function LogAttivitaPage() {
       setStats(data);
     } catch (error) {
       console.error("Errore nel caricamento delle statistiche", error);
+    }
+  };
+
+  const fetchFilters = async () => {
+    try {
+      const data = await activityLogApi.getFilters();
+      setAvailableModules(data.modules);
+      setAvailableActions(data.actions);
+    } catch (error) {
+      console.error("Errore nel caricamento dei filtri", error);
     }
   };
 
@@ -253,14 +271,11 @@ export default function LogAttivitaPage() {
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             >
               <option value="">Tutti i moduli</option>
-              <option value="auth">Autenticazione</option>
-              <option value="produzione">Produzione</option>
-              <option value="riparazioni">Riparazioni</option>
-              <option value="tracking">Tracking</option>
-              <option value="quality">Qualità</option>
-              <option value="users">Utenti</option>
-              <option value="settings">Impostazioni</option>
-              <option value="system">Sistema</option>
+              {availableModules.map((module) => (
+                <option key={module} value={module}>
+                  {module}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -277,11 +292,11 @@ export default function LogAttivitaPage() {
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             >
               <option value="">Tutte le azioni</option>
-              <option value="create">Creazione</option>
-              <option value="update">Modifica</option>
-              <option value="delete">Eliminazione</option>
-              <option value="login">Login</option>
-              <option value="view">Visualizzazione</option>
+              {availableActions.map((action) => (
+                <option key={action} value={action}>
+                  {action}
+                </option>
+              ))}
             </select>
           </div>
 

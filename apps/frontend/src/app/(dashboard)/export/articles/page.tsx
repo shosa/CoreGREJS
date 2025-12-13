@@ -6,6 +6,7 @@ import { exportApi } from '@/lib/api';
 import { showError, showSuccess } from '@/store/notifications';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
+import Pagination from '@/components/ui/Pagination';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -39,6 +40,8 @@ export default function ArticlesPage() {
     um: '',
     prezzoUnitario: 0,
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   useEffect(() => {
     fetchArticles();
@@ -113,6 +116,28 @@ export default function ArticlesPage() {
     a.descrizione?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     a.voceDoganale?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Pagination
+  const totalPages = Math.ceil(filteredArticles.length / itemsPerPage);
+  const paginatedArticles = filteredArticles.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1);
+  };
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   if (loading) {
     return (
@@ -220,7 +245,7 @@ export default function ArticlesPage() {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               <AnimatePresence>
-                {filteredArticles.map((article, index) => (
+                {paginatedArticles.map((article, index) => (
                   <motion.tr
                     key={article.id}
                     initial={{ opacity: 0, x: -20 }}
@@ -291,6 +316,18 @@ export default function ArticlesPage() {
             </motion.div>
           )}
         </div>
+
+        {/* Pagination */}
+        {filteredArticles.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            itemsPerPage={itemsPerPage}
+            totalItems={filteredArticles.length}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
+        )}
       </motion.div>
 
       {/* Modal */}

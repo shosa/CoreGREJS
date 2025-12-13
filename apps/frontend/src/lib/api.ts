@@ -1149,6 +1149,10 @@ export const activityLogApi = {
     const response = await api.get(`/activity-log/stats?${params}`);
     return response.data;
   },
+  getFilters: async () => {
+    const response = await api.get('/activity-log/filters');
+    return response.data;
+  },
 };
 
 // ==================== QUALITY CONTROL API ====================
