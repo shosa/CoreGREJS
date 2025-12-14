@@ -385,16 +385,14 @@ export default function RecordsPage() {
         </div>
 
         {/* Pagination */}
-        {records.length > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            itemsPerPage={itemsPerPage}
-            totalItems={records.length}
-            onItemsPerPageChange={handleItemsPerPageChange}
-          />
-        )}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          itemsPerPage={itemsPerPage}
+          totalItems={records.length}
+          onItemsPerPageChange={handleItemsPerPageChange}
+        />
       </div>
 
       {/* Offcanvas Dettagli */}

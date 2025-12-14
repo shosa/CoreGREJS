@@ -45,14 +45,15 @@ export class PermissionsGuard implements CanActivate {
       throw new ForbiddenException('User not found');
     }
 
-    // Admin users have all permissions
-    if (userWithPermissions.userType === 'admin') {
-      return true;
-    }
-
     // Check if modules are enabled
     for (const permission of requiredPermissions) {
-      const isModuleEnabled = await this.isModuleEnabled(permission);
+      // Map permission to module name (handle special cases where permission name differs from module name)
+      const moduleMap: Record<string, string> = {
+        quality: 'qualita',
+      };
+      const moduleName = moduleMap[permission] || permission;
+
+      const isModuleEnabled = await this.isModuleEnabled(moduleName);
       if (!isModuleEnabled) {
         throw new ForbiddenException(
           `Modulo "${permission}" non attivo. Contatta l'amministratore.`,

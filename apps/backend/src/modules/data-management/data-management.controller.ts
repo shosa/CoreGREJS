@@ -2,11 +2,13 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Requ
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { DataManagementService } from './data-management.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { AdminGuard } from '../../common/guards/admin.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Data Management')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, AdminGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions('dbsql')
 @Controller('data-management')
 export class DataManagementController {
   constructor(private readonly dataManagementService: DataManagementService) {}

@@ -59,10 +59,10 @@ const moduleConfigs: Record<string, {
     badgeText: 'text-blue-700 dark:text-blue-300',
     toggleBg: 'bg-blue-500',
   },
-  produzione: {
-    label: 'Produzione',
-    description: 'Monitoraggio produzione giornaliera',
-    icon: 'fa-industry',
+  qualita: {
+    label: 'Controllo Qualità',
+    description: 'Sistema controllo e verifica qualità prodotti',
+    icon: 'fa-check-circle',
     borderColor: 'border-green-500',
     bgColor: 'bg-green-50 dark:bg-green-900/20',
     iconBg: 'bg-green-500',
@@ -70,10 +70,10 @@ const moduleConfigs: Record<string, {
     badgeText: 'text-green-700 dark:text-green-300',
     toggleBg: 'bg-green-500',
   },
-  qualita: {
-    label: 'Controllo Qualità',
-    description: 'Controllo qualità e difetti',
-    icon: 'fa-clipboard-check',
+  produzione: {
+    label: 'Produzione',
+    description: 'Pianificazione e gestione produzione',
+    icon: 'fa-calendar',
     borderColor: 'border-yellow-500',
     bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
     iconBg: 'bg-yellow-500',
@@ -83,8 +83,8 @@ const moduleConfigs: Record<string, {
   },
   export: {
     label: 'Export/DDT',
-    description: 'Gestione DDT e export documenti',
-    icon: 'fa-file-export',
+    description: 'Gestione esportazioni e documentazione DDT',
+    icon: 'fa-globe-europe',
     borderColor: 'border-indigo-500',
     bgColor: 'bg-indigo-50 dark:bg-indigo-900/20',
     iconBg: 'bg-indigo-500',
@@ -94,8 +94,8 @@ const moduleConfigs: Record<string, {
   },
   scm_admin: {
     label: 'SCM',
-    description: 'Gestione subfornitori e lanci',
-    icon: 'fa-truck',
+    description: 'Supply Chain Management e lanci produzione',
+    icon: 'fa-industry',
     borderColor: 'border-orange-500',
     bgColor: 'bg-orange-50 dark:bg-orange-900/20',
     iconBg: 'bg-orange-500',
@@ -105,8 +105,8 @@ const moduleConfigs: Record<string, {
   },
   tracking: {
     label: 'Tracking',
-    description: 'Tracciabilità cartellini e lotti',
-    icon: 'fa-barcode',
+    description: 'Tracciabilità materiali e movimentazioni',
+    icon: 'fa-map-marker-alt',
     borderColor: 'border-purple-500',
     bgColor: 'bg-purple-50 dark:bg-purple-900/20',
     iconBg: 'bg-purple-500',
@@ -114,42 +114,20 @@ const moduleConfigs: Record<string, {
     badgeText: 'text-purple-700 dark:text-purple-300',
     toggleBg: 'bg-purple-500',
   },
-  mrp: {
-    label: 'MRP',
-    description: 'Material Requirements Planning',
-    icon: 'fa-boxes',
-    borderColor: 'border-teal-500',
-    bgColor: 'bg-teal-50 dark:bg-teal-900/20',
-    iconBg: 'bg-teal-500',
-    badgeBg: 'bg-teal-100 dark:bg-teal-900/30',
-    badgeText: 'text-teal-700 dark:text-teal-300',
-    toggleBg: 'bg-teal-500',
-  },
-  users: {
-    label: 'Utenti',
-    description: 'Gestione utenti e permessi',
-    icon: 'fa-users',
-    borderColor: 'border-pink-500',
-    bgColor: 'bg-pink-50 dark:bg-pink-900/20',
-    iconBg: 'bg-pink-500',
-    badgeBg: 'bg-pink-100 dark:bg-pink-900/30',
-    badgeText: 'text-pink-700 dark:text-pink-300',
-    toggleBg: 'bg-pink-500',
-  },
-  settings: {
-    label: 'Impostazioni',
-    description: 'Configurazione sistema',
-    icon: 'fa-cog',
-    borderColor: 'border-gray-500',
-    bgColor: 'bg-gray-50 dark:bg-gray-900/20',
-    iconBg: 'bg-gray-500',
-    badgeBg: 'bg-gray-100 dark:bg-gray-900/30',
-    badgeText: 'text-gray-700 dark:text-gray-300',
-    toggleBg: 'bg-gray-500',
+  dbsql: {
+    label: 'Gestione Dati',
+    description: 'Accesso database, query SQL e migrazioni',
+    icon: 'fa-database',
+    borderColor: 'border-cyan-500',
+    bgColor: 'bg-cyan-50 dark:bg-cyan-900/20',
+    iconBg: 'bg-cyan-500',
+    badgeBg: 'bg-cyan-100 dark:bg-cyan-900/30',
+    badgeText: 'text-cyan-700 dark:text-cyan-300',
+    toggleBg: 'bg-cyan-500',
   },
   log: {
     label: 'Log Attività',
-    description: 'Registro attività sistema',
+    description: 'Visualizzazione audit log e attività sistema',
     icon: 'fa-history',
     borderColor: 'border-cyan-500',
     bgColor: 'bg-cyan-50 dark:bg-cyan-900/20',
@@ -158,16 +136,38 @@ const moduleConfigs: Record<string, {
     badgeText: 'text-cyan-700 dark:text-cyan-300',
     toggleBg: 'bg-cyan-500',
   },
-  dbsql: {
-    label: 'Database SQL',
-    description: 'Query e gestione database',
-    icon: 'fa-database',
-    borderColor: 'border-slate-500',
-    bgColor: 'bg-slate-50 dark:bg-slate-900/20',
-    iconBg: 'bg-slate-500',
-    badgeBg: 'bg-slate-100 dark:bg-slate-900/30',
-    badgeText: 'text-slate-700 dark:text-slate-300',
-    toggleBg: 'bg-slate-500',
+  inwork: {
+    label: 'InWork',
+    description: 'Sistema gestione operatori e permessi mobile',
+    icon: 'fa-mobile',
+    borderColor: 'border-cyan-500',
+    bgColor: 'bg-cyan-50 dark:bg-cyan-900/20',
+    iconBg: 'bg-cyan-500',
+    badgeBg: 'bg-cyan-100 dark:bg-cyan-900/30',
+    badgeText: 'text-cyan-700 dark:text-cyan-300',
+    toggleBg: 'bg-cyan-500',
+  },
+  users: {
+    label: 'Utenti',
+    description: 'Creazione, modifica e gestione utenti sistema',
+    icon: 'fa-users',
+    borderColor: 'border-gray-500',
+    bgColor: 'bg-gray-50 dark:bg-gray-900/20',
+    iconBg: 'bg-gray-500',
+    badgeBg: 'bg-gray-100 dark:bg-gray-900/30',
+    badgeText: 'text-gray-700 dark:text-gray-300',
+    toggleBg: 'bg-gray-500',
+  },
+  settings: {
+    label: 'Impostazioni',
+    description: 'Configurazione sistema e import dati',
+    icon: 'fa-cog',
+    borderColor: 'border-gray-500',
+    bgColor: 'bg-gray-50 dark:bg-gray-900/20',
+    iconBg: 'bg-gray-500',
+    badgeBg: 'bg-gray-100 dark:bg-gray-900/30',
+    badgeText: 'text-gray-700 dark:text-gray-300',
+    toggleBg: 'bg-gray-500',
   },
 };
 
@@ -181,6 +181,7 @@ export default function SettingsPage() {
   const [selectedFileName, setSelectedFileName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastNotificationRef = useRef<{ key: string; time: number } | null>(null);
 
   // Modules state
   const [modules, setModules] = useState<Record<string, boolean>>({});
@@ -239,7 +240,18 @@ export default function SettingsPage() {
       await settingsApi.updateModuleStatus(moduleName, enabled);
       // Invalida cache moduli per ricaricare sidebar
       clearModulesCache();
-      showSuccess(`Modulo ${moduleName} ${enabled ? 'attivato' : 'disattivato'}`);
+
+      // Evita notifiche duplicate (debounce di 500ms)
+      const notificationKey = `${moduleName}-${enabled}`;
+      const now = Date.now();
+      if (
+        !lastNotificationRef.current ||
+        lastNotificationRef.current.key !== notificationKey ||
+        now - lastNotificationRef.current.time > 500
+      ) {
+        lastNotificationRef.current = { key: notificationKey, time: now };
+        showSuccess(`Modulo ${moduleName} ${enabled ? 'attivato' : 'disattivato'}`);
+      }
     } catch (error: any) {
       setModules(oldModules);
       showError(error.response?.data?.message || 'Errore aggiornamento modulo');

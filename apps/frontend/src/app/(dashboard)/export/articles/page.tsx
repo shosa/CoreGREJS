@@ -318,16 +318,14 @@ export default function ArticlesPage() {
         </div>
 
         {/* Pagination */}
-        {filteredArticles.length > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            itemsPerPage={itemsPerPage}
-            totalItems={filteredArticles.length}
-            onItemsPerPageChange={handleItemsPerPageChange}
-          />
-        )}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          itemsPerPage={itemsPerPage}
+          totalItems={filteredArticles.length}
+          onItemsPerPageChange={handleItemsPerPageChange}
+        />
       </motion.div>
 
       {/* Modal */}

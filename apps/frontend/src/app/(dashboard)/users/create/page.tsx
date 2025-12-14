@@ -30,7 +30,6 @@ export default function CreateUserPage() {
     userName: '',
     nome: '',
     mail: '',
-    userType: '',
     password: '',
     confirmPassword: '',
   });
@@ -58,7 +57,6 @@ export default function CreateUserPage() {
         userName: formData.userName,
         nome: formData.nome,
         mail: formData.mail,
-        userType: formData.userType,
         password: formData.password,
       });
       showSuccess('Utente creato con successo');
@@ -188,29 +186,6 @@ export default function CreateUserPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="email@example.com"
               />
-            </motion.div>
-
-            {/* Ruolo */}
-            <motion.div variants={itemVariants}>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Ruolo <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="userType"
-                value={formData.userType}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Seleziona ruolo</option>
-                <option value="admin">Admin</option>
-                <option value="manager">Manager</option>
-                <option value="user">User</option>
-                <option value="viewer">Viewer</option>
-              </select>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                <strong>Admin:</strong> Accesso completo • <strong>Manager:</strong> Gestione operativa • <strong>User:</strong> Accesso standard • <strong>Viewer:</strong> Solo lettura
-              </p>
             </motion.div>
           </div>
 

@@ -6,6 +6,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import Breadcrumb from "@/components/layout/Breadcrumb";
 import { qualityApi } from "@/lib/api";
 import { showSuccess, showError } from "@/store/notifications";
+import Pagination from "@/components/ui/Pagination";
 
 type DefectType = {
   id: number;
@@ -37,6 +38,8 @@ export default function DifettiPage() {
     attivo: true,
     ordine: 0,
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   useEffect(() => {
     fetchDefectTypes();
@@ -120,6 +123,12 @@ export default function DifettiPage() {
     }
   };
 
+  // Pagination logic
+  const totalPages = Math.ceil(defectTypes.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedDefects = defectTypes.slice(startIndex, endIndex);
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -195,7 +204,7 @@ export default function DifettiPage() {
                   </td>
                 </tr>
               ) : (
-                defectTypes.map((defect) => (
+                paginatedDefects.map((defect) => (
                   <tr
                     key={defect.id}
                     className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
@@ -253,6 +262,19 @@ export default function DifettiPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          totalItems={defectTypes.length}
+          onItemsPerPageChange={(newValue) => {
+            setItemsPerPage(newValue);
+            setCurrentPage(1);
+          }}
+        />
       </div>
 
       {/* Modal */}

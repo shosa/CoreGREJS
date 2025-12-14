@@ -17,7 +17,7 @@ interface WidgetInfo {
 const availableWidgets: WidgetInfo[] = [
   { id: 'riparazioni', name: 'Riparazioni', icon: 'tools', color: 'blue', permission: 'riparazioni', module: 'riparazioni' },
   { id: 'produzione', name: 'Produzione', icon: 'industry', color: 'yellow', permission: 'produzione', module: 'produzione' },
-  { id: 'quality', name: 'Quality Control', icon: 'check-circle', color: 'green', permission: 'qualita', module: 'qualita' },
+  { id: 'quality', name: 'Quality Control', icon: 'check-circle', color: 'green', permission: 'quality', module: 'qualita' },
   { id: 'export-stats', name: 'Statistiche Export', icon: 'file-export', color: 'purple', permission: 'export', module: 'export' },
   { id: 'tracking', name: 'Tracking', icon: 'route', color: 'pink' },
   { id: 'scm', name: 'SCM', icon: 'rocket', color: 'orange', permission: 'scm_admin', module: 'scm' },

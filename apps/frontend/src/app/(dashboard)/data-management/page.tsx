@@ -146,20 +146,6 @@ const modulesData: ModuleInfo[] = [
     ],
   },
   {
-    name: 'mrp',
-    displayName: 'MRP',
-    icon: 'fa-boxes',
-    color: 'cyan',
-    description: 'Material Requirements Planning',
-    tables: [
-      { name: 'mrp-materials', displayName: 'Materiali', model: 'mrpMaterial', tableName: 'mrp_materials', icon: 'fa-box', description: 'Anagrafica materiali', relations: ['category', 'orders'] },
-      { name: 'mrp-categories', displayName: 'Categorie', model: 'mrpCategory', tableName: 'mrp_categories', icon: 'fa-folder', description: 'Categorie materiali' },
-      { name: 'mrp-orders', displayName: 'Ordini', model: 'mrpOrder', tableName: 'mrp_orders', icon: 'fa-shopping-cart', description: 'Ordini fornitori' },
-      { name: 'mrp-arrivals', displayName: 'Arrivi', model: 'mrpArrival', tableName: 'mrp_arrivals', icon: 'fa-truck-loading', description: 'Arrivi materiali' },
-      { name: 'mrp-requirements', displayName: 'Fabbisogni', model: 'mrpRequirement', tableName: 'mrp_requirements', icon: 'fa-clipboard-list', description: 'Fabbisogni materiali' },
-    ],
-  },
-  {
     name: 'cron',
     displayName: 'Cron Jobs',
     icon: 'fa-clock',

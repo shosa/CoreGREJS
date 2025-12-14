@@ -13,7 +13,6 @@ export class UsersService {
         userName: true,
         nome: true,
         mail: true,
-        userType: true,
         lastLogin: true,
         createdAt: true,
       },
@@ -22,15 +21,10 @@ export class UsersService {
   }
 
   async getStats() {
-    const users = await this.prisma.user.findMany({
-      select: { userType: true },
-    });
+    const total = await this.prisma.user.count();
 
     return {
-      total: users.length,
-      admins: users.filter(u => u.userType === 'admin').length,
-      managers: users.filter(u => u.userType === 'manager').length,
-      users: users.filter(u => u.userType === 'user' || u.userType === 'viewer').length,
+      total,
     };
   }
 
@@ -42,7 +36,6 @@ export class UsersService {
         userName: true,
         nome: true,
         mail: true,
-        userType: true,
         lastLogin: true,
         createdAt: true,
         permissions: true,
@@ -65,14 +58,12 @@ export class UsersService {
         nome: data.nome,
         mail: data.mail,
         password: hashedPassword,
-        userType: data.userType || 'user',
       },
       select: {
         id: true,
         userName: true,
         nome: true,
         mail: true,
-        userType: true,
         createdAt: true,
       },
     });
@@ -94,7 +85,6 @@ export class UsersService {
     if (data.userName) updateData.userName = data.userName;
     if (data.nome) updateData.nome = data.nome;
     if (data.mail) updateData.mail = data.mail;
-    if (data.userType) updateData.userType = data.userType;
     if (data.mailPassword !== undefined) updateData.mailPassword = data.mailPassword;
 
     if (data.password) {
@@ -109,7 +99,6 @@ export class UsersService {
         userName: true,
         nome: true,
         mail: true,
-        userType: true,
         createdAt: true,
       },
     });
@@ -147,75 +136,26 @@ export class UsersService {
       return {
         riparazioni: false,
         produzione: false,
-        qualita: false,
+        quality: false,
         export: false,
         scm_admin: false,
         tracking: false,
         mrp: false,
         users: false,
         log: false,
-        etichette: false,
         dbsql: false,
         settings: false,
-        admin: false,
       };
     }
 
-    // Normalizza le chiavi dei permessi (converte vecchie chiavi in nuove)
-    const permessi = permission.permessi as any;
-    const normalized = { ...permessi };
-
-    // Migra chiavi vecchie se presenti
-    if ('quality' in permessi) {
-      normalized.qualita = permessi.quality;
-      delete normalized.quality;
-    }
-    if ('scm' in permessi) {
-      normalized.scm_admin = permessi.scm;
-      delete normalized.scm;
-    }
-    if ('utenti' in permessi) {
-      normalized.users = permessi.utenti;
-      delete normalized.utenti;
-    }
-
-    // Aggiorna il database con le chiavi normalizzate se ci sono state modifiche
-    if (
-      'quality' in permessi ||
-      'scm' in permessi ||
-      'utenti' in permessi
-    ) {
-      await this.prisma.permission.update({
-        where: { userId },
-        data: { permessi: normalized },
-      });
-    }
-
-    return normalized;
+    return permission.permessi as any;
   }
 
   async updatePermissions(userId: number, permessi: any) {
-    // Normalizza le chiavi prima di salvare
-    const normalized = { ...permessi };
-
-    // Converti chiavi vecchie in nuove se presenti
-    if ('quality' in normalized) {
-      normalized.qualita = normalized.quality;
-      delete normalized.quality;
-    }
-    if ('scm' in normalized) {
-      normalized.scm_admin = normalized.scm;
-      delete normalized.scm;
-    }
-    if ('utenti' in normalized) {
-      normalized.users = normalized.utenti;
-      delete normalized.utenti;
-    }
-
     return this.prisma.permission.upsert({
       where: { userId },
-      update: { permessi: normalized },
-      create: { userId, permessi: normalized },
+      update: { permessi },
+      create: { userId, permessi },
     });
   }
 }

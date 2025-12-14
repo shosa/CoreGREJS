@@ -310,7 +310,7 @@ export default function DashboardPage() {
         )}
 
         {/* Quality */}
-        {isWidgetVisible('quality', 'qualita', 'qualita') && (
+        {isWidgetVisible('quality', 'quality', 'qualita') && (
           <div key="quality" className={isEditMode ? 'drag-handle cursor-move' : ''}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}

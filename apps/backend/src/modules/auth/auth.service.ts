@@ -27,7 +27,6 @@ export class AuthService {
     const payload = {
       sub: user.id,
       username: user.userName,
-      userType: user.userType,
     };
 
     // Update last login
@@ -36,10 +35,6 @@ export class AuthService {
       data: { lastLogin: new Date() },
     });
 
-    // Normalizza i permessi
-    const permessi = user.permissions?.permessi || {};
-    const normalized = this.normalizePermissions(permessi);
-
     return {
       access_token: this.jwtService.sign(payload),
       user: {
@@ -47,8 +42,7 @@ export class AuthService {
         userName: user.userName,
         nome: user.nome,
         mail: user.mail,
-        userType: user.userType,
-        permissions: normalized,
+        permissions: user.permissions?.permessi || {},
       },
     };
   }
@@ -63,36 +57,11 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    // Normalizza i permessi
-    const permessi = user.permissions?.permessi || {};
-    const normalized = this.normalizePermissions(permessi);
-
     const { password: _, ...result } = user;
     return {
       ...result,
-      permissions: normalized,
+      permissions: user.permissions?.permessi || {},
     };
-  }
-
-  // Helper per normalizzare le chiavi dei permessi
-  private normalizePermissions(permessi: any): any {
-    const normalized = { ...permessi };
-
-    // Converti chiavi vecchie in nuove
-    if ('quality' in normalized) {
-      normalized.qualita = normalized.quality;
-      delete normalized.quality;
-    }
-    if ('scm' in normalized) {
-      normalized.scm_admin = normalized.scm;
-      delete normalized.scm;
-    }
-    if ('utenti' in normalized) {
-      normalized.users = normalized.utenti;
-      delete normalized.utenti;
-    }
-
-    return normalized;
   }
 
   async updateProfile(userId: number, data: { nome?: string; userName?: string; mail?: string; mailPassword?: string }) {
@@ -104,7 +73,6 @@ export class AuthService {
         userName: true,
         nome: true,
         mail: true,
-        userType: true,
       },
     });
   }

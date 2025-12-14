@@ -181,7 +181,7 @@ export default function Header() {
                     {user?.nome}
                   </span>
                   <span className="block text-xs text-gray-500 dark:text-gray-400">
-                    {user?.userType === 'admin' ? 'Amministratore' : 'Operatore'}
+                    @{user?.userName}
                   </span>
                 </span>
 

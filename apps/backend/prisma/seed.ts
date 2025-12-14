@@ -16,11 +16,10 @@ async function main() {
       nome: 'Stefano Solidoro',
       password: adminPassword,
       mail: 'stefano.solidoro@mgmshoes.it',
-      userType: 'admin',
     },
   });
 
-  // Create admin permissions
+  // Create admin permissions (tutti i permessi abilitati)
   await prisma.permission.upsert({
     where: { userId: admin.id },
     update: {},
@@ -28,14 +27,16 @@ async function main() {
       userId: admin.id,
       permessi: {
         riparazioni: true,
-        qualita: true,
+        quality: true,
         produzione: true,
         export: true,
         scm_admin: true,
         tracking: true,
-        mrp: true,
         users: true,
         settings: true,
+        log: true,
+        dbsql: true,
+        inwork: true,
       },
     },
   });

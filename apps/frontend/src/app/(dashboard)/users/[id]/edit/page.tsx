@@ -33,7 +33,6 @@ export default function EditUserPage() {
     nome: '',
     mail: '',
     mailPassword: '',
-    userType: '',
     password: '',
     confirmPassword: '',
   });
@@ -49,7 +48,6 @@ export default function EditUserPage() {
           nome: user.nome,
           mail: user.mail || '',
           mailPassword: '',
-          userType: user.userType,
           password: '',
           confirmPassword: '',
         });
@@ -89,7 +87,6 @@ export default function EditUserPage() {
         userName: formData.userName,
         nome: formData.nome,
         mail: formData.mail,
-        userType: formData.userType,
       };
 
       if (formData.mailPassword) {
@@ -276,24 +273,6 @@ export default function EditUserPage() {
                 <i className="fas fa-info-circle mr-1"></i>
                 Password utilizzata per autenticare l'invio di email tramite SMTP
               </p>
-            </motion.div>
-
-            <motion.div variants={itemVariants}>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Ruolo <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="userType"
-                value={formData.userType}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="admin">Admin</option>
-                <option value="manager">Manager</option>
-                <option value="user">User</option>
-                <option value="viewer">Viewer</option>
-              </select>
             </motion.div>
           </div>
 

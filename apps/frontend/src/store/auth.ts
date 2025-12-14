@@ -6,7 +6,6 @@ interface User {
   userName: string;
   nome: string;
   mail: string;
-  userType: string;
   permissions: Record<string, boolean>;
 }
 
@@ -54,7 +53,6 @@ export const useAuthStore = create<AuthState>()(
       hasPermission: (module) => {
         const { user } = get();
         if (!user) return false;
-        if (user.userType === 'admin') return true;
         return user.permissions?.[module] === true;
       },
 

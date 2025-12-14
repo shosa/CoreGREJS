@@ -51,7 +51,7 @@ const menuItems: MenuItem[] = [
     icon: 'fa-check-circle',
     gradient: 'from-green-500 to-emerald-600',
     hoverGradient: 'hover:from-green-50 hover:to-emerald-100 dark:hover:from-green-900/20 dark:hover:to-emerald-800/20',
-    permission: 'qualita',
+    permission: 'quality',
     children: [
       { name: 'Dashboard', href: '/quality', icon: 'fa-home' },
       { name: 'Consulto Record', href: '/quality/records', icon: 'fa-list' },
@@ -133,9 +133,9 @@ const menuItems: MenuItem[] = [
 ];
 
 const adminItems: MenuItem[] = [
-  { name: 'Gestione Dati', href: '/data-management', icon: 'fa-database', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50' },
+  { name: 'Gestione Dati', href: '/data-management', icon: 'fa-database', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50', permission: 'dbsql' },
   { name: 'Log Attività', href: '/log-attivita', icon: 'fa-history', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-cyan-800/50 dark:hover:to-cyan-700/50', permission: 'log' },
-  { name: 'InWork', href: '/inwork', icon: 'fa-mobile', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50' },
+  { name: 'InWork', href: '/inwork', icon: 'fa-mobile', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50', permission: 'inwork' },
 ];
 
 const toolItems: MenuItem[] = [
@@ -210,16 +210,32 @@ export default function Sidebar() {
     };
   }, [popupMenu]);
 
+  // Helper function to check if an item should be visible
+  const isItemVisible = (item: MenuItem) => {
+    // Filter by permissions
+    if (item.permission && !hasPermission(item.permission)) return false;
+
+    // Filter by active modules
+    if (item.permission) {
+      // Map permission to module name (handle special cases)
+      const moduleMap: Record<string, string> = {
+        'quality': 'qualita',
+        'scm_admin': 'scm_admin',
+      };
+      const moduleName = moduleMap[item.permission] || item.permission;
+      if (!isModuleActive(moduleName)) return false;
+    }
+
+    return true;
+  };
+
   const renderMenuItem = (item: MenuItem, index: number) => {
     const hasChildren = item.children && item.children.length > 0;
     const isOpen = activeMenu === item.name;
     const isPopupOpen = popupMenu === item.name;
 
-    // Filter by permissions
-    if (item.permission && !hasPermission(item.permission)) return null;
-
-    // Filter by active modules
-    if (item.permission && !isModuleActive(item.permission)) return null;
+    // Use the helper function to check visibility
+    if (!isItemVisible(item)) return null;
 
     return (
       <motion.li
@@ -423,28 +439,30 @@ export default function Sidebar() {
             </div>
 
             {/* Funzioni */}
-            <div className="mb-6">
-              <AnimatePresence>
-                {!sidebarCollapsed && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="sidebar-text mb-3 px-2.5 py-1.5 rounded-md bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-700">
-                    <h3 className="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Funzioni</h3>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              {sidebarCollapsed && (
-                <div className="mb-1.5 flex justify-center">
-                  <div className="h-px w-6 bg-gray-300 dark:bg-gray-600"></div>
-                </div>
-              )}
-              <ul className="space-y-1.5">{menuItems.slice(1).map((item, i) => renderMenuItem(item, i + 1))}</ul>
-            </div>
-
-            {user?.userType === 'admin' && (
+            {menuItems.slice(1).filter(isItemVisible).length > 0 && (
               <div className="mb-6">
                 <AnimatePresence>
                   {!sidebarCollapsed && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="sidebar-text mb-3 px-2.5 py-1.5 rounded-md bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-700">
-                      <h3 className="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Admin</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Funzioni</h3>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {sidebarCollapsed && (
+                  <div className="mb-1.5 flex justify-center">
+                    <div className="h-px w-6 bg-gray-300 dark:bg-gray-600"></div>
+                  </div>
+                )}
+                <ul className="space-y-1.5">{menuItems.slice(1).map((item, i) => renderMenuItem(item, i + 1))}</ul>
+              </div>
+            )}
+
+            {adminItems.filter(isItemVisible).length > 0 && (
+              <div className="mb-6">
+                <AnimatePresence>
+                  {!sidebarCollapsed && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="sidebar-text mb-3 px-2.5 py-1.5 rounded-md bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-700">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Frameworks</h3>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -457,21 +475,23 @@ export default function Sidebar() {
               </div>
             )}
 
-            <div>
-              <AnimatePresence>
-                {!sidebarCollapsed && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="sidebar-text mb-3 px-2.5 py-1.5 rounded-md bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-700">
-                    <h3 className="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Strumenti</h3>
-                  </motion.div>
+            {toolItems.filter(isItemVisible).length > 0 && (
+              <div>
+                <AnimatePresence>
+                  {!sidebarCollapsed && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="sidebar-text mb-3 px-2.5 py-1.5 rounded-md bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-700">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Strumenti</h3>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {sidebarCollapsed && (
+                  <div className="mb-1.5 flex justify-center">
+                    <div className="h-px w-6 bg-gray-300 dark:bg-gray-600"></div>
+                  </div>
                 )}
-              </AnimatePresence>
-              {sidebarCollapsed && (
-                <div className="mb-1.5 flex justify-center">
-                  <div className="h-px w-6 bg-gray-300 dark:bg-gray-600"></div>
-                </div>
-              )}
-              <ul className="space-y-1.5">{toolItems.map((item, i) => renderMenuItem(item, i + menuItems.length + adminItems.length))}</ul>
-            </div>
+                <ul className="space-y-1.5">{toolItems.map((item, i) => renderMenuItem(item, i + menuItems.length + adminItems.length))}</ul>
+              </div>
+            )}
           </nav>
         </div>
       </motion.aside>

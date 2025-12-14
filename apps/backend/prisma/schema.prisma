@@ -16,7 +16,6 @@ model User {
   password     String    @db.VarChar(255)
   mail         String?   @db.VarChar(100)
   mailPassword String?   @map("mail_password") @db.VarChar(255)
-  userType     String    @default("operator") @map("user_type") @db.VarChar(20)
   lastLogin    DateTime? @map("last_login")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
@@ -721,93 +720,6 @@ model ProductionValue {
   @@map("prod_values")
 }
 
-// ==================== MRP ====================
-
-model MrpMaterial {
-  id         Int      @id @default(autoincrement())
-  codice     String   @unique @db.VarChar(100)
-  nome       String   @db.VarChar(200)
-  categoryId Int?     @map("category_id")
-  unita      String   @default("PZ") @db.VarChar(20)
-  scorta     Int      @default(0)
-  giacenza   Int      @default(0)
-  leadTime   Int      @default(0) @map("lead_time")
-  fornitore  String?  @db.VarChar(200)
-  prezzo     Decimal? @db.Decimal(10, 2)
-  note       String?  @db.Text
-  attivo     Boolean  @default(true)
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  category     MrpCategory?     @relation(fields: [categoryId], references: [id])
-  orders       MrpOrder[]
-  arrivals     MrpArrival[]
-  requirements MrpRequirement[]
-
-  @@map("mrp_materials")
-}
-
-model MrpCategory {
-  id          Int      @id @default(autoincrement())
-  nome        String   @db.VarChar(100)
-  codice      String?  @db.VarChar(20)
-  descrizione String?  @db.Text
-  attivo      Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  materials MrpMaterial[]
-
-  @@map("mrp_categories")
-}
-
-model MrpOrder {
-  id           Int       @id @default(autoincrement())
-  materialId   Int       @map("material_id")
-  quantita     Int
-  dataOrdine   DateTime  @default(now()) @map("data_ordine")
-  dataConsegna DateTime? @map("data_consegna")
-  stato        String    @default("ordinato") @db.VarChar(30)
-  fornitore    String?   @db.VarChar(200)
-  riferimento  String?   @db.VarChar(100)
-  note         String?   @db.Text
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-
-  material MrpMaterial @relation(fields: [materialId], references: [id])
-
-  @@map("mrp_orders")
-}
-
-model MrpArrival {
-  id          Int      @id @default(autoincrement())
-  materialId  Int      @map("material_id")
-  quantita    Int
-  dataArrivo  DateTime @default(now()) @map("data_arrivo")
-  riferimento String?  @db.VarChar(100)
-  note        String?  @db.Text
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  material MrpMaterial @relation(fields: [materialId], references: [id])
-
-  @@map("mrp_arrivals")
-}
-
-model MrpRequirement {
-  id             Int      @id @default(autoincrement())
-  materialId     Int      @map("material_id")
-  commessa       String?  @db.VarChar(100)
-  quantita       Int
-  dataFabbisogno DateTime @map("data_fabbisogno")
-  stato          String   @default("pending") @db.VarChar(30)
-  note           String?  @db.Text
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-
-  material MrpMaterial @relation(fields: [materialId], references: [id])
-
-  @@map("mrp_requirements")
-}
 
 // ==================== WIDGETS ====================
 

@@ -6,6 +6,7 @@ import { exportApi } from "@/lib/api";
 import { showError, showSuccess } from "@/store/notifications";
 import PageHeader from "@/components/layout/PageHeader";
 import Breadcrumb from "@/components/layout/Breadcrumb";
+import Pagination from "@/components/ui/Pagination";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -36,6 +37,8 @@ export default function TerzistiPage() {
   const [showInactive, setShowInactive] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [formData, setFormData] = useState<Partial<Terzista>>({
     ragioneSociale: "",
     indirizzo1: "",
@@ -123,6 +126,12 @@ export default function TerzistiPage() {
       t.ragioneSociale.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.nazione?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredTerzisti.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedTerzisti = filteredTerzisti.slice(startIndex, endIndex);
 
   if (loading) {
     return (
@@ -221,7 +230,7 @@ export default function TerzistiPage() {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               <AnimatePresence>
-                {filteredTerzisti.map((terzista, index) => (
+                {paginatedTerzisti.map((terzista, index) => (
                   <motion.tr
                     key={terzista.id}
                     initial={{ opacity: 0, x: -20 }}
@@ -290,6 +299,19 @@ export default function TerzistiPage() {
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          totalItems={filteredTerzisti.length}
+          onItemsPerPageChange={(newValue) => {
+            setItemsPerPage(newValue);
+            setCurrentPage(1);
+          }}
+        />
       </motion.div>
 
       {/* Modal */}

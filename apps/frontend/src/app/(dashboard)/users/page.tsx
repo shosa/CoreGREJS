@@ -5,22 +5,19 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usersApi } from '@/lib/api';
 import { showSuccess, showError } from '@/store/notifications';
+import Pagination from '@/components/ui/Pagination';
 
 interface User {
   id: number;
   userName: string;
   nome: string;
   mail: string;
-  userType: string;
   lastLogin: string | null;
   createdAt: string;
 }
 
 interface Stats {
   total: number;
-  admins: number;
-  managers: number;
-  users: number;
 }
 
 const containerVariants = {
@@ -42,6 +39,8 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   const fetchData = async () => {
     try {
@@ -69,12 +68,18 @@ export default function UsersPage() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === users.length) {
+    if (selectedIds.length === paginatedUsers.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(users.map((u) => u.id));
+      setSelectedIds(paginatedUsers.map((u) => u.id));
     }
   };
+
+  // Pagination logic
+  const totalPages = Math.ceil(users.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedUsers = users.slice(startIndex, endIndex);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Sei sicuro di voler eliminare questo utente?')) return;
@@ -105,15 +110,6 @@ export default function UsersPage() {
     }
   };
 
-  const getBadgeColor = (type: string) => {
-    const colors: Record<string, string> = {
-      admin: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-      manager: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-      user: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-      viewer: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300',
-    };
-    return colors[type] || colors.user;
-  };
 
   if (loading) {
     return (
@@ -176,7 +172,7 @@ export default function UsersPage() {
       </motion.nav>
 
       {/* Stats Cards */}
-      <motion.div variants={containerVariants} className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <motion.div variants={containerVariants} className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">
         <motion.div
           variants={itemVariants}
           whileHover={{ scale: 1.02 }}
@@ -196,54 +192,6 @@ export default function UsersPage() {
               >
                 {stats?.total || 0}
               </motion.p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          variants={itemVariants}
-          whileHover={{ scale: 1.02 }}
-          className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-        >
-          <div className="flex items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-red-500 to-red-600 shadow-lg">
-              <i className="fas fa-user-shield text-white"></i>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Amministratori</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.admins || 0}</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          variants={itemVariants}
-          whileHover={{ scale: 1.02 }}
-          className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-        >
-          <div className="flex items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 shadow-lg">
-              <i className="fas fa-user-tie text-white"></i>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Manager</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.managers || 0}</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          variants={itemVariants}
-          whileHover={{ scale: 1.02 }}
-          className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-        >
-          <div className="flex items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-green-500 to-green-600 shadow-lg">
-              <i className="fas fa-user text-white"></i>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Utenti Standard</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.users || 0}</p>
             </div>
           </div>
         </motion.div>
@@ -298,9 +246,6 @@ export default function UsersPage() {
                   Email
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Ruolo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Ultimo Accesso
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -324,7 +269,7 @@ export default function UsersPage() {
                     </td>
                   </tr>
                 ) : (
-                  users.map((user, index) => (
+                  paginatedUsers.map((user, index) => (
                     <motion.tr
                       key={user.id}
                       initial={{ opacity: 0, x: -20 }}
@@ -365,11 +310,6 @@ export default function UsersPage() {
                         <div className="text-sm text-gray-900 dark:text-white">
                           {user.mail || 'Non specificata'}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getBadgeColor(user.userType)}`}>
-                          {user.userType.charAt(0).toUpperCase() + user.userType.slice(1)}
-                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {user.lastLogin
@@ -416,6 +356,19 @@ export default function UsersPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          totalItems={users.length}
+          onItemsPerPageChange={(newValue) => {
+            setItemsPerPage(newValue);
+            setCurrentPage(1);
+          }}
+        />
       </motion.div>
     </motion.div>
   );

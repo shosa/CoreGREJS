@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import PageHeader from "@/components/layout/PageHeader";
 import Breadcrumb from "@/components/layout/Breadcrumb";
 import Offcanvas from "@/components/ui/Offcanvas";
+import Pagination from "@/components/ui/Pagination";
 import { activityLogApi } from "@/lib/api";
 import { showError } from "@/store/notifications";
 
@@ -74,8 +75,8 @@ export default function LogAttivitaPage() {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
-  const limit = 50;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
 
   // Filters
   const [filterModule, setFilterModule] = useState("");
@@ -98,7 +99,7 @@ export default function LogAttivitaPage() {
   useEffect(() => {
     fetchLogs();
     fetchStats();
-  }, [page, filterModule, filterAction, filterStartDate, filterEndDate]);
+  }, [currentPage, itemsPerPage, filterModule, filterAction, filterStartDate, filterEndDate]);
 
   const fetchLogs = async () => {
     try {
@@ -108,8 +109,8 @@ export default function LogAttivitaPage() {
         action: filterAction || undefined,
         startDate: filterStartDate || undefined,
         endDate: filterEndDate || undefined,
-        limit,
-        offset: page * limit,
+        limit: itemsPerPage,
+        offset: (currentPage - 1) * itemsPerPage,
       });
       setLogs(data.logs);
       setTotal(data.total);
@@ -174,7 +175,7 @@ export default function LogAttivitaPage() {
     );
   }
 
-  const totalPages = Math.ceil(total / limit);
+  const totalPages = Math.ceil(total / itemsPerPage);
 
   return (
     <motion.div initial="hidden" animate="visible" variants={containerVariants}>
@@ -444,31 +445,17 @@ export default function LogAttivitaPage() {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/60">
-            <div className="text-sm text-gray-700 dark:text-gray-300">
-              Pagina <span className="font-medium">{page + 1}</span> di{" "}
-              <span className="font-medium">{totalPages}</span> (
-              <span className="font-medium">{total}</span> totali)
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage(Math.max(0, page - 1))}
-                disabled={page === 0}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-              >
-                <i className="fas fa-chevron-left"></i>
-              </button>
-              <button
-                onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-                disabled={page >= totalPages - 1}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-              >
-                <i className="fas fa-chevron-right"></i>
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          totalItems={total}
+          onItemsPerPageChange={(newValue) => {
+            setItemsPerPage(newValue);
+            setCurrentPage(1);
+          }}
+        />
       </motion.div>
 
       {/* Offcanvas for metadata details */}

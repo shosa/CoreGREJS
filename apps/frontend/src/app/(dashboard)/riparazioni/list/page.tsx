@@ -7,6 +7,7 @@ import { riparazioniApi } from '@/lib/api';
 import { showError, showSuccess } from '@/store/notifications';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
+import Pagination from '@/components/ui/Pagination';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -63,7 +64,7 @@ export default function RiparazioniListPage() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   // Delete modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -492,58 +493,20 @@ export default function RiparazioniListPage() {
             </motion.div>
           )}
         </div>
+
+        {/* Pagination */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          totalItems={filteredRiparazioni.length}
+          onItemsPerPageChange={(newValue) => {
+            setItemsPerPage(newValue);
+            setCurrentPage(1);
+          }}
+        />
       </motion.div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <motion.div
-          variants={itemVariants}
-          className="mt-6 flex justify-center items-center gap-2"
-        >
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <i className="fas fa-chevron-left"></i>
-          </button>
-
-          {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
-            let pageNum;
-            if (totalPages <= 7) {
-              pageNum = i + 1;
-            } else if (currentPage <= 4) {
-              pageNum = i + 1;
-            } else if (currentPage >= totalPages - 3) {
-              pageNum = totalPages - 6 + i;
-            } else {
-              pageNum = currentPage - 3 + i;
-            }
-
-            return (
-              <button
-                key={pageNum}
-                onClick={() => handlePageChange(pageNum)}
-                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                  currentPage === pageNum
-                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg'
-                    : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-              >
-                {pageNum}
-              </button>
-            );
-          })}
-
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <i className="fas fa-chevron-right"></i>
-          </button>
-        </motion.div>
-      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (

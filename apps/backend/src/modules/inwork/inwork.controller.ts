@@ -10,25 +10,25 @@ export class InworkController {
   constructor(private readonly inworkService: InworkService) {}
 
   @Get('operators')
-  @RequirePermissions('admin')
+  @RequirePermissions('inwork')
   async getAllOperators() {
     return this.inworkService.getAllOperators();
   }
 
   @Get('operators/:id')
-  @RequirePermissions('admin')
+  @RequirePermissions('inwork')
   async getOperatorById(@Param('id', ParseIntPipe) id: number) {
     return this.inworkService.getOperatorById(id);
   }
 
   @Post('operators')
-  @RequirePermissions('admin')
+  @RequirePermissions('inwork')
   async createOperator(@Body() data: CreateInworkOperatorDto) {
     return this.inworkService.createOperator(data);
   }
 
   @Put('operators/:id')
-  @RequirePermissions('admin')
+  @RequirePermissions('inwork')
   async updateOperator(
     @Param('id', ParseIntPipe) id: number,
     @Body() data: UpdateInworkOperatorDto,
@@ -37,43 +37,43 @@ export class InworkController {
   }
 
   @Delete('operators/:id')
-  @RequirePermissions('admin')
+  @RequirePermissions('inwork')
   async deleteOperator(@Param('id', ParseIntPipe) id: number) {
     return this.inworkService.deleteOperator(id);
   }
 
   @Post('operators/:id/toggle-status')
-  @RequirePermissions('admin')
+  @RequirePermissions('inwork')
   async toggleOperatorStatus(@Param('id', ParseIntPipe) id: number) {
     return this.inworkService.toggleOperatorStatus(id);
   }
 
   @Get('modules')
-  @RequirePermissions('admin')
+  @RequirePermissions('inwork')
   async getAvailableModules() {
     return this.inworkService.getAvailableModules();
   }
 
   @Get('modules/all')
-  @RequirePermissions('admin')
+  @RequirePermissions('inwork')
   async getAllModules() {
     return this.inworkService.getAllModules();
   }
 
   @Post('modules')
-  @RequirePermissions('admin')
+  @RequirePermissions('inwork')
   async createModule(@Body() data: { moduleId: string; moduleName: string; descrizione?: string; ordine?: number }) {
     return this.inworkService.createModule(data);
   }
 
   @Put('modules/:id')
-  @RequirePermissions('admin')
+  @RequirePermissions('inwork')
   async updateModule(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
     return this.inworkService.updateModule(id, data);
   }
 
   @Post('modules/:id/toggle')
-  @RequirePermissions('admin')
+  @RequirePermissions('inwork')
   async toggleModule(@Param('id', ParseIntPipe) id: number) {
     return this.inworkService.toggleModule(id);
   }
