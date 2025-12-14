@@ -15,7 +15,7 @@ import { Response, Request } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { JobsService, JobStatus } from './jobs.service';
 import { JobsQueueService } from './jobs.queue';
-import * as fs from 'fs';
+import { StorageService } from '../storage/storage.service';
 import * as archiver from 'archiver';
 import { PDFDocument } from 'pdf-lib';
 
@@ -25,6 +25,7 @@ export class JobsController {
   constructor(
     private readonly jobsService: JobsService,
     private readonly jobsQueueService: JobsQueueService,
+    private readonly storageService: StorageService,
   ) {}
 
   @Post()
@@ -59,7 +60,8 @@ export class JobsController {
   async download(@Param('id') id: string, @Req() req: Request, @Res() res: Response) {
     const userId = (req as any).user?.userId;
     const job = await this.jobsService.getJob(id, userId);
-    if (!job.outputPath || !fs.existsSync(job.outputPath)) {
+
+    if (!job.outputPath) {
       throw new BadRequestException('File non pronto o non disponibile');
     }
 
@@ -67,7 +69,9 @@ export class JobsController {
     if (job.outputMime) {
       res.setHeader('Content-Type', job.outputMime);
     }
-    const stream = fs.createReadStream(job.outputPath);
+
+    // Download from MinIO
+    const stream = await this.storageService.getFileStream(job.outputPath);
     stream.pipe(res);
   }
 
@@ -75,14 +79,16 @@ export class JobsController {
   async delete(@Param('id') id: string, @Req() req: Request) {
     const userId = (req as any).user?.userId;
     const job = await this.jobsService.getJob(id, userId);
-    // Remove file if exists
-    if (job.outputPath && fs.existsSync(job.outputPath)) {
+
+    // Remove file from MinIO
+    if (job.outputPath) {
       try {
-        fs.unlinkSync(job.outputPath);
+        await this.storageService.deleteFile(job.outputPath);
       } catch (e) {
-        // ignore
+        // ignore if file doesn't exist
       }
     }
+
     await this.jobsService.deleteJob(id, userId);
     return { deleted: true };
   }
@@ -96,12 +102,13 @@ export class JobsController {
     const jobs = await this.jobsService.findByIdsForUser(ids, userId);
     if (jobs.length === 0) throw new BadRequestException('Nessun job valido trovato');
 
-    const pdfJobs = jobs.filter(j => j.outputMime === 'application/pdf' && j.outputPath && fs.existsSync(j.outputPath));
+    const pdfJobs = jobs.filter(j => j.outputMime === 'application/pdf' && j.outputPath);
     if (pdfJobs.length === 0) throw new BadRequestException('Selezione non valida per merge PDF');
 
     const merged = await PDFDocument.create();
     for (const job of pdfJobs) {
-      const bytes = fs.readFileSync(job.outputPath!);
+      // Download from MinIO
+      const bytes = await this.storageService.getFileBuffer(job.outputPath!);
       const doc = await PDFDocument.load(bytes);
       const copied = await merged.copyPages(doc, doc.getPageIndices());
       copied.forEach(p => merged.addPage(p));
@@ -128,8 +135,9 @@ export class JobsController {
     archive.pipe(res);
 
     for (const job of jobs) {
-      if (job.outputPath && fs.existsSync(job.outputPath)) {
-        const stream = fs.createReadStream(job.outputPath);
+      if (job.outputPath) {
+        // Download from MinIO
+        const stream = await this.storageService.getFileStream(job.outputPath);
         archive.append(stream, { name: job.outputName || job.id });
       }
     }

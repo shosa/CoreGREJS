@@ -5,6 +5,7 @@ import { JobsService } from './jobs.service';
 import { TrackingService } from '../tracking/tracking.service';
 import { ProduzioneService } from '../produzione/produzione.service';
 import { ExportService } from '../export/export.service';
+import { StorageService } from '../storage/storage.service';
 import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import * as path from 'path';
@@ -32,6 +33,7 @@ export class JobsQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly trackingService: TrackingService,
     private readonly produzioneService: ProduzioneService,
     private readonly exportService: ExportService,
+    private readonly storageService: StorageService,
   ) {}
 
   onModuleInit() {
@@ -93,7 +95,44 @@ export class JobsQueueService implements OnModuleInit, OnModuleDestroy {
       };
 
       const output = await handler(job.data, helpers);
-      await this.jobsService.markDone(jobId, output || {});
+
+      // Check if output exists
+      if (!output) {
+        await this.jobsService.markDone(jobId, {});
+        return;
+      }
+
+      // Upload file to MinIO if it was created
+      // Handlers can return either 'outputPath' or 'fullPath'
+      const filePath = output.outputPath || output.fullPath;
+
+      if (filePath && fs.existsSync(filePath)) {
+        const fileName = output.outputName || output.fileName || path.basename(filePath);
+        const objectName = this.storageService.generateJobObjectName(userId, jobId, fileName);
+
+        await this.storageService.uploadFile(objectName, filePath, {
+          'Content-Type': output.outputMime || output.mime || 'application/octet-stream',
+          'user-id': String(userId),
+          'job-id': jobId,
+        });
+
+        // Delete local temp file after upload
+        try {
+          await fsp.unlink(filePath);
+        } catch (e) {
+          this.logger.warn(`Failed to delete temp file: ${filePath}`);
+        }
+
+        // Update output to reference MinIO object instead of local path
+        output.outputPath = objectName;
+
+        // Remove fullPath if it exists (legacy)
+        if (output.fullPath) {
+          delete output.fullPath;
+        }
+      }
+
+      await this.jobsService.markDone(jobId, output);
     } catch (err: any) {
       await this.jobsService.markFailed(jobId, err?.message || 'Errore job');
       throw err;
@@ -101,9 +140,10 @@ export class JobsQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   private ensureOutputPath = async (userId: number, jobId: string, fileName: string) => {
-    const basePath = path.join(process.cwd(), 'storage', 'jobs', String(userId), jobId);
-    await fsp.mkdir(basePath, { recursive: true });
-    const fullPath = path.join(basePath, fileName);
+    // Use container storage directory (can be a Docker volume)
+    const storageDir = path.join(process.cwd(), 'storage', 'jobs', String(userId), jobId);
+    await fsp.mkdir(storageDir, { recursive: true });
+    const fullPath = path.join(storageDir, fileName);
     return { fullPath };
   };
 

@@ -14,4 +14,8 @@ export type JobHandler = (payload: any, helpers: JobHandlerHelpers) => Promise<{
   outputPath?: string;
   outputName?: string;
   outputMime?: string;
+  outputSize?: number;
+  fullPath?: string;      // Legacy property
+  fileName?: string;      // Legacy property
+  mime?: string;          // Legacy property
 } | void>;

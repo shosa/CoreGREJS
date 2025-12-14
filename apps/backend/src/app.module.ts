@@ -24,6 +24,7 @@ import { InworkModule } from './modules/inwork/inwork.module';
 import { MobileModule } from './modules/mobile/mobile.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { HealthModule } from './modules/health/health.module';
+import { StorageModule } from './modules/storage/storage.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { HealthModule } from './modules/health/health.module';
     }),
     ScheduleModule.forRoot(),
     PrismaModule,
+    StorageModule,
     HealthModule,
     AuthModule,
     UsersModule,
