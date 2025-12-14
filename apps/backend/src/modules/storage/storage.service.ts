@@ -156,6 +156,51 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * List files with a given prefix
+   * @param prefix - Path prefix to search for (e.g., "export/123/")
+   */
+  async listFiles(prefix: string): Promise<string[]> {
+    try {
+      const objectsStream = this.minioClient.listObjects(this.bucketName, prefix, true);
+      const files: string[] = [];
+
+      return new Promise((resolve, reject) => {
+        objectsStream.on('data', (obj) => {
+          if (obj.name) {
+            files.push(obj.name);
+          }
+        });
+        objectsStream.on('error', reject);
+        objectsStream.on('end', () => resolve(files));
+      });
+    } catch (error) {
+      this.logger.error(`Failed to list files with prefix ${prefix}: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete all files with a given prefix
+   * @param prefix - Path prefix to delete (e.g., "export/123/")
+   */
+  async deletePrefix(prefix: string): Promise<void> {
+    try {
+      const files = await this.listFiles(prefix);
+
+      if (files.length === 0) {
+        return;
+      }
+
+      // MinIO supports batch delete
+      await this.minioClient.removeObjects(this.bucketName, files);
+      this.logger.log(`Deleted ${files.length} files with prefix: ${prefix}`);
+    } catch (error) {
+      this.logger.error(`Failed to delete prefix ${prefix}: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Generate object name for jobs
    * @param userId - User ID
    * @param jobId - Job ID

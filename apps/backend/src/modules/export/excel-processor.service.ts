@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
+import * as fsp from 'fs/promises';
 import * as path from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 
 export interface ProcessedExcelData {
   success: boolean;
@@ -19,10 +21,14 @@ export interface ProcessedExcelData {
 
 @Injectable()
 export class ExcelProcessorService {
+  private readonly logger = new Logger(ExcelProcessorService.name);
   private tempDir: string;
   private srcDir: string;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private storageService: StorageService,
+  ) {
     // Storage directories
     this.tempDir = path.join(process.cwd(), 'storage', 'export', 'temp');
     this.srcDir = path.join(process.cwd(), 'storage', 'export', 'src');
@@ -45,30 +51,40 @@ export class ExcelProcessorService {
   /**
    * Process Excel file and extract TAGLIO and ORLATURA data
    * Logic ported from Legacy ExcelProcessor.php
+   * Now reads from MinIO if progressivo is provided
    */
   async processExcelFile(
     fileName: string,
     progressivo?: string,
   ): Promise<ProcessedExcelData> {
-    let filePath = path.join(this.tempDir, fileName);
+    let workbook: any;
 
-    // If file not in temp and we have progressivo, check src
-    if (!fs.existsSync(filePath) && progressivo) {
-      const srcPath = path.join(this.srcDir, progressivo, fileName);
-      if (fs.existsSync(srcPath)) {
-        filePath = srcPath;
+    try {
+      // Try temp directory first
+      const tempPath = path.join(this.tempDir, fileName);
+
+      if (fs.existsSync(tempPath)) {
+        // Read from temp directory
+        workbook = XLSX.readFile(tempPath);
+      } else if (progressivo) {
+        // Read from MinIO
+        const objectName = `export/${progressivo}/${fileName}`;
+        const buffer = await this.storageService.getFileBuffer(objectName);
+        workbook = XLSX.read(buffer, { type: 'buffer' });
+      } else {
+        return {
+          success: false,
+          error: `File non trovato: ${fileName}`,
+        };
       }
-    }
-
-    if (!fs.existsSync(filePath)) {
+    } catch (error) {
       return {
         success: false,
-        error: `File non trovato: ${fileName}`,
+        error: `File non trovato o non leggibile: ${fileName}`,
       };
     }
 
     try {
-      const workbook = XLSX.readFile(filePath);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
 
@@ -192,30 +208,36 @@ export class ExcelProcessorService {
   }
 
   /**
-   * Save uploaded file to temp directory
+   * Save uploaded file to MinIO (if progressivo) or temp directory
    */
   async saveUploadedFile(
     file: Express.Multer.File,
     progressivo?: string,
   ): Promise<string> {
-    const targetDir = progressivo
-      ? path.join(this.srcDir, progressivo)
-      : this.tempDir;
-
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
-    }
-
     const fileName = `${Date.now()}_${file.originalname}`;
-    const filePath = path.join(targetDir, fileName);
 
-    fs.writeFileSync(filePath, file.buffer);
+    if (progressivo) {
+      // Upload directly to MinIO
+      const objectName = `export/${progressivo}/${fileName}`;
+      await this.storageService.uploadBuffer(objectName, file.buffer, {
+        'Content-Type': file.mimetype,
+        'original-name': file.originalname,
+      });
+      this.logger.log(`File uploaded to MinIO: ${objectName}`);
+    } else {
+      // Save to temp directory (for temp uploads without document)
+      if (!fs.existsSync(this.tempDir)) {
+        fs.mkdirSync(this.tempDir, { recursive: true });
+      }
+      const filePath = path.join(this.tempDir, fileName);
+      fs.writeFileSync(filePath, file.buffer);
+    }
 
     return fileName;
   }
 
   /**
-   * Get list of uploaded files for a document
+   * Get list of uploaded files for a document from MinIO
    */
   async getUploadedFiles(progressivo: string): Promise<
     Array<{
@@ -226,70 +248,75 @@ export class ExcelProcessorService {
       processed: boolean;
     }>
   > {
-    const docDir = path.join(this.srcDir, progressivo);
+    try {
+      // List files from MinIO
+      const prefix = `export/${progressivo}/`;
+      const objectNames = await this.storageService.listFiles(prefix);
 
-    if (!fs.existsSync(docDir)) {
+      const excelFiles = objectNames.filter((f) => f.endsWith('.xlsx') || f.endsWith('.xls'));
+
+      if (excelFiles.length === 0) {
+        return [];
+      }
+
+      const result = [];
+      for (const objectName of excelFiles) {
+        const fileName = path.basename(objectName);
+
+        // Get file metadata for upload date
+        const metadata = await this.storageService.getFileMetadata(objectName);
+
+        // Extract lancio and qty from file
+        try {
+          const buffer = await this.storageService.getFileBuffer(objectName);
+          const workbook = XLSX.read(buffer, { type: 'buffer' });
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+
+          const articoloCell = worksheet['B1'];
+          const lancioCell = worksheet['B2'];
+          const qtyCell = worksheet['B3'];
+
+          // File is processed if it has the structure: ARTICOLO:, LANCIO:, PAIA DA PRODURRE:
+          const isProcessed = articoloCell && lancioCell && qtyCell &&
+                             String(worksheet['A1']?.v || '').includes('ARTICOLO') &&
+                             String(worksheet['A2']?.v || '').includes('LANCIO');
+
+          result.push({
+            name: fileName,
+            lancio: lancioCell ? String(lancioCell.v) : 'N/A',
+            qty: qtyCell ? String(qtyCell.v) : 'N/A',
+            uploadedAt: metadata.lastModified,
+            processed: isProcessed,
+          });
+        } catch (err) {
+          result.push({
+            name: fileName,
+            lancio: 'N/A',
+            qty: 'N/A',
+            uploadedAt: metadata.lastModified,
+            processed: false,
+          });
+        }
+      }
+
+      return result.sort(
+        (a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime(),
+      );
+    } catch (error) {
+      this.logger.error(`Failed to get uploaded files for ${progressivo}: ${error.message}`);
       return [];
     }
-
-    const files = fs
-      .readdirSync(docDir)
-      .filter((f) => f.endsWith('.xlsx') || f.endsWith('.xls'));
-
-    const result = [];
-    for (const fileName of files) {
-      const filePath = path.join(docDir, fileName);
-      const stats = fs.statSync(filePath);
-
-      // Extract lancio and qty from file
-      try {
-        const workbook = XLSX.readFile(filePath);
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-
-        const articoloCell = worksheet['B1'];
-        const lancioCell = worksheet['B2'];
-        const qtyCell = worksheet['B3'];
-
-        // File is processed if it has the structure: ARTICOLO:, LANCIO:, PAIA DA PRODURRE:
-        const isProcessed = articoloCell && lancioCell && qtyCell &&
-                           String(worksheet['A1']?.v || '').includes('ARTICOLO') &&
-                           String(worksheet['A2']?.v || '').includes('LANCIO');
-
-        result.push({
-          name: fileName,
-          lancio: lancioCell ? String(lancioCell.v) : 'N/A',
-          qty: qtyCell ? String(qtyCell.v) : 'N/A',
-          uploadedAt: stats.mtime,
-          processed: isProcessed,
-        });
-      } catch (err) {
-        result.push({
-          name: fileName,
-          lancio: 'N/A',
-          qty: 'N/A',
-          uploadedAt: stats.mtime,
-          processed: false,
-        });
-      }
-    }
-
-    return result.sort(
-      (a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime(),
-    );
   }
 
   /**
-   * Delete uploaded file
+   * Delete uploaded file from MinIO
    */
   async deleteUploadedFile(
     progressivo: string,
     fileName: string,
   ): Promise<void> {
-    const filePath = path.join(this.srcDir, progressivo, fileName);
-
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    const objectName = `export/${progressivo}/${fileName}`;
+    await this.storageService.deleteFile(objectName);
   }
 
   /**
@@ -316,6 +343,7 @@ export class ExcelProcessorService {
 
   /**
    * Save processed Excel data as new Excel file (Legacy logic from saveExcelData)
+   * Now uploads to MinIO after saving locally
    */
   async saveProcessedExcel(data: {
     modello: string;
@@ -360,13 +388,21 @@ export class ExcelProcessorService {
       // Add worksheet to workbook
       XLSX.utils.book_append_sheet(workbook, worksheet, 'SCHEDA TECNICA');
 
-      // Delete original file if exists
+      // Delete original file from MinIO if exists
+      const originalObjectName = `export/${data.progressivo}/${data.originalFileName}`;
+      try {
+        await this.storageService.deleteFile(originalObjectName);
+      } catch (e) {
+        // Ignore if file doesn't exist
+      }
+
+      // Delete original local file if exists
       const originalPath = path.join(this.srcDir, data.progressivo, data.originalFileName);
       if (fs.existsSync(originalPath)) {
         fs.unlinkSync(originalPath);
       }
 
-      // Save to src/{progressivo}/ directory with modello name
+      // Save to container storage temporarily
       const targetDir = path.join(this.srcDir, data.progressivo);
       if (!fs.existsSync(targetDir)) {
         fs.mkdirSync(targetDir, { recursive: true });
@@ -375,8 +411,25 @@ export class ExcelProcessorService {
       const filename = `${data.modello}.xlsx`;
       const filePath = path.join(targetDir, filename);
 
-      // Write file
+      // Write file locally
       XLSX.writeFile(workbook, filePath);
+
+      // Upload to MinIO
+      const objectName = `export/${data.progressivo}/${filename}`;
+      await this.storageService.uploadFile(objectName, filePath, {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'progressivo': data.progressivo,
+        'modello': data.modello,
+      });
+
+      this.logger.log(`File uploaded to MinIO: ${objectName}`);
+
+      // Delete local file after upload
+      try {
+        await fsp.unlink(filePath);
+      } catch (e) {
+        this.logger.warn(`Failed to delete temp file: ${filePath}`);
+      }
 
       return { success: true, filename };
     } catch (error) {
@@ -389,21 +442,18 @@ export class ExcelProcessorService {
 
   /**
    * Generate DDT from processed Excel files (Legacy generaDDT logic)
-   * Reads all Excel files from src/{progressivo}/, creates master articles if missing,
+   * Reads all Excel files from MinIO, creates master articles if missing,
    * and creates document items with references to master articles
    */
   async generateDDT(progressivo: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
-      const srcDir = path.join(this.srcDir, progressivo);
+      // List all Excel files from MinIO for this progressivo
+      const prefix = `export/${progressivo}/`;
+      const files = await this.storageService.listFiles(prefix);
 
-      if (!fs.existsSync(srcDir)) {
-        return { success: false, error: 'Nessuna scheda trovata per questo documento' };
-      }
+      const excelFiles = files.filter(f => f.endsWith('.xlsx') || f.endsWith('.xls'));
 
-      // Get all Excel files
-      const files = fs.readdirSync(srcDir).filter(f => f.endsWith('.xlsx') || f.endsWith('.xls'));
-
-      if (files.length === 0) {
+      if (excelFiles.length === 0) {
         return { success: false, error: 'Nessuna scheda Excel trovata' };
       }
 
@@ -417,9 +467,12 @@ export class ExcelProcessorService {
       }> = [];
 
       // Process each Excel file
-      for (const fileName of files) {
-        const filePath = path.join(srcDir, fileName);
-        const workbook = XLSX.readFile(filePath);
+      for (const objectName of excelFiles) {
+        // Download file from MinIO as buffer
+        const buffer = await this.storageService.getFileBuffer(objectName);
+
+        // Read Excel from buffer
+        const workbook = XLSX.read(buffer, { type: 'buffer' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 
         // Extract lancio data (cells B1, B2, B3)

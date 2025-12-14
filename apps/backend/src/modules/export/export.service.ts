@@ -4,13 +4,17 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { StorageService } from "../storage/storage.service";
 import { Prisma } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
 
 @Injectable()
 export class ExportService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storageService: StorageService,
+  ) {}
 
   // ==================== ARTICOLI MASTER ====================
 
@@ -387,7 +391,16 @@ export class ExportService {
   async deleteDocument(progressivo: string) {
     await this.getDocumentByProgressivo(progressivo); // Check exists
 
-    // Delete Excel files directory
+    // Delete all files from MinIO for this document
+    const prefix = `export/${progressivo}/`;
+    try {
+      await this.storageService.deletePrefix(prefix);
+    } catch (error) {
+      // Ignore if no files exist
+      console.warn(`Could not delete files for ${progressivo} from MinIO:`, error.message);
+    }
+
+    // Delete local files directory (if exists)
     const srcDir = path.join(
       process.cwd(),
       "storage",
