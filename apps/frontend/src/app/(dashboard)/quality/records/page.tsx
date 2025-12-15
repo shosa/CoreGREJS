@@ -55,7 +55,7 @@ export default function RecordsPage() {
    * Helper function to get photo URL from fotoPath
    * Handles both legacy local paths and new MinIO object names
    */
-  const getPhotoUrl = (fotoPath: string): string => {
+  const getPhotoUrl = (fotoPath: string, cartellinoId?: string): string => {
     // If it's already a full URL, return as-is
     if (fotoPath.startsWith('http')) {
       return fotoPath;
@@ -71,8 +71,27 @@ export default function RecordsPage() {
       return fotoPath;
     }
 
-    // Otherwise, assume it's a MinIO object name (e.g., "quality/cq_uploads/123/file.jpg")
-    // Use the proxy endpoint
+    // If it starts with "quality/", it's already a MinIO object name
+    if (fotoPath.startsWith('quality/')) {
+      return `/api/quality/photo/${encodeURIComponent(fotoPath)}`;
+    }
+
+    // If it's just a filename (e.g., "eccezione_92064_xxx.png"), reconstruct the object name
+    // Extract cartellino ID from filename pattern: eccezione_{cartellinoId}_{timestamp}.{ext}
+    if (fotoPath.match(/^eccezione_\d+_\d+\./)) {
+      const parts = fotoPath.split('_');
+      const extractedCartellinoId = parts[1]; // eccezione_{THIS}_timestamp.ext
+      const objectName = `quality/cq_uploads/${extractedCartellinoId}/${fotoPath}`;
+      return `/api/quality/photo/${encodeURIComponent(objectName)}`;
+    }
+
+    // Fallback: if we have cartellinoId parameter, use it to reconstruct
+    if (cartellinoId) {
+      const objectName = `quality/cq_uploads/${cartellinoId}/${fotoPath}`;
+      return `/api/quality/photo/${encodeURIComponent(objectName)}`;
+    }
+
+    // Last resort: assume it's a MinIO object name and try as-is
     return `/api/quality/photo/${encodeURIComponent(fotoPath)}`;
   };
 
@@ -570,7 +589,7 @@ export default function RecordsPage() {
                           </div>
                           <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-900">
                             <Image
-                              src={getPhotoUrl(exc.fotoPath)}
+                              src={getPhotoUrl(exc.fotoPath, selectedRecord?.numeroCartellino)}
                               alt={`Difetto ${exc.tipoDifetto}`}
                               fill
                               className="object-contain"
