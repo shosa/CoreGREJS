@@ -73,7 +73,7 @@ export default function RecordsPage() {
 
     // If it starts with "quality/", it's already a MinIO object name
     if (fotoPath.startsWith('quality/')) {
-      return `/api/quality/photo/${encodeURIComponent(fotoPath)}`;
+      return `/api/quality/photo-stream/${encodeURIComponent(fotoPath)}`;
     }
 
     // If it's just a filename (e.g., "eccezione_92064_xxx.png"), reconstruct the object name
@@ -82,17 +82,17 @@ export default function RecordsPage() {
       const parts = fotoPath.split('_');
       const extractedCartellinoId = parts[1]; // eccezione_{THIS}_timestamp.ext
       const objectName = `quality/cq_uploads/${extractedCartellinoId}/${fotoPath}`;
-      return `/api/quality/photo/${encodeURIComponent(objectName)}`;
+      return `/api/quality/photo-stream/${encodeURIComponent(objectName)}`;
     }
 
     // Fallback: if we have cartellinoId parameter, use it to reconstruct
     if (cartellinoId) {
       const objectName = `quality/cq_uploads/${cartellinoId}/${fotoPath}`;
-      return `/api/quality/photo/${encodeURIComponent(objectName)}`;
+      return `/api/quality/photo-stream/${encodeURIComponent(objectName)}`;
     }
 
     // Last resort: assume it's a MinIO object name and try as-is
-    return `/api/quality/photo/${encodeURIComponent(fotoPath)}`;
+    return `/api/quality/photo-stream/${encodeURIComponent(fotoPath)}`;
   };
 
   useEffect(() => {

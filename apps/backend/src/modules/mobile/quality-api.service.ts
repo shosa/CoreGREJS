@@ -268,9 +268,12 @@ export class QualityApiService {
    */
   async getPhoto(objectName: string) {
     try {
+      console.log(`[QualityAPI] Richiesta foto - objectName: "${objectName}"`);
+
       // Check if file exists
       const exists = await this.storageService.fileExists(objectName);
       if (!exists) {
+        console.log(`[QualityAPI] Foto non trovata in MinIO: ${objectName}`);
         return {
           status: "error",
           message: "Foto non trovata",
@@ -279,12 +282,14 @@ export class QualityApiService {
 
       // Generate presigned URL (valid for 1 hour)
       const url = await this.storageService.getPresignedUrl(objectName, 3600);
+      console.log(`[QualityAPI] Presigned URL generato per: ${objectName}`);
 
       return {
         status: "success",
         data: { url },
       };
     } catch (error) {
+      console.error(`[QualityAPI] Errore recupero foto ${objectName}:`, error);
       return {
         status: "error",
         message: `Errore nel recupero della foto: ${error.message}`,
