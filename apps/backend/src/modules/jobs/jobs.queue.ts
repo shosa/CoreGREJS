@@ -116,11 +116,13 @@ export class JobsQueueService implements OnModuleInit, OnModuleDestroy {
           'job-id': jobId,
         });
 
-        // Delete local temp file after upload
+        // Delete local temp directory after upload (removes file + empty folders)
         try {
-          await fsp.unlink(filePath);
+          const jobDir = path.join(process.cwd(), 'storage', 'jobs', String(userId), jobId);
+          await fsp.rm(jobDir, { recursive: true, force: true });
+          this.logger.log(`Temp directory cleaned: ${jobDir}`);
         } catch (e) {
-          this.logger.warn(`Failed to delete temp file: ${filePath}`);
+          this.logger.warn(`Failed to delete temp directory: ${e.message}`);
         }
 
         // Update output to reference MinIO object instead of local path
