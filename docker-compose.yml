@@ -38,6 +38,14 @@ services:
       # Frontend URL (per CORS)
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3010}
 
+      # MinIO Storage - Connessione a MinIO condiviso in CoreServices
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-core-minio}
+      MINIO_PORT: ${MINIO_PORT:-9000}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-coregre-storage}
+
       # Timezone
       TZ: Europe/Rome
 
