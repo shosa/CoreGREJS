@@ -1,12 +1,13 @@
 import { Injectable, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-import { existsSync } from "fs";
+import { StorageService } from "../storage/storage.service";
 
 @Injectable()
 export class QualityApiService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storageService: StorageService,
+  ) {}
 
   /**
    * Dettagli completi cartellino
@@ -205,7 +206,7 @@ export class QualityApiService {
   }
 
   /**
-   * Upload foto
+   * Upload foto to MinIO
    */
   async uploadPhoto(
     file: Express.Multer.File,
@@ -227,27 +228,75 @@ export class QualityApiService {
       };
     }
 
-    const uploadDir = join(process.cwd(), "storage", "quality", "cq_uploads");
+    try {
+      // Generate unique filename with timestamp
+      const fileExtension = file.originalname.split(".").pop() || "jpg";
+      const filename = `eccezione_${body.cartellino_id}_${Date.now()}.${fileExtension}`;
 
-    // Crea directory se non esiste
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
+      // Generate MinIO object name
+      const objectName = this.storageService.generateQualityPhotoObjectName(
+        body.cartellino_id,
+        filename
+      );
+
+      // Upload to MinIO
+      await this.storageService.uploadBuffer(objectName, file.buffer, {
+        'Content-Type': file.mimetype || 'image/jpeg',
+        'cartellino-id': body.cartellino_id,
+        'tipo-difetto': body.tipo_difetto,
+      });
+
+      return {
+        status: "success",
+        message: "Foto caricata con successo",
+        data: {
+          filename,
+          objectName,  // MinIO object path
+          url: `/api/quality/photo/${encodeURIComponent(objectName)}`,  // Proxy endpoint
+        },
+      };
+    } catch (error) {
+      return {
+        status: "error",
+        message: `Errore durante l'upload: ${error.message}`,
+      };
     }
+  }
 
-    const fileExtension = file.originalname.split(".").pop() || "jpg";
-    const filename = `eccezione_${body.cartellino_id}_${Date.now()}.${fileExtension}`;
-    const filePath = join(uploadDir, filename);
+  /**
+   * Get photo from MinIO (returns presigned URL)
+   */
+  async getPhoto(objectName: string) {
+    try {
+      // Check if file exists
+      const exists = await this.storageService.fileExists(objectName);
+      if (!exists) {
+        return {
+          status: "error",
+          message: "Foto non trovata",
+        };
+      }
 
-    await writeFile(filePath, file.buffer);
+      // Generate presigned URL (valid for 1 hour)
+      const url = await this.storageService.getPresignedUrl(objectName, 3600);
 
-    return {
-      status: "success",
-      message: "Foto caricata con successo",
-      data: {
-        filename,
-        url: `/storage/quality/cq_uploads/${filename}`,
-      },
-    };
+      return {
+        status: "success",
+        data: { url },
+      };
+    } catch (error) {
+      return {
+        status: "error",
+        message: `Errore nel recupero della foto: ${error.message}`,
+      };
+    }
+  }
+
+  /**
+   * Stream photo from MinIO (alternative to presigned URL)
+   */
+  async getPhotoStream(objectName: string) {
+    return this.storageService.getFileStream(objectName);
   }
 
   /**

@@ -1,10 +1,15 @@
 import {
   Controller,
   Post,
+  Get,
+  Param,
   Body,
   UploadedFile,
   UseInterceptors,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { QualityApiService } from './quality-api.service';
 import { Public } from '../../common/decorators/public.decorator';
@@ -55,5 +60,33 @@ export class QualityApiController {
     @Body() body: { cartellino_id: string; tipo_difetto: string; calzata?: string; note?: string },
   ) {
     return this.qualityApiService.uploadPhoto(file, body);
+  }
+
+  /**
+   * API per ottenere foto da MinIO (presigned URL)
+   * GET /api/quality/photo/:objectName
+   */
+  @Get('photo/:objectName(*)')
+  @Public()
+  async getPhoto(@Param('objectName') objectName: string) {
+    return this.qualityApiService.getPhoto(objectName);
+  }
+
+  /**
+   * API per streammare foto da MinIO (alternativa)
+   * GET /api/quality/photo-stream/:objectName
+   */
+  @Get('photo-stream/:objectName(*)')
+  @Public()
+  async getPhotoStream(
+    @Param('objectName') objectName: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const stream = await this.qualityApiService.getPhotoStream(objectName);
+    res.set({
+      'Content-Type': 'image/jpeg',
+      'Cache-Control': 'max-age=3600',
+    });
+    return new StreamableFile(stream);
   }
 }

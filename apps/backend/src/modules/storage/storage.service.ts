@@ -209,4 +209,27 @@ export class StorageService implements OnModuleInit {
   generateJobObjectName(userId: number, jobId: string, fileName: string): string {
     return `jobs/${userId}/${jobId}/${fileName}`;
   }
+
+  /**
+   * Generate object name for quality control photos
+   * @param cartellinoId - Cartellino ID
+   * @param fileName - File name
+   */
+  generateQualityPhotoObjectName(cartellinoId: string, fileName: string): string {
+    return `quality/cq_uploads/${cartellinoId}/${fileName}`;
+  }
+
+  /**
+   * Generate presigned URL for downloading a file
+   * @param objectName - Object name in bucket
+   * @param expirySeconds - URL expiry time in seconds (default 3600 = 1 hour)
+   */
+  async getPresignedUrl(objectName: string, expirySeconds: number = 3600): Promise<string> {
+    try {
+      return await this.minioClient.presignedGetObject(this.bucketName, objectName, expirySeconds);
+    } catch (error) {
+      this.logger.error(`Failed to generate presigned URL for ${objectName}: ${error.message}`);
+      throw error;
+    }
+  }
 }

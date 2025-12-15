@@ -51,6 +51,31 @@ export default function RecordsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
 
+  /**
+   * Helper function to get photo URL from fotoPath
+   * Handles both legacy local paths and new MinIO object names
+   */
+  const getPhotoUrl = (fotoPath: string): string => {
+    // If it's already a full URL, return as-is
+    if (fotoPath.startsWith('http')) {
+      return fotoPath;
+    }
+
+    // If it starts with /api/quality/photo/, it's already a proxy URL
+    if (fotoPath.startsWith('/api/quality/photo/')) {
+      return fotoPath;
+    }
+
+    // If it starts with /storage/, it's a legacy local path - serve via static assets
+    if (fotoPath.startsWith('/storage/')) {
+      return fotoPath;
+    }
+
+    // Otherwise, assume it's a MinIO object name (e.g., "quality/cq_uploads/123/file.jpg")
+    // Use the proxy endpoint
+    return `/api/quality/photo/${encodeURIComponent(fotoPath)}`;
+  };
+
   useEffect(() => {
     fetchRecords();
     fetchFilterOptions();
@@ -545,7 +570,7 @@ export default function RecordsPage() {
                           </div>
                           <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-900">
                             <Image
-                              src={exc.fotoPath.startsWith('http') ? exc.fotoPath : `/storage/quality/cq_uploads/${exc.fotoPath}`}
+                              src={getPhotoUrl(exc.fotoPath)}
                               alt={`Difetto ${exc.tipoDifetto}`}
                               fill
                               className="object-contain"

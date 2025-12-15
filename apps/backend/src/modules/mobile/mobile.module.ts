@@ -6,9 +6,10 @@ import { OperatorsController } from './operators.controller';
 import { MobileApiService } from './mobile-api.service';
 import { QualityApiService } from './quality-api.service';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, StorageModule],
   controllers: [DiscoveryController, MobileApiController, QualityApiController, OperatorsController],
   providers: [MobileApiService, QualityApiService],
   exports: [MobileApiService, QualityApiService],
