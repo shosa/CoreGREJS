@@ -510,7 +510,6 @@ model ScmLaunch {
 
   laboratory ScmLaboratory      @relation(fields: [laboratoryId], references: [id])
   articles   ScmLaunchArticle[]
-  phases     ScmLaunchPhase[]
 
   @@map("scm_launches")
 }
@@ -526,29 +525,29 @@ model ScmLaunchArticle {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  launch ScmLaunch @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  launch ScmLaunch         @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  phases ScmArticlePhase[]
 
   @@map("scm_launch_articles")
 }
 
-model ScmLaunchPhase {
-  id          Int       @id @default(autoincrement())
-  launchId    Int       @map("launch_id")
-  phaseId     Int?      @map("phase_id")
-  nome        String    @db.VarChar(100)
-  stato       String    @default("pending") @db.VarChar(30)
-  dataInizio  DateTime? @map("data_inizio")
-  dataFine    DateTime? @map("data_fine")
-  percentuale Int       @default(0)
-  note        String?   @db.Text
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+model ScmArticlePhase {
+  id         Int       @id @default(autoincrement())
+  articleId  Int       @map("article_id")
+  phaseId    Int?      @map("phase_id")
+  nome       String    @db.VarChar(100)
+  stato      String    @default("pending") @db.VarChar(30)
+  dataInizio DateTime? @map("data_inizio")
+  dataFine   DateTime? @map("data_fine")
+  note       String?   @db.Text
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
-  launch        ScmLaunch             @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  article       ScmLaunchArticle      @relation(fields: [articleId], references: [id], onDelete: Cascade)
   standardPhase ScmStandardPhase?     @relation(fields: [phaseId], references: [id])
   tracking      ScmProgressTracking[]
 
-  @@map("scm_launch_phases")
+  @@map("scm_article_phases")
 }
 
 model ScmStandardPhase {
@@ -561,7 +560,7 @@ model ScmStandardPhase {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  phases ScmLaunchPhase[]
+  phases ScmArticlePhase[]
 
   @@map("scm_standard_phases")
 }
@@ -574,7 +573,7 @@ model ScmProgressTracking {
   note      String?  @db.Text
   createdAt DateTime @default(now()) @map("created_at")
 
-  phase ScmLaunchPhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  phase ScmArticlePhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
 
   @@map("scm_progress_tracking")
 }

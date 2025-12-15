@@ -92,15 +92,16 @@ const menuItems: MenuItem[] = [
   },
   {
     name: 'SCM',
-    href: '/scm-admin',
-    icon: 'fa-industry',
+    href: '/scm',
+    icon: 'fa-network-wired',
     gradient: 'from-orange-500 to-red-500',
     hoverGradient: 'hover:from-orange-50 hover:to-red-100 dark:hover:from-orange-900/20 dark:hover:to-red-800/20',
     permission: 'scm_admin',
     children: [
-      { name: 'Dashboard', href: '/scm-admin', icon: 'fa-home' },
-      { name: 'Lanci', href: '/scm-admin/launches', icon: 'fa-rocket' },
-      { name: 'Laboratori', href: '/scm-admin/laboratories', icon: 'fa-building' },
+      { name: 'Dashboard', href: '/scm', icon: 'fa-home' },
+      { name: 'Lanci', href: '/scm/launches', icon: 'fa-rocket' },
+      { name: 'Laboratori', href: '/scm/laboratories', icon: 'fa-industry' },
+      { name: 'Fasi Standard', href: '/scm/standard-phases', icon: 'fa-layer-group' },
     ]
   },
   {
