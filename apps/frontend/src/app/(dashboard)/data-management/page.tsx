@@ -644,7 +644,7 @@ export default function DataManagementPage() {
                             </div>
                           </th>
                         ))}
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.1)]">
                           Azioni
                         </th>
                       </tr>
@@ -691,10 +691,10 @@ export default function DataManagementPage() {
                               )}
                             </td>
                           ))}
-                          <td className="px-4 py-3 text-right text-sm">
+                          <td className="px-4 py-3 text-right text-sm sticky right-0 bg-white shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.1)]">
                             <button
                               onClick={() => handleDeleteRecord(record.id)}
-                              className="p-2 bg-red-100 hover:bg-red-200 rounded-md text-red-600 hover:text-red-700 transition-colors"
+                              className="px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
                               title="Elimina"
                             >
                               <i className="fas fa-trash"></i>

@@ -285,18 +285,22 @@ export default function ArticlesPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEdit(article)}
-                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3 hover:scale-110 transition-transform"
-                      >
-                        <i className="fas fa-edit"></i>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(article.id)}
-                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:scale-110 transition-transform"
-                      >
-                        <i className="fas fa-trash"></i>
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(article)}
+                          className="px-3 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
+                          title="Modifica"
+                        >
+                          <i className="fas fa-edit"></i>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(article.id)}
+                          className="px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
+                          title="Elimina"
+                        >
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </div>
                     </td>
                   </motion.tr>
                 ))}
