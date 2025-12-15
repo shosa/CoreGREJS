@@ -59,7 +59,6 @@ api.interceptors.response.use(
     // Evita redirect se siamo già nelle pagine di errore
     const isOnErrorPage = typeof window !== 'undefined' &&
       (window.location.pathname.includes('/db-error') ||
-       window.location.pathname.includes('/server-error') ||
        window.location.pathname.includes('/login'));
 
     // Database connection error (controlla prima il database, poi il network)
@@ -87,16 +86,16 @@ api.interceptors.response.use(
       }
     }
 
-    // Network error - Verifica se è server o database offline
+    // Network error - L'overlay ServerStatusOverlay gestirà automaticamente la visualizzazione
+    // Non fare redirect, lascia che l'overlay mostri lo stato del server
     if (!error.response && error.code === 'ERR_NETWORK') {
+      // Verifica solo se è un errore di database per il redirect
       if (!isOnErrorPage) {
-        // Usa health check per determinare il tipo di errore
         const errorType = await checkErrorType();
         if (errorType === 'database') {
           window.location.replace('/db-error');
-        } else {
-          window.location.replace('/server-error');
         }
+        // Non fare redirect per errori di server - l'overlay lo gestisce
       }
       return Promise.reject(error);
     }

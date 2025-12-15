@@ -37,6 +37,8 @@ export default function ProduzioneViewPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailRecipients, setEmailRecipients] = useState<string[]>([]);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [emailError, setEmailError] = useState<string>('');
 
   useEffect(() => {
     fetchRecord();
@@ -70,6 +72,8 @@ export default function ProduzioneViewPage() {
     try {
       const recipients = await settingsApi.getProduzioneEmails();
       setEmailRecipients(recipients);
+      setEmailStatus('idle');
+      setEmailError('');
       setShowEmailModal(true);
     } catch (error: any) {
       showError(error.response?.data?.message || 'Errore nel caricamento dei destinatari');
@@ -79,16 +83,28 @@ export default function ProduzioneViewPage() {
   const handleSendEmail = async () => {
     try {
       setSendingEmail(true);
+      setEmailStatus('idle');
+      setEmailError('');
+
       const res = await produzioneApi.sendEmail(date);
+
       if (res?.success) {
-        showSuccess('Email inviata con successo!');
-        setShowEmailModal(false);
+        setEmailStatus('success');
+        // Auto-dismiss dopo 2 secondi
+        setTimeout(() => {
+          setShowEmailModal(false);
+          setSendingEmail(false);
+          setEmailStatus('idle');
+        }, 2000);
       } else {
-        showError(res?.error || 'Errore nell\'invio dell\'email');
+        setEmailStatus('error');
+        setEmailError(res?.error || 'Errore nell\'invio dell\'email');
+        setSendingEmail(false);
       }
     } catch (error: any) {
-      showError(error.response?.data?.message || 'Errore nell\'invio dell\'email');
-    } finally {
+      setEmailStatus('error');
+      const errorMsg = error.response?.data?.message || error.message || 'Errore nell\'invio dell\'email';
+      setEmailError(errorMsg);
       setSendingEmail(false);
     }
   };
@@ -362,99 +378,162 @@ export default function ProduzioneViewPage() {
 
               {/* Body */}
               <div className="p-6 space-y-4">
-                <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4">
-                  <div className="flex items-start gap-3">
-                    <i className="fas fa-info-circle text-blue-500 mt-1"></i>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
-                        Riepilogo Invio
-                      </p>
-                      <div className="space-y-2 text-sm text-blue-800 dark:text-blue-300">
-                        <div>
-                          <span className="font-medium">Da:</span> {user?.mail || 'Email non configurata'}
-                        </div>
-                        <div>
-                          <span className="font-medium">A:</span>
-                          <div className="mt-1 ml-4 space-y-1">
-                            {emailRecipients.length > 0 ? (
-                              emailRecipients.map((email, idx) => (
-                                <div key={idx} className="flex items-center gap-2">
-                                  <i className="fas fa-circle text-xs"></i>
-                                  {email}
-                                </div>
-                              ))
-                            ) : (
-                              <div className="text-red-600 dark:text-red-400">
-                                <i className="fas fa-exclamation-triangle mr-2"></i>
-                                Nessun destinatario configurato
+                {/* Success State */}
+                {emailStatus === 'success' && (
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-6"
+                  >
+                    <div className="flex flex-col items-center gap-3 text-center">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/40">
+                        <i className="fas fa-check text-green-600 dark:text-green-400 text-2xl"></i>
+                      </div>
+                      <div>
+                        <p className="text-lg font-semibold text-green-900 dark:text-green-300">
+                          Email inviata con successo!
+                        </p>
+                        <p className="text-sm text-green-700 dark:text-green-400 mt-1">
+                          Il rapporto è stato inviato ai destinatari configurati
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Error State */}
+                {emailStatus === 'error' && (
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <i className="fas fa-exclamation-circle text-red-500 mt-1 text-xl"></i>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-red-900 dark:text-red-300 mb-1">
+                          Errore nell&apos;invio dell&apos;email
+                        </p>
+                        <p className="text-sm text-red-700 dark:text-red-400">
+                          {emailError}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Idle State - Show form */}
+                {emailStatus === 'idle' && (
+                  <>
+                    <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4">
+                      <div className="flex items-start gap-3">
+                        <i className="fas fa-info-circle text-blue-500 mt-1"></i>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
+                            Riepilogo Invio
+                          </p>
+                          <div className="space-y-2 text-sm text-blue-800 dark:text-blue-300">
+                            <div>
+                              <span className="font-medium">Da:</span> {user?.mail || 'Email non configurata'}
+                            </div>
+                            <div>
+                              <span className="font-medium">A:</span>
+                              <div className="mt-1 ml-4 space-y-1">
+                                {emailRecipients.length > 0 ? (
+                                  emailRecipients.map((email, idx) => (
+                                    <div key={idx} className="flex items-center gap-2">
+                                      <i className="fas fa-circle text-xs"></i>
+                                      {email}
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="text-red-600 dark:text-red-400">
+                                    <i className="fas fa-exclamation-triangle mr-2"></i>
+                                    Nessun destinatario configurato
+                                  </div>
+                                )}
                               </div>
-                            )}
+                            </div>
+                            <div className="pt-2 border-t border-blue-200 dark:border-blue-700">
+                              <span className="font-medium">Allegato:</span> PRODUZIONE_{date}.pdf
+                            </div>
                           </div>
-                        </div>
-                        <div className="pt-2 border-t border-blue-200 dark:border-blue-700">
-                          <span className="font-medium">Allegato:</span> PRODUZIONE_{date}.pdf
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                {!user?.mail && (
-                  <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4">
-                    <div className="flex items-start gap-3">
-                      <i className="fas fa-exclamation-triangle text-yellow-500 mt-1"></i>
-                      <p className="text-sm text-yellow-800 dark:text-yellow-300">
-                        <strong>Attenzione:</strong> Non hai configurato un indirizzo email nel tuo profilo.
-                        Vai in Utenti per configurarlo.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                    {!user?.mail && (
+                      <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4">
+                        <div className="flex items-start gap-3">
+                          <i className="fas fa-exclamation-triangle text-yellow-500 mt-1"></i>
+                          <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                            <strong>Attenzione:</strong> Non hai configurato un indirizzo email nel tuo profilo.
+                            Vai in Utenti per configurarlo.
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
-                {emailRecipients.length === 0 && (
-                  <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4">
-                    <div className="flex items-start gap-3">
-                      <i className="fas fa-exclamation-circle text-red-500 mt-1"></i>
-                      <p className="text-sm text-red-800 dark:text-red-300">
-                        <strong>Errore:</strong> Nessun destinatario configurato.
-                        Vai nelle Impostazioni per configurare gli indirizzi email dei destinatari.
-                      </p>
-                    </div>
-                  </div>
+                    {emailRecipients.length === 0 && (
+                      <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4">
+                        <div className="flex items-start gap-3">
+                          <i className="fas fa-exclamation-circle text-red-500 mt-1"></i>
+                          <p className="text-sm text-red-800 dark:text-red-300">
+                            <strong>Errore:</strong> Nessun destinatario configurato.
+                            Vai nelle Impostazioni per configurare gli indirizzi email dei destinatari.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
               {/* Footer */}
-              <div className="border-t border-gray-200 dark:border-gray-700 p-6 flex items-center justify-end gap-3 bg-gray-50 dark:bg-gray-900/50 rounded-b-xl">
-                <button
-                  onClick={() => setShowEmailModal(false)}
-                  disabled={sendingEmail}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  Annulla
-                </button>
-                <button
-                  onClick={handleSendEmail}
-                  disabled={sendingEmail || !user?.mail || emailRecipients.length === 0}
-                  className="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {sendingEmail ? (
-                    <>
-                      <motion.i
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                        className="fas fa-spinner"
-                      ></motion.i>
-                      Invio in corso...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-paper-plane"></i>
-                      Conferma e Invia
-                    </>
+              {emailStatus !== 'success' && (
+                <div className="border-t border-gray-200 dark:border-gray-700 p-6 flex items-center justify-end gap-3 bg-gray-50 dark:bg-gray-900/50 rounded-b-xl">
+                  <button
+                    onClick={() => setShowEmailModal(false)}
+                    disabled={sendingEmail}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {emailStatus === 'error' ? 'Chiudi' : 'Annulla'}
+                  </button>
+                  {emailStatus === 'idle' && (
+                    <button
+                      onClick={handleSendEmail}
+                      disabled={sendingEmail || !user?.mail || emailRecipients.length === 0}
+                      className="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {sendingEmail ? (
+                        <>
+                          <motion.i
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                            className="fas fa-spinner"
+                          ></motion.i>
+                          Invio in corso...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-paper-plane"></i>
+                          Conferma e Invia
+                        </>
+                      )}
+                    </button>
                   )}
-                </button>
-              </div>
+                  {emailStatus === 'error' && (
+                    <button
+                      onClick={handleSendEmail}
+                      disabled={sendingEmail || !user?.mail || emailRecipients.length === 0}
+                      className="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      <i className="fas fa-redo"></i>
+                      Riprova
+                    </button>
+                  )}
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

@@ -65,10 +65,10 @@ export class LoggerService implements NestLoggerService {
   // Metodi specifici per operazioni comuni
   logDatabaseConnection(success: boolean, details?: string) {
     if (success) {
-      this.success('✓ Connessione al database stabilita con successo', 'Database');
+      this.success('[OK] Connessione al database stabilita con successo', 'Database');
     } else {
       this.error(
-        `✗ Impossibile connettersi al database${details ? `: ${details}` : ''}`,
+        `[ERRORE] Impossibile connettersi al database${details ? `: ${details}` : ''}`,
         undefined,
         'Database',
       );
@@ -78,9 +78,9 @@ export class LoggerService implements NestLoggerService {
   logDatabaseQuery(operation: string, success: boolean, duration?: number) {
     const durationStr = duration ? ` (${duration}ms)` : '';
     if (success) {
-      this.debug(`✓ Query eseguita: ${operation}${durationStr}`, 'Database');
+      this.debug(`[OK] Query eseguita: ${operation}${durationStr}`, 'Database');
     } else {
-      this.error(`✗ Errore query: ${operation}`, undefined, 'Database');
+      this.error(`[ERRORE] Errore query: ${operation}`, undefined, 'Database');
     }
   }
 
@@ -104,24 +104,40 @@ export class LoggerService implements NestLoggerService {
 
   logAuthentication(username: string, success: boolean, reason?: string) {
     if (success) {
-      this.success(`✓ Autenticazione riuscita per utente: ${username}`, 'Auth');
+      this.success(`[OK] Autenticazione riuscita per utente: ${username}`, 'Auth');
     } else {
       this.warn(
-        `✗ Autenticazione fallita per utente: ${username}${reason ? ` - ${reason}` : ''}`,
+        `[ERRORE] Autenticazione fallita per utente: ${username}${reason ? ` - ${reason}` : ''}`,
         'Auth',
       );
     }
   }
 
   logModuleInit(moduleName: string) {
-    this.success(`✓ Modulo ${moduleName} inizializzato`, 'Sistema');
+    this.success(`[OK] Modulo ${moduleName} inizializzato`, 'Sistema');
+  }
+
+  printAsciiArt() {
+    console.log('\x1b[36m'); // Cyan color
+    console.log(' $$$$$$\\   $$$$$$\\  $$$$$$$\\  $$$$$$$$\\  $$$$$$\\  $$$$$$$\\  $$$$$$$$\\ ');
+    console.log('$$  __$$\\ $$  __$$\\ $$  __$$\\ $$  _____|$$  __$$\\ $$  __$$\\ $$  _____|');
+    console.log('$$ /  \\__|$$ /  $$ |$$ |  $$ |$$ |      $$ /  \\__|$$ |  $$ |$$ |      ');
+    console.log('$$ |      $$ |  $$ |$$$$$$$  |$$$$$\\    $$ |$$$$\\ $$$$$$$  |$$$$$\\    ');
+    console.log('$$ |      $$ |  $$ |$$  __$$< $$  __|   $$ |\\_$$ |$$  __$$< $$  __|   ');
+    console.log('$$ |  $$\\ $$ |  $$ |$$ |  $$ |$$ |      $$ |  $$ |$$ |  $$ |$$ |      ');
+    console.log('\\$$$$$$  | $$$$$$  |$$ |  $$ |$$$$$$$$\\ \\$$$$$$  |$$ |  $$ |$$$$$$$$\\ ');
+    console.log(' \\______/  \\______/ \\__|  \\__|\\________| \\______/ \\__|  \\__|\\________|');
+    console.log('\x1b[0m'); // Reset color
+    console.log('');
   }
 
   logServerStart(port: number | string) {
-    console.log('\n' + '='.repeat(60));
-    this.success(`🚀 CoreGRE Backend avviato sulla porta ${port}`, 'Sistema');
-    this.log(`📚 Documentazione API disponibile su: http://localhost:${port}/api/docs`, 'Sistema');
-    this.log(`🏥 Health check disponibile su: http://localhost:${port}/api/health`, 'Sistema');
-    console.log('='.repeat(60) + '\n');
+    this.printAsciiArt();
+    console.log('\x1b[32m' + '='.repeat(70) + '\x1b[0m');
+    this.success(`Server avviato sulla porta ${port}`, 'CoreGRE');
+    this.log(`Documentazione API: http://localhost:${port}/api/docs`, 'CoreGRE');
+    this.log(`Health check: http://localhost:${port}/api/health`, 'CoreGRE');
+    this.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`, 'CoreGRE');
+    console.log('\x1b[32m' + '='.repeat(70) + '\x1b[0m\n');
   }
 }

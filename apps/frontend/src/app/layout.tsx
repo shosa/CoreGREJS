@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import './globals.css';
+import ServerStatusOverlay from '@/components/ServerStatusOverlay';
 
 export default function RootLayout({
   children,
@@ -24,6 +25,7 @@ export default function RootLayout({
       </head>
       <body className="h-full">
         <QueryClientProvider client={queryClient}>
+          <ServerStatusOverlay />
           {children}
         </QueryClientProvider>
       </body>

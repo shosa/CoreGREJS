@@ -12,36 +12,37 @@ async function bootstrap() {
   const logger = new LoggerService();
 
   try {
-    logger.log("[✓] Inizializzazione CoreGRE Backend...", "Bootstrap");
+    console.log('\n');
+    logger.log("Inizializzazione CoreGRE Backend in corso...", "Bootstrap");
+    logger.log("", "");
 
+    logger.log("Step 1/7: Creazione applicazione NestJS", "Bootstrap");
     const app = await NestFactory.create<NestExpressApplication>(AppModule, {
       logger: logger,
     });
+    logger.success("[OK] Applicazione NestJS creata", "Bootstrap");
 
-    logger.success("[✓] Applicazione NestJS creata", "Bootstrap");
-
-    // Serve static files from storage directory
+    logger.log("Step 2/7: Configurazione static assets", "Bootstrap");
     app.useStaticAssets(join(process.cwd(), "storage"), {
       prefix: "/storage/",
     });
-    logger.success("[✓] Static assets configurati", "Bootstrap");
+    logger.success("[OK] Static assets configurati", "Bootstrap");
 
-    // CORS configuration
+    logger.log("Step 3/7: Configurazione CORS", "Bootstrap");
     app.enableCors({
-      /*origin: process.env.FRONTEND_URL || 'http://localhost:3010',*/
       origin: true,
       credentials: true,
     });
-    logger.success("[✓] CORS configurato", "Bootstrap");
+    logger.success("[OK] CORS configurato", "Bootstrap");
 
-    // Global filters - L'ordine è importante: prima specifici, poi generali
+    logger.log("Step 4/7: Registrazione filtri eccezioni globali", "Bootstrap");
     app.useGlobalFilters(
-      new PrismaExceptionFilter(), // Gestisce errori Prisma specifici
-      new AllExceptionsFilter() // Gestisce tutte le altre eccezioni
+      new PrismaExceptionFilter(),
+      new AllExceptionsFilter()
     );
-    logger.success("[✓] Filtri eccezioni globali registrati", "Bootstrap");
+    logger.success("[OK] Filtri eccezioni globali registrati", "Bootstrap");
 
-    // Global validation pipe
+    logger.log("Step 5/7: Configurazione validation pipe", "Bootstrap");
     app.setGlobalPrefix("api");
     app.useGlobalPipes(
       new ValidationPipe({
@@ -49,12 +50,10 @@ async function bootstrap() {
         transform: true,
         forbidNonWhitelisted: true,
         exceptionFactory: (errors) => {
-          // Personalizza i messaggi di validazione in italiano
           const messages = errors.map((error) => {
             const constraints = error.constraints;
             if (!constraints) return "Errore di validazione";
 
-            // Traduci i messaggi di validazione comuni
             const translations: Record<string, string> = {
               isNotEmpty: `Il campo "${error.property}" è obbligatorio`,
               isString: `Il campo "${error.property}" deve essere una stringa`,
@@ -78,9 +77,9 @@ async function bootstrap() {
         },
       })
     );
-    logger.success("[✓] Validation pipe configurato", "Bootstrap");
+    logger.success("[OK] Validation pipe configurato", "Bootstrap");
 
-    // Swagger documentation
+    logger.log("Step 6/7: Configurazione documentazione Swagger", "Bootstrap");
     const config = new DocumentBuilder()
       .setTitle("CoreGRE API")
       .setDescription("CoreGRE ERP System API")
@@ -89,20 +88,28 @@ async function bootstrap() {
       .build();
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup("api/docs", app, document);
-    logger.success("[✓] Documentazione Swagger configurata", "Bootstrap");
+    logger.success("[OK] Documentazione Swagger configurata", "Bootstrap");
 
+    logger.log("Step 7/7: Avvio server HTTP", "Bootstrap");
     const port = process.env.PORT || 3011;
     await app.listen(port);
+    logger.success("[OK] Server HTTP in ascolto", "Bootstrap");
 
-    // Log di avvio con informazioni utili
+    logger.log("", "");
+    logger.success("Bootstrap completato con successo", "Bootstrap");
+    console.log('\n');
+
     logger.logServerStart(port);
   } catch (error: any) {
+    console.log('\n');
     logger.error(
-      "[✗] ERRORE FATALE durante l'avvio dell'applicazione",
+      "[ERRORE FATALE] Impossibile avviare l'applicazione",
       error.stack,
       "Bootstrap"
     );
-    logger.error(`   Messaggio: ${error.message}`, undefined, "Bootstrap");
+    logger.error(`Dettagli: ${error.message}`, undefined, "Bootstrap");
+    logger.error("Il server verra terminato", undefined, "Bootstrap");
+    console.log('\n');
     process.exit(1);
   }
 }

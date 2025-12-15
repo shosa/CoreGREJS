@@ -1,5 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import * as nodemailer from 'nodemailer';
 import * as fs from 'fs';
 
@@ -20,7 +21,10 @@ export interface EmailOptions {
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storageService: StorageService,
+  ) {}
 
   async getSmtpConfig() {
     const settings = await this.prisma.setting.findMany({
@@ -131,9 +135,14 @@ export class EmailService {
         throw new BadRequestException('Nessun destinatario configurato per le email di produzione.');
       }
 
-      // Check if PDF exists
-      if (!fs.existsSync(pdfPath)) {
-        throw new BadRequestException('File PDF non trovato. Genera prima il PDF.');
+      // Download PDF from MinIO (pdfPath is now MinIO object name like "jobs/userId/jobId/file.pdf")
+      let pdfBuffer: Buffer;
+      try {
+        pdfBuffer = await this.storageService.getFileBuffer(pdfPath);
+        this.logger.log(`PDF scaricato da MinIO: ${pdfPath}`);
+      } catch (error) {
+        this.logger.error(`Errore download PDF da MinIO: ${error.message}`);
+        throw new BadRequestException('File PDF non trovato in MinIO. Genera prima il PDF.');
       }
 
       // Get SMTP config
@@ -170,7 +179,7 @@ export class EmailService {
         attachments: [
           {
             filename: `PRODUZIONE_${date}.pdf`,
-            path: pdfPath,
+            content: pdfBuffer,
           },
         ],
       });
@@ -180,7 +189,19 @@ export class EmailService {
       return { success: true };
     } catch (error: any) {
       this.logger.error(`❌ Errore invio email produzione: ${error.message}`);
-      throw error;
+
+      // Customize error messages for common issues
+      let userMessage = error.message;
+
+      if (error.message.includes('Invalid login') || error.message.includes('authentication rejected')) {
+        userMessage = 'Credenziali email non valide. Verifica l\'indirizzo email e la password nelle impostazioni del tuo profilo.';
+      } else if (error.message.includes('ECONNREFUSED')) {
+        userMessage = 'Impossibile connettersi al server SMTP. Verifica la configurazione del server mail nelle impostazioni.';
+      } else if (error.message.includes('ETIMEDOUT') || error.message.includes('timeout')) {
+        userMessage = 'Timeout nella connessione al server mail. Riprova più tardi.';
+      }
+
+      throw new BadRequestException(userMessage);
     }
   }
 }
