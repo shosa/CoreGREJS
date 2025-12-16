@@ -24,6 +24,7 @@ model User {
   activityLogs  ActivityLog[]
   widgetConfigs AuthWidgetConfig[]
   jobs          Job[]
+  minioFiles    MinioFile[]
 
   // Production records created/updated by this user
   productionRecordsCreated ProductionRecord[] @relation("ProductionCreator")
@@ -761,7 +762,8 @@ model Job {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  minioFiles MinioFile[]
 
   @@index([userId])
   @@map("core_jobs")
@@ -831,4 +833,29 @@ model InworkAvailableModule {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("inwork_available_modules")
+}
+
+// ==================== FILE MANAGER ====================
+
+model MinioFile {
+  id         Int      @id @default(autoincrement())
+  bucket     String   @db.VarChar(100)
+  objectKey  String   @map("object_key") @db.VarChar(500)
+  fileName   String   @map("file_name") @db.VarChar(255)
+  fileSize   BigInt   @map("file_size")
+  mimeType   String?  @map("mime_type") @db.VarChar(100)
+  userId     Int?     @map("user_id")
+  jobId      String?  @map("job_id") @db.Char(36)
+  tags       Json?
+  metadata   Json?
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+  lastAccess DateTime @default(now()) @map("last_access")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  job  Job?  @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([bucket, userId])
+  @@index([uploadedAt])
+  @@index([jobId])
+  @@map("minio_files")
 }

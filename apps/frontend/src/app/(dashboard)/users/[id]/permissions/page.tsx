@@ -23,39 +23,34 @@ interface PermissionCategory {
 }
 
 const permissionsCategories: PermissionCategory[] = [
-  {
-    name: 'Moduli Operativi',
-    description: 'Moduli per la gestione operativa quotidiana',
+ {
+    name: 'FUNZIONI',
+    description: 'Moduli per la gestione operativa e processi aziendali',
     permissions: [
       { key: 'riparazioni', name: 'Riparazioni', description: 'Gestione riparazioni e ordini di lavoro', icon: 'fa-hammer', color: 'blue' },
-      { key: 'produzione', name: 'Produzione', description: 'Pianificazione e gestione produzione', icon: 'fa-calendar', color: 'yellow' },
       { key: 'quality', name: 'Controllo Qualità', description: 'Sistema controllo e verifica qualità prodotti', icon: 'fa-check-circle', color: 'green' },
-      { key: 'export', name: 'Export', description: 'Gestione esportazioni e documentazione DDT', icon: 'fa-globe-europe', color: 'purple' },
-    ]
-  },
-  {
-    name: 'Supply Chain & Logistica',
-    description: 'Moduli per la gestione della catena di approvvigionamento',
-    permissions: [
-      { key: 'scm_admin', name: 'SCM', description: 'Supply Chain Management e lanci produzione', icon: 'fa-industry', color: 'orange' },
+      { key: 'produzione', name: 'Produzione', description: 'Pianificazione e gestione produzione', icon: 'fa-calendar', color: 'yellow' },
+      { key: 'export', name: 'Export/DDT', description: 'Gestione esportazioni e documentazione DDT', icon: 'fa-globe-europe', color: 'purple' },
+      { key: 'scm_admin', name: 'SCM', description: 'Supply Chain Management e lanci produzione', icon: 'fa-network-wired', color: 'orange' },
       { key: 'tracking', name: 'Tracking', description: 'Tracciabilità materiali e movimentazioni', icon: 'fa-map-marker-alt', color: 'red' },
     ]
   },
   {
-    name: 'Sistemi Mobile',
-    description: 'Accesso ai sistemi mobile e applicazioni dedicate',
+    name: 'FRAMEWORK',
+    description: 'Strumenti di sistema e gestione tecnica',
     permissions: [
-      { key: 'inwork', name: 'InWork', description: 'Sistema gestione operatori e permessi mobile', icon: 'fa-mobile', color: 'slate' },
+      { key: 'dbsql', name: 'Gestione Dati', description: 'Accesso database, query SQL e migrazioni', icon: 'fa-database', color: 'cyan' },
+      { key: 'log', name: 'Log Attività', description: 'Visualizzazione audit log e attività sistema', icon: 'fa-history', color: 'cyan' },
+      { key: 'inwork', name: 'InWork', description: 'Sistema gestione operatori e permessi mobile', icon: 'fa-mobile', color: 'cyan' },
+      { key: 'file-manager', name: 'File Manager', description: 'Gestione file MinIO e storage sistema', icon: 'fa-folder-open', color: 'cyan' },
     ]
   },
   {
-    name: 'Amministrazione',
-    description: 'Pannelli amministrativi e strumenti di gestione sistema',
+    name: 'STRUMENTI',
+    description: 'Pannelli amministrativi e configurazione sistema',
     permissions: [
-      { key: 'users', name: 'Gestione Utenti', description: 'Creazione, modifica e gestione utenti sistema', icon: 'fa-users', color: 'teal' },
+      { key: 'users', name: 'Gestione Utenti', description: 'Creazione, modifica e gestione utenti sistema', icon: 'fa-users', color: 'gray' },
       { key: 'settings', name: 'Impostazioni', description: 'Configurazione sistema e import dati', icon: 'fa-cog', color: 'gray' },
-      { key: 'log', name: 'Log Attività', description: 'Visualizzazione audit log e attività sistema', icon: 'fa-history', color: 'cyan' },
-      { key: 'dbsql', name: 'Gestione Dati', description: 'Accesso database, query SQL e migrazioni', icon: 'fa-database', color: 'indigo' },
     ]
   },
 ];
@@ -403,7 +398,7 @@ export default function UserPermissionsPage() {
               disabled={saving}
               whileHover={{ scale: saving ? 1 : 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="inline-flex items-center px-6 py-2.5 border border-transparent rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="inline-flex items-center px-6 py-2.5 border border-transparent rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-green-500 via-green-500 to-green-500 hover:from-green-600 hover:via-green-600 hover:to-green-600 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {saving ? (
                 <>

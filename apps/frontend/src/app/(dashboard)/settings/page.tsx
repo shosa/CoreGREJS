@@ -41,6 +41,7 @@ const moduleConfigs: Record<string, {
   label: string;
   description: string;
   icon: string;
+  category: 'FUNZIONI' | 'FRAMEWORK' | 'STRUMENTI';
   borderColor: string;
   bgColor: string;
   iconBg: string;
@@ -52,6 +53,7 @@ const moduleConfigs: Record<string, {
     label: 'Riparazioni',
     description: 'Gestione riparazioni interne ed esterne',
     icon: 'fa-hammer',
+    category: 'FUNZIONI',
     borderColor: 'border-blue-500',
     bgColor: 'bg-blue-50 dark:bg-blue-900/20',
     iconBg: 'bg-blue-500',
@@ -63,6 +65,7 @@ const moduleConfigs: Record<string, {
     label: 'Controllo Qualità',
     description: 'Sistema controllo e verifica qualità prodotti',
     icon: 'fa-check-circle',
+    category: 'FUNZIONI',
     borderColor: 'border-green-500',
     bgColor: 'bg-green-50 dark:bg-green-900/20',
     iconBg: 'bg-green-500',
@@ -74,6 +77,7 @@ const moduleConfigs: Record<string, {
     label: 'Produzione',
     description: 'Pianificazione e gestione produzione',
     icon: 'fa-calendar',
+    category: 'FUNZIONI',
     borderColor: 'border-yellow-500',
     bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
     iconBg: 'bg-yellow-500',
@@ -85,6 +89,7 @@ const moduleConfigs: Record<string, {
     label: 'Export/DDT',
     description: 'Gestione esportazioni e documentazione DDT',
     icon: 'fa-globe-europe',
+    category: 'FUNZIONI',
     borderColor: 'border-indigo-500',
     bgColor: 'bg-indigo-50 dark:bg-indigo-900/20',
     iconBg: 'bg-indigo-500',
@@ -95,7 +100,8 @@ const moduleConfigs: Record<string, {
   scm_admin: {
     label: 'SCM',
     description: 'Supply Chain Management e lanci produzione',
-    icon: 'fa-industry',
+    icon: 'fa-network-wired',
+    category: 'FUNZIONI',
     borderColor: 'border-orange-500',
     bgColor: 'bg-orange-50 dark:bg-orange-900/20',
     iconBg: 'bg-orange-500',
@@ -107,17 +113,19 @@ const moduleConfigs: Record<string, {
     label: 'Tracking',
     description: 'Tracciabilità materiali e movimentazioni',
     icon: 'fa-map-marker-alt',
-    borderColor: 'border-purple-500',
-    bgColor: 'bg-purple-50 dark:bg-purple-900/20',
-    iconBg: 'bg-purple-500',
-    badgeBg: 'bg-purple-100 dark:bg-purple-900/30',
-    badgeText: 'text-purple-700 dark:text-purple-300',
-    toggleBg: 'bg-purple-500',
+    category: 'FUNZIONI',
+    borderColor: 'border-pink-500',
+    bgColor: 'bg-pink-50 dark:bg-rose-900/20',
+    iconBg: 'bg-pink-500',
+    badgeBg: 'bg-pink-100 dark:bg-pink-900/30',
+    badgeText: 'text-pink-700 dark:text-pink-300',
+    toggleBg: 'bg-pink-500',
   },
   dbsql: {
     label: 'Gestione Dati',
     description: 'Accesso database, query SQL e migrazioni',
     icon: 'fa-database',
+    category: 'FRAMEWORK',
     borderColor: 'border-cyan-500',
     bgColor: 'bg-cyan-50 dark:bg-cyan-900/20',
     iconBg: 'bg-cyan-500',
@@ -129,6 +137,7 @@ const moduleConfigs: Record<string, {
     label: 'Log Attività',
     description: 'Visualizzazione audit log e attività sistema',
     icon: 'fa-history',
+    category: 'FRAMEWORK',
     borderColor: 'border-cyan-500',
     bgColor: 'bg-cyan-50 dark:bg-cyan-900/20',
     iconBg: 'bg-cyan-500',
@@ -140,6 +149,19 @@ const moduleConfigs: Record<string, {
     label: 'InWork',
     description: 'Sistema gestione operatori e permessi mobile',
     icon: 'fa-mobile',
+    category: 'FRAMEWORK',
+    borderColor: 'border-cyan-500',
+    bgColor: 'bg-cyan-50 dark:bg-cyan-900/20',
+    iconBg: 'bg-cyan-500',
+    badgeBg: 'bg-cyan-100 dark:bg-cyan-900/30',
+    badgeText: 'text-cyan-700 dark:text-cyan-300',
+    toggleBg: 'bg-cyan-500',
+  },
+  'file-manager': {
+    label: 'File Manager',
+    description: 'Gestione file MinIO e storage sistema',
+    icon: 'fa-folder-open',
+    category: 'FRAMEWORK',
     borderColor: 'border-cyan-500',
     bgColor: 'bg-cyan-50 dark:bg-cyan-900/20',
     iconBg: 'bg-cyan-500',
@@ -151,6 +173,7 @@ const moduleConfigs: Record<string, {
     label: 'Utenti',
     description: 'Creazione, modifica e gestione utenti sistema',
     icon: 'fa-users',
+    category: 'STRUMENTI',
     borderColor: 'border-gray-500',
     bgColor: 'bg-gray-50 dark:bg-gray-900/20',
     iconBg: 'bg-gray-500',
@@ -162,6 +185,7 @@ const moduleConfigs: Record<string, {
     label: 'Impostazioni',
     description: 'Configurazione sistema e import dati',
     icon: 'fa-cog',
+    category: 'STRUMENTI',
     borderColor: 'border-gray-500',
     bgColor: 'bg-gray-50 dark:bg-gray-900/20',
     iconBg: 'bg-gray-500',
@@ -825,65 +849,87 @@ export default function SettingsPage() {
                       </p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {Object.entries(moduleConfigs).map(([key, config]) => {
-                        const isEnabled = modules[key] || false;
+                    <div className="space-y-8">
+                      {(['FUNZIONI', 'FRAMEWORK', 'STRUMENTI'] as const).map((category) => {
+                        const categoryModules = Object.entries(moduleConfigs).filter(
+                          ([_, config]) => config.category === category
+                        );
+
+                        if (categoryModules.length === 0) return null;
+
                         return (
-                          <motion.div
-                            key={key}
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className={`p-4 rounded-lg border-2 transition-all ${
-                              isEnabled
-                                ? `${config.borderColor} ${config.bgColor}`
-                                : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className={`flex h-10 w-10 items-center justify-center rounded-lg text-white ${
-                                    isEnabled
-                                      ? config.iconBg
-                                      : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
-                                  }`}
-                                >
-                                  <i className={`fas ${config.icon}`}></i>
-                                </div>
-                                <div>
-                                  <h4 className="font-semibold text-gray-900 dark:text-white">
-                                    {config.label}
-                                  </h4>
-                                  <p className="text-xs text-gray-500">{config.description}</p>
-                                </div>
-                              </div>
+                          <div key={category}>
+                            <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+                              <i className={`fas ${
+                                category === 'FUNZIONI' ? 'fa-puzzle-piece' :
+                                category === 'FRAMEWORK' ? 'fa-layer-group' :
+                                'fa-tools'
+                              } text-purple-500`}></i>
+                              {category}
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {categoryModules.map(([key, config]) => {
+                                const isEnabled = modules[key] || false;
+                                return (
+                                  <motion.div
+                                    key={key}
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className={`p-4 rounded-lg border-2 transition-all ${
+                                      isEnabled
+                                        ? `${config.borderColor} ${config.bgColor}`
+                                        : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between mb-3">
+                                      <div className="flex items-center gap-3">
+                                        <div
+                                          className={`flex h-10 w-10 items-center justify-center rounded-lg text-white ${
+                                            isEnabled
+                                              ? config.iconBg
+                                              : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
+                                          }`}
+                                        >
+                                          <i className={`fas ${config.icon}`}></i>
+                                        </div>
+                                        <div>
+                                          <h4 className="font-semibold text-gray-900 dark:text-white">
+                                            {config.label}
+                                          </h4>
+                                          <p className="text-xs text-gray-500">{config.description}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <span
+                                        className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                          isEnabled
+                                            ? `${config.badgeBg} ${config.badgeText}`
+                                            : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                                        }`}
+                                      >
+                                        {isEnabled ? 'Attivo' : 'Disattivato'}
+                                      </span>
+                                      <button
+                                        onClick={() => handleModuleToggle(key, !isEnabled)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                                          isEnabled
+                                            ? config.toggleBg
+                                            : 'bg-gray-300 dark:bg-gray-600'
+                                        }`}
+                                      >
+                                        <span
+                                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                            isEnabled ? 'translate-x-6' : 'translate-x-1'
+                                          }`}
+                                        />
+                                      </button>
+                                    </div>
+                                  </motion.div>
+                                );
+                              })}
                             </div>
-                            <div className="flex items-center justify-between">
-                              <span
-                                className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                  isEnabled
-                                    ? `${config.badgeBg} ${config.badgeText}`
-                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                                }`}
-                              >
-                                {isEnabled ? 'Attivo' : 'Disattivato'}
-                              </span>
-                              <button
-                                onClick={() => handleModuleToggle(key, !isEnabled)}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
-                                  isEnabled
-                                    ? config.toggleBg
-                                    : 'bg-gray-300 dark:bg-gray-600'
-                                }`}
-                              >
-                                <span
-                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                                    isEnabled ? 'translate-x-6' : 'translate-x-1'
-                                  }`}
-                                />
-                              </button>
-                            </div>
-                          </motion.div>
+                          </div>
                         );
                       })}
                     </div>

@@ -121,7 +121,7 @@ const menuItems: MenuItem[] = [
     name: 'Tracking',
     href: '/tracking',
     icon: 'fa-map-marker-alt',
-    gradient: 'from-purple-500 to-pink-600',
+    gradient: 'from-pink-500 to-rose-500',
     hoverGradient: 'hover:from-purple-50 hover:to-pink-100 dark:hover:from-purple-900/20 dark:hover:to-pink-800/20',
     permission: 'tracking',
     children: [
@@ -135,8 +135,9 @@ const menuItems: MenuItem[] = [
 
 const adminItems: MenuItem[] = [
   { name: 'Gestione Dati', href: '/data-management', icon: 'fa-database', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50', permission: 'dbsql' },
-  { name: 'Log Attività', href: '/log-attivita', icon: 'fa-history', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-cyan-800/50 dark:hover:to-cyan-700/50', permission: 'log' },
+  { name: 'Log Attività', href: '/log-attivita', icon: 'fa-history', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50', permission: 'log' },
   { name: 'InWork', href: '/inwork', icon: 'fa-mobile', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50', permission: 'inwork' },
+  { name: 'File Manager', href: '/file-manager', icon: 'fa-folder-open', gradient: 'from-cyan-500 to-cyan-600', hoverGradient: 'hover:from-cyan-50 hover:to-cyan-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50', permission: 'file-manager' },
 ];
 
 const toolItems: MenuItem[] = [
@@ -230,13 +231,25 @@ export default function Sidebar() {
     return true;
   };
 
-  const renderMenuItem = (item: MenuItem, index: number) => {
+  const renderMenuItem = (item: MenuItem, index: number, category?: 'FUNZIONI' | 'FRAMEWORK' | 'STRUMENTI') => {
     const hasChildren = item.children && item.children.length > 0;
     const isOpen = activeMenu === item.name;
     const isPopupOpen = popupMenu === item.name;
 
     // Use the helper function to check visibility
     if (!isItemVisible(item)) return null;
+
+    // Determine active styles based on category
+    const getActiveClasses = () => {
+      if (!isActive(item.href)) return 'text-gray-700';
+
+      if (category === 'STRUMENTI') {
+        return 'bg-gradient-to-r from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-700/50 shadow-md ring-1 ring-gray-100/60 dark:ring-gray-700/30';
+      } else if (category === 'FRAMEWORK') {
+        return 'bg-gradient-to-r from-cyan-50 to-white dark:from-cyan-900/30 dark:to-gray-800 shadow-md ring-1 ring-cyan-100/60 dark:ring-cyan-900/30';
+      }
+      return 'bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/30 dark:to-gray-800 shadow-md ring-1 ring-blue-100/60 dark:ring-blue-900/30';
+    };
 
     return (
       <motion.li

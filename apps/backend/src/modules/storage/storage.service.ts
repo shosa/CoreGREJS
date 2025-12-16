@@ -87,6 +87,14 @@ export class StorageService implements OnModuleInit {
     try {
       return await this.minioClient.getObject(this.bucketName, objectName);
     } catch (error) {
+      // Check if file doesn't exist
+      if (error.code === 'NoSuchKey' || error.message?.includes('does not exist')) {
+        this.logger.warn(`File not found: ${objectName}`);
+        const notFoundError: any = new Error('File non più disponibile');
+        notFoundError.code = 'FILE_NOT_FOUND';
+        notFoundError.statusCode = 404;
+        throw notFoundError;
+      }
       this.logger.error(`Failed to get file stream ${objectName}: ${error.message}`);
       throw error;
     }

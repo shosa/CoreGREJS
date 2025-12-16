@@ -84,7 +84,19 @@ export default function SpoolModal({ open, onClose }: Props) {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
-      showError(err?.response?.data?.message || 'Download non disponibile');
+      // When responseType is 'blob', error.response.data is also a blob
+      // We need to read it as text to get the actual error message
+      if (err?.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const errorData = JSON.parse(text);
+          showError(errorData.message || 'Download non disponibile');
+        } catch {
+          showError('Download non disponibile');
+        }
+      } else {
+        showError(err?.response?.data?.message || 'Download non disponibile');
+      }
     }
   };
 

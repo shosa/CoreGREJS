@@ -25,6 +25,8 @@ import { MobileModule } from './modules/mobile/mobile.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { HealthModule } from './modules/health/health.module';
 import { StorageModule } from './modules/storage/storage.module';
+import { FileManagerModule } from './modules/file-manager/file-manager.module';
+import { MinioModule } from './services/minio.module';
 
 @Module({
   imports: [
@@ -34,8 +36,10 @@ import { StorageModule } from './modules/storage/storage.module';
     }),
     ScheduleModule.forRoot(),
     PrismaModule,
+    MinioModule,
     StorageModule,
     HealthModule,
+    FileManagerModule,
     AuthModule,
     UsersModule,
     RiparazioniModule,

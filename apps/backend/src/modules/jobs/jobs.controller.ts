@@ -65,14 +65,22 @@ export class JobsController {
       throw new BadRequestException('File non pronto o non disponibile');
     }
 
-    res.setHeader('Content-Disposition', `attachment; filename="${job.outputName || 'output'}"`);
-    if (job.outputMime) {
-      res.setHeader('Content-Type', job.outputMime);
-    }
+    try {
+      res.setHeader('Content-Disposition', `attachment; filename="${job.outputName || 'output'}"`);
+      if (job.outputMime) {
+        res.setHeader('Content-Type', job.outputMime);
+      }
 
-    // Download from MinIO
-    const stream = await this.storageService.getFileStream(job.outputPath);
-    stream.pipe(res);
+      // Download from MinIO
+      const stream = await this.storageService.getFileStream(job.outputPath);
+      stream.pipe(res);
+    } catch (error) {
+      // Se il file non esiste più, restituisci un messaggio chiaro
+      if (error.code === 'FILE_NOT_FOUND' || error.statusCode === 404) {
+        throw new BadRequestException('File non più disponibile');
+      }
+      throw error;
+    }
   }
 
   @Delete(':id')
