@@ -1,10 +1,14 @@
 import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { QualityApiService } from './quality-api.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class MobileApiService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private qualityApiService: QualityApiService,
+  ) {}
 
   /**
    * Lista operatori attivi (action: get_users)
@@ -348,5 +352,19 @@ export class MobileApiService {
     }
 
     return {};
+  }
+
+  /**
+   * Dettagli completi controllo qualità con tutte le eccezioni
+   */
+  async getQualityControlDetails(controlId: number) {
+    return this.qualityApiService.getControlDetails(controlId);
+  }
+
+  /**
+   * Elimina controllo qualità
+   */
+  async deleteQualityControl(controlId: number) {
+    return this.qualityApiService.deleteControl(controlId);
   }
 }

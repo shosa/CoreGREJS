@@ -11,6 +11,7 @@ import {
   Res,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { Response, Request } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { JobsService, JobStatus } from './jobs.service';
@@ -19,6 +20,8 @@ import { StorageService } from '../storage/storage.service';
 import * as archiver from 'archiver';
 import { PDFDocument } from 'pdf-lib';
 
+@ApiTags('Jobs')
+@ApiBearerAuth()
 @Controller('jobs')
 @UseGuards(JwtAuthGuard)
 export class JobsController {
@@ -145,6 +148,7 @@ export class JobsController {
     for (const job of jobs) {
       if (job.outputPath) {
         // Download from MinIO
+
         const stream = await this.storageService.getFileStream(job.outputPath);
         archive.append(stream, { name: job.outputName || job.id });
       }

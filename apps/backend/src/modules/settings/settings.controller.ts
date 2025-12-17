@@ -12,11 +12,14 @@ import {
   Param,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SettingsService, ImportProgress, ImportAnalysis } from './settings.service';
 
+@ApiTags('Settings')
+@ApiBearerAuth()
 @Controller('settings')
 @UseGuards(JwtAuthGuard)
 export class SettingsController {

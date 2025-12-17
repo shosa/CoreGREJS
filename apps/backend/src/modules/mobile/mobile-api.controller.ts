@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Body, Query, Headers } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Query, Headers, Param } from '@nestjs/common';
 import { MobileApiService } from './mobile-api.service';
 import { Public } from '../../common/decorators/public.decorator';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 
+@ApiTags('Mobile - API')
 @Controller('mobile')
 export class MobileApiController {
   constructor(private readonly mobileApiService: MobileApiService) {}
@@ -97,5 +99,29 @@ export class MobileApiController {
     @Body() body: { type: string; value: string },
   ) {
     return this.mobileApiService.checkData(body.type, body.value);
+  }
+
+  /**
+   * Dettagli completi controllo qualità con tutte le eccezioni
+   * GET /api/mobile/quality-control/:id
+   */
+  @Get('quality-control/:id')
+  @Public()
+  @ApiOperation({ summary: 'Ottieni dettagli completi controllo qualità' })
+  @ApiParam({ name: 'id', description: 'ID del controllo', type: Number })
+  async getQualityControlDetails(@Param('id') id: string) {
+    return this.mobileApiService.getQualityControlDetails(parseInt(id, 10));
+  }
+
+  /**
+   * Elimina controllo qualità
+   * DELETE /api/mobile/quality-control/:id
+   */
+  @Delete('quality-control/:id')
+  @Public()
+  @ApiOperation({ summary: 'Elimina controllo qualità' })
+  @ApiParam({ name: 'id', description: 'ID del controllo', type: Number })
+  async deleteQualityControl(@Param('id') id: string) {
+    return this.mobileApiService.deleteQualityControl(parseInt(id, 10));
   }
 }

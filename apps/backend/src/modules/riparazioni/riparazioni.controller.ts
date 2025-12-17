@@ -11,6 +11,7 @@ import {
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { RiparazioniService } from './riparazioni.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -18,6 +19,8 @@ import { RequirePermissions } from '../../common/decorators/permissions.decorato
 import { LogActivity } from '../../common/decorators/log-activity.decorator';
 import { Prisma } from '@prisma/client';
 
+@ApiTags('Riparazioni')
+@ApiBearerAuth()
 @Controller('riparazioni')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('riparazioni')
@@ -30,6 +33,7 @@ export class RiparazioniController {
    * GET /riparazioni/stats
    * Get dashboard statistics
    */
+  @ApiOperation({ summary: 'Get dashboard statistics' })
   @Get('stats')
   async getStats() {
     return this.riparazioniService.getStats();
@@ -39,6 +43,7 @@ export class RiparazioniController {
    * GET /riparazioni
    * Get all riparazioni with pagination and filters
    */
+  @ApiOperation({ summary: 'Get all riparazioni with pagination and filters' })
   @Get()
   async findAll(
     @Query('page') page?: string,
@@ -100,6 +105,7 @@ export class RiparazioniController {
    * GET /riparazioni/next-id
    * Get next available idRiparazione
    */
+  @ApiOperation({ summary: 'Get next available idRiparazione' })
   @Get('next-id')
   async getNextId() {
     const nextId = await this.riparazioniService.generateNextIdRiparazione();
@@ -109,7 +115,9 @@ export class RiparazioniController {
   /**
    * GET /riparazioni/cartellino/:cartellino
    * Get cartellino data from core_dati
+
    */
+  @ApiOperation({ summary: 'Recupera cartellino' })
   @Get('cartellino/:cartellino')
   async getCartellinoData(@Param('cartellino') cartellino: string) {
     return this.riparazioniService.getCartellinoData(cartellino);
@@ -119,6 +127,7 @@ export class RiparazioniController {
    * GET /riparazioni/id/:idRiparazione
    * Get riparazione by custom ID
    */
+  @ApiOperation({ summary: 'Get riparazione by custom ID' })
   @Get('id/:idRiparazione')
   async findByIdRiparazione(@Param('idRiparazione') idRiparazione: string) {
     return this.riparazioniService.findByIdRiparazione(idRiparazione);
@@ -128,6 +137,7 @@ export class RiparazioniController {
    * GET /riparazioni/:id
    * Get riparazione by numeric ID
    */
+  @ApiOperation({ summary: 'Get riparazione by numeric ID' })
   @Get(':id(\\d+)')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.riparazioniService.findOne(id);
@@ -137,6 +147,7 @@ export class RiparazioniController {
    * POST /riparazioni
    * Create new riparazione
    */
+  @ApiOperation({ summary: 'Create new riparazione' })
   @Post()
   @LogActivity({ module: 'riparazioni', action: 'create', entity: 'Riparazione', description: 'Creazione nuova riparazione esterna' })
   async create(@Body() createDto: any) {
@@ -180,6 +191,7 @@ export class RiparazioniController {
    * PUT /riparazioni/:id
    * Update riparazione
    */
+  @ApiOperation({ summary: 'Update riparazione' })
   @Put(':id(\\d+)')
   @LogActivity({ module: 'riparazioni', action: 'update', entity: 'Riparazione', description: 'Modifica riparazione esterna' })
   async update(
@@ -217,6 +229,7 @@ export class RiparazioniController {
    * PUT /riparazioni/:id/complete
    * Mark riparazione as completed
    */
+  @ApiOperation({ summary: 'Mark riparazione as completed' })
   @Put(':id(\\d+)/complete')
   @LogActivity({ module: 'riparazioni', action: 'complete', entity: 'Riparazione', description: 'Completamento riparazione esterna' })
   async complete(@Param('id', ParseIntPipe) id: number) {
@@ -227,6 +240,7 @@ export class RiparazioniController {
    * DELETE /riparazioni/:id
    * Delete riparazione
    */
+  @ApiOperation({ summary: 'Delete riparazione' })
   @Delete(':id(\\d+)')
   @LogActivity({ module: 'riparazioni', action: 'delete', entity: 'Riparazione', description: 'Eliminazione riparazione esterna' })
   async remove(@Param('id', ParseIntPipe) id: number) {
@@ -240,6 +254,7 @@ export class RiparazioniController {
    * GET /riparazioni/reparti
    * Get all reparti
    */
+  @ApiOperation({ summary: 'Get all reparti' })
   @Get('reparti')
   async getReparti() {
     return this.riparazioniService.findAllReparti();
@@ -249,6 +264,7 @@ export class RiparazioniController {
    * GET /riparazioni/laboratori
    * Get all laboratori
    */
+  @ApiOperation({ summary: 'Get all laboratori' })
   @Get('laboratori')
   async getLaboratori() {
     return this.riparazioniService.findAllLaboratori();
@@ -258,6 +274,7 @@ export class RiparazioniController {
    * GET /riparazioni/linee
    * Get all linee
    */
+  @ApiOperation({ summary: 'Get all linee' })
   @Get('linee')
   async getLinee() {
     return this.riparazioniService.findAllLinee();
@@ -267,6 +284,7 @@ export class RiparazioniController {
    * GET /riparazioni/numerate
    * Get all numerate
    */
+  @ApiOperation({ summary: 'Get all numerate' })
   @Get('numerate')
   async getNumerate() {
     return this.riparazioniService.findAllNumerate();
@@ -276,6 +294,7 @@ export class RiparazioniController {
    * GET /riparazioni/numerate/:id
    * Get numerata by ID
    */
+  @ApiOperation({ summary: 'Get numerata by ID' })
   @Get('numerate/:id(\\d+)')
   async getNumerata(@Param('id', ParseIntPipe) id: number) {
     return this.riparazioniService.findNumerata(id);
@@ -285,6 +304,7 @@ export class RiparazioniController {
    * POST /riparazioni/laboratori
    * Create laboratorio
    */
+  @ApiOperation({ summary: 'Create laboratorio' })
   @Post('laboratori')
   @LogActivity({ module: 'riparazioni', action: 'create', entity: 'Laboratorio', description: 'Creazione nuovo laboratorio' })
   async createLaboratorio(@Body() createDto: any) {
@@ -299,6 +319,7 @@ export class RiparazioniController {
    * PUT /riparazioni/laboratori/:id
    * Update laboratorio
    */
+  @ApiOperation({ summary: 'Update laboratorio' })
   @Put('laboratori/:id(\\d+)')
   @LogActivity({ module: 'riparazioni', action: 'update', entity: 'Laboratorio', description: 'Modifica laboratorio' })
   async updateLaboratorio(
@@ -315,6 +336,7 @@ export class RiparazioniController {
    * DELETE /riparazioni/laboratori/:id
    * Delete laboratorio
    */
+  @ApiOperation({ summary: 'Delete laboratorio' })
   @Delete('laboratori/:id(\\d+)')
   @LogActivity({ module: 'riparazioni', action: 'delete', entity: 'Laboratorio', description: 'Eliminazione laboratorio' })
   async deleteLaboratorio(@Param('id', ParseIntPipe) id: number) {
@@ -326,6 +348,7 @@ export class RiparazioniController {
    * POST /riparazioni/reparti
    * Create reparto
    */
+  @ApiOperation({ summary: 'Create reparto' })
   @Post('reparti')
   async createReparto(@Body() createDto: any) {
     const data: Prisma.RepartoCreateInput = {
@@ -340,6 +363,7 @@ export class RiparazioniController {
    * PUT /riparazioni/reparti/:id
    * Update reparto
    */
+  @ApiOperation({ summary: 'Update reparto' })
   @Put('reparti/:id(\\d+)')
   async updateReparto(
     @Param('id', ParseIntPipe) id: number,
@@ -356,6 +380,7 @@ export class RiparazioniController {
    * DELETE /riparazioni/reparti/:id
    * Delete reparto
    */
+  @ApiOperation({ summary: 'Delete reparto' })
   @Delete('reparti/:id(\\d+)')
   async deleteReparto(@Param('id', ParseIntPipe) id: number) {
     await this.riparazioniService.deleteReparto(id);
@@ -366,6 +391,7 @@ export class RiparazioniController {
    * POST /riparazioni/numerate
    * Create numerata
    */
+  @ApiOperation({ summary: 'Create numerata' })
   @Post('numerate')
   @LogActivity({ module: 'riparazioni', action: 'create', entity: 'Numerata', description: 'Creazione nuova ID numerata' })
   async createNumerata(@Body() createDto: any) {
@@ -404,6 +430,7 @@ export class RiparazioniController {
    * PUT /riparazioni/numerate/:id
    * Update numerata
    */
+  @ApiOperation({ summary: 'Update numerata' })
   @Put('numerate/:id(\\d+)')
   @LogActivity({ module: 'riparazioni', action: 'update', entity: 'Numerata', description: 'Modifica ID numerata' })
   async updateNumerata(
@@ -431,6 +458,7 @@ export class RiparazioniController {
    * DELETE /riparazioni/numerate/:id
    * Delete numerata
    */
+  @ApiOperation({ summary: 'Delete numerata' })
   @Delete('numerate/:id(\\d+)')
   @LogActivity({ module: 'riparazioni', action: 'delete', entity: 'Numerata', description: 'Eliminazione ID numerata' })
   async deleteNumerata(@Param('id', ParseIntPipe) id: number) {

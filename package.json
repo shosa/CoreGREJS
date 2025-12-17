@@ -7,19 +7,22 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:mobile\"",
     "dev:backend": "npm run dev -w @coregre/backend",
     "dev:frontend": "npm run dev -w @coregre/frontend",
-    "build": "npm run build -w @coregre/backend && npm run build -w @coregre/frontend",
+    "dev:mobile": "npm run dev -w @coregre/mobile",
+    "build": "npm run build -w @coregre/backend && npm run build -w @coregre/frontend && npm run build -w @coregre/mobile",
     "build:backend": "npm run build -w @coregre/backend",
     "build:frontend": "npm run build -w @coregre/frontend",
-    "start": "concurrently \"npm run start:prod -w @coregre/backend\" \"npm run start -w @coregre/frontend\"",
+    "build:mobile": "npm run build -w @coregre/mobile",
+    "start": "concurrently \"npm run start:prod -w @coregre/backend\" \"npm run start -w @coregre/frontend\" \"npm run start -w @coregre/mobile\"",
     "start:backend": "npm run start:prod -w @coregre/backend",
     "start:frontend": "npm run start -w @coregre/frontend",
+    "start:mobile": "npm run start -w @coregre/mobile",
     "db:generate": "npm run db:generate -w @coregre/backend",
     "db:migrate": "npm run db:migrate -w @coregre/backend",
     "db:seed": "npm run db:seed -w @coregre/backend",
-    "lint": "npm run lint -w @coregre/backend && npm run lint -w @coregre/frontend",
+    "lint": "npm run lint -w @coregre/backend && npm run lint -w @coregre/frontend && npm run lint -w @coregre/mobile",
     "test": "npm run test -w @coregre/backend"
   },
   "devDependencies": {

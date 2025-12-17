@@ -1,6 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
 import { Public } from '../../common/decorators/public.decorator';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 
+@ApiTags('Mobile - Discovery')
 @Controller('discovery')
 export class DiscoveryController {
   /**

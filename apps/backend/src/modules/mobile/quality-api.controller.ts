@@ -13,7 +13,9 @@ import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { QualityApiService } from './quality-api.service';
 import { Public } from '../../common/decorators/public.decorator';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 
+@ApiTags('Mobile - Quality API')
 @Controller('quality')
 export class QualityApiController {
   constructor(private readonly qualityApiService: QualityApiService) {}

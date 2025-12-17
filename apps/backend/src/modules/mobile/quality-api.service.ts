@@ -144,7 +144,6 @@ export class QualityApiService {
       "cod_articolo",
       "articolo",
       "linea",
-      "note",
       "user",
     ];
 
@@ -335,5 +334,126 @@ export class QualityApiService {
       calzate: calzateOptions,
       taglie: taglieData,
     };
+  }
+
+  /**
+   * Ottieni dettagli completi di un controllo con tutte le eccezioni
+   */
+  async getControlDetails(controlId: number) {
+    try {
+      const control = await this.prisma.qualityRecord.findUnique({
+        where: { id: controlId },
+        include: {
+          exceptions: {
+            orderBy: { id: 'asc' },
+          },
+        },
+      });
+
+      if (!control) {
+        return {
+          status: 'error',
+          message: 'Controllo non trovato',
+        };
+      }
+
+      // Recupera il nome del reparto
+      const reparto = await this.prisma.qualityDepartment.findUnique({
+        where: { id: parseInt(control.reparto) },
+        select: { nomeReparto: true },
+      });
+
+      // Recupera descrizioni difetti per le eccezioni
+      const eccezioniWithDetails = await Promise.all(
+        control.exceptions.map(async (ecc) => {
+          const defect = await this.prisma.qualityDefectType.findUnique({
+            where: { id: parseInt(ecc.tipoDifetto) },
+            select: { descrizione: true },
+          });
+
+          return {
+            id: ecc.id,
+            taglia: ecc.taglia,
+            tipo_difetto: defect?.descrizione || ecc.tipoDifetto,
+            descrizione_difetto: defect?.descrizione || ecc.tipoDifetto,
+            note_operatore: ecc.noteOperatore,
+            fotoPath: ecc.fotoPath ? `/api/quality/photo/${encodeURIComponent(ecc.fotoPath)}` : null,
+          };
+        })
+      );
+
+      return {
+        status: 'success',
+        data: {
+          id: control.id,
+          numero_cartellino: control.numeroCartellino,
+          articolo: control.articolo,
+          reparto: reparto?.nomeReparto || control.reparto,
+          ora_controllo: control.dataControllo.toLocaleTimeString('it-IT', {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          tipo_cq: control.tipoCq,
+          note: control.note,
+          eccezioni: eccezioniWithDetails,
+        },
+      };
+    } catch (error) {
+      console.error('[QualityAPI] Errore recupero dettagli controllo:', error);
+      return {
+        status: 'error',
+        message: `Errore nel recupero dei dettagli: ${error.message}`,
+      };
+    }
+  }
+
+  /**
+   * Elimina un controllo qualità con tutte le sue eccezioni
+   */
+  async deleteControl(controlId: number) {
+    try {
+      // Verifica che il controllo esista
+      const control = await this.prisma.qualityRecord.findUnique({
+        where: { id: controlId },
+        include: {
+          exceptions: true,
+        },
+      });
+
+      if (!control) {
+        return {
+          status: 'error',
+          message: 'Controllo non trovato',
+        };
+      }
+
+      // Elimina le foto delle eccezioni da MinIO (se presenti)
+      for (const eccezione of control.exceptions) {
+        if (eccezione.fotoPath) {
+          try {
+            await this.storageService.deleteFile(eccezione.fotoPath);
+          } catch (error) {
+            console.error(`[QualityAPI] Errore eliminazione foto ${eccezione.fotoPath}:`, error);
+            // Continua anche se la foto non può essere eliminata
+          }
+        }
+      }
+
+      // Elimina il controllo (le eccezioni vengono eliminate automaticamente per cascade)
+      await this.prisma.qualityRecord.delete({
+        where: { id: controlId },
+      });
+
+      return {
+        status: 'success',
+        message: 'Controllo eliminato con successo',
+      };
+    } catch (error) {
+      console.error('[QualityAPI] Errore eliminazione controllo:', error);
+      return {
+        status: 'error',
+        message: `Errore nell'eliminazione del controllo: ${error.message}`,
+      };
+    }
   }
 }

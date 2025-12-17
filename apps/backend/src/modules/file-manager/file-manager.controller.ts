@@ -1,8 +1,11 @@
 import { Controller, Get, Delete, Query, Param, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FileManagerService } from './file-manager.service';
 import { FileFilterDto, DeleteFilesDto } from './dto/file-filter.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
+@ApiTags('File Manager')
+@ApiBearerAuth()
 @Controller('files')
 @UseGuards(JwtAuthGuard)
 export class FileManagerController {

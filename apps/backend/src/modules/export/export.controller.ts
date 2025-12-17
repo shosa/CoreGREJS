@@ -12,6 +12,7 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -20,6 +21,8 @@ import { ExportService } from './export.service';
 import { ExcelProcessorService } from './excel-processor.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
+@ApiTags('Export')
+@ApiBearerAuth()
 @Controller('export')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('export')
@@ -32,21 +35,25 @@ export class ExportController {
 
   // ==================== ARTICOLI MASTER ====================
 
+  @ApiOperation({ summary: 'Recupera articles-master' })
   @Get('articles-master')
   async getAllArticlesMaster(@Query('search') search?: string) {
     return this.exportService.getAllArticlesMaster(search);
   }
 
+  @ApiOperation({ summary: 'Recupera articles-master' })
   @Get('articles-master/:id')
   async getArticleMasterById(@Param('id') id: string) {
     return this.exportService.getArticleMasterById(parseInt(id));
   }
 
+  @ApiOperation({ summary: 'Recupera by-code' })
   @Get('articles-master/by-code/:code')
   async getArticleMasterByCode(@Param('code') code: string) {
     return this.exportService.getArticleMasterByCode(code);
   }
 
+  @ApiOperation({ summary: 'Crea articles-master' })
   @Post('articles-master')
   @LogActivity({ module: 'export', action: 'create', entity: 'ArticleMaster', description: 'Creazione articolo master' })
   async createArticleMaster(@Body() data: {
@@ -59,6 +66,7 @@ export class ExportController {
     return this.exportService.createArticleMaster(data);
   }
 
+  @ApiOperation({ summary: 'Aggiorna articles-master' })
   @Put('articles-master/:id')
   @LogActivity({ module: 'export', action: 'update', entity: 'ArticleMaster', description: 'Modifica articolo master' })
   async updateArticleMaster(
@@ -74,6 +82,7 @@ export class ExportController {
     return this.exportService.updateArticleMaster(parseInt(id), data);
   }
 
+  @ApiOperation({ summary: 'Elimina articles-master' })
   @Delete('articles-master/:id')
   @LogActivity({ module: 'export', action: 'delete', entity: 'ArticleMaster', description: 'Eliminazione articolo master' })
   async deleteArticleMaster(@Param('id') id: string) {
@@ -82,16 +91,19 @@ export class ExportController {
 
   // ==================== TERZISTI ====================
 
+  @ApiOperation({ summary: 'Recupera terzisti' })
   @Get('terzisti')
   async getAllTerzisti(@Query('onlyActive') onlyActive?: string) {
     return this.exportService.getAllTerzisti(onlyActive !== 'false');
   }
 
+  @ApiOperation({ summary: 'Recupera terzisti' })
   @Get('terzisti/:id')
   async getTerzistaById(@Param('id') id: string) {
     return this.exportService.getTerzistaById(parseInt(id));
   }
 
+  @ApiOperation({ summary: 'Crea terzisti' })
   @Post('terzisti')
   @LogActivity({ module: 'export', action: 'create', entity: 'Terzista', description: 'Creazione terzista' })
   async createTerzista(@Body() data: {
@@ -106,6 +118,7 @@ export class ExportController {
     return this.exportService.createTerzista(data);
   }
 
+  @ApiOperation({ summary: 'Aggiorna terzisti' })
   @Put('terzisti/:id')
   @LogActivity({ module: 'export', action: 'update', entity: 'Terzista', description: 'Modifica terzista' })
   async updateTerzista(
@@ -124,6 +137,7 @@ export class ExportController {
     return this.exportService.updateTerzista(parseInt(id), data);
   }
 
+  @ApiOperation({ summary: 'Elimina terzisti' })
   @Delete('terzisti/:id')
   @LogActivity({ module: 'export', action: 'delete', entity: 'Terzista', description: 'Eliminazione terzista' })
   async deleteTerzista(@Param('id') id: string) {
@@ -132,6 +146,7 @@ export class ExportController {
 
   // ==================== DOCUMENTI DDT ====================
 
+  @ApiOperation({ summary: 'Recupera documents' })
   @Get('documents')
   async getAllDocuments(
     @Query('stato') stato?: string,
@@ -149,17 +164,20 @@ export class ExportController {
     });
   }
 
+  @ApiOperation({ summary: 'Recupera next-progressivo' })
   @Get('documents/next-progressivo')
   async getNextProgressivo() {
     const progressivo = await this.exportService.generateNextProgressivo();
     return { progressivo };
   }
 
+  @ApiOperation({ summary: 'Recupera documents' })
   @Get('documents/:progressivo')
   async getDocumentByProgressivo(@Param('progressivo') progressivo: string) {
     return this.exportService.getDocumentByProgressivo(progressivo);
   }
 
+  @ApiOperation({ summary: 'Crea documents' })
   @Post('documents')
   @LogActivity({ module: 'export', action: 'create', entity: 'Document', description: 'Creazione DDT' })
   async createDocument(@Body() data: {
@@ -172,6 +190,7 @@ export class ExportController {
     return this.exportService.createDocument(data);
   }
 
+  @ApiOperation({ summary: 'Aggiorna documents' })
   @Put('documents/:progressivo')
   @LogActivity({ module: 'export', action: 'update', entity: 'Document', description: 'Modifica DDT' })
   async updateDocument(
@@ -188,18 +207,21 @@ export class ExportController {
     return this.exportService.updateDocument(progressivo, data);
   }
 
+  @ApiOperation({ summary: 'Elimina documents' })
   @Delete('documents/:progressivo')
   @LogActivity({ module: 'export', action: 'delete', entity: 'Document', description: 'Eliminazione DDT' })
   async deleteDocument(@Param('progressivo') progressivo: string) {
     return this.exportService.deleteDocument(progressivo);
   }
 
+  @ApiOperation({ summary: 'Crea close' })
   @Post('documents/:progressivo/close')
   @LogActivity({ module: 'export', action: 'close', entity: 'Document', description: 'Chiusura DDT' })
   async closeDocument(@Param('progressivo') progressivo: string) {
     return this.exportService.closeDocument(progressivo);
   }
 
+  @ApiOperation({ summary: 'Crea reopen' })
   @Post('documents/:progressivo/reopen')
   @LogActivity({ module: 'export', action: 'reopen', entity: 'Document', description: 'Riapertura DDT' })
   async reopenDocument(@Param('progressivo') progressivo: string) {
@@ -208,6 +230,7 @@ export class ExportController {
 
   // ==================== RIGHE DOCUMENTO ====================
 
+  @ApiOperation({ summary: 'Crea document-items' })
   @Post('document-items')
   @LogActivity({ module: 'export', action: 'create', entity: 'DocumentItem', description: 'Aggiunta riga DDT' })
   async addDocumentItem(@Body() data: {
@@ -227,6 +250,7 @@ export class ExportController {
     return this.exportService.addDocumentItem(data);
   }
 
+  @ApiOperation({ summary: 'Aggiorna document-items' })
   @Put('document-items/:id')
   @LogActivity({ module: 'export', action: 'update', entity: 'DocumentItem', description: 'Modifica riga DDT' })
   async updateDocumentItem(
@@ -248,6 +272,7 @@ export class ExportController {
     return this.exportService.updateDocumentItem(parseInt(id), data);
   }
 
+  @ApiOperation({ summary: 'Elimina document-items' })
   @Delete('document-items/:id')
   @LogActivity({ module: 'export', action: 'delete', entity: 'DocumentItem', description: 'Eliminazione riga DDT' })
   async deleteDocumentItem(@Param('id') id: string) {
@@ -256,6 +281,7 @@ export class ExportController {
 
   // ==================== PIEDE DOCUMENTO ====================
 
+  @ApiOperation({ summary: 'Crea document-footer' })
   @Post('document-footer')
   @LogActivity({ module: 'export', action: 'update', entity: 'DocumentFooter', description: 'Modifica piede DDT' })
   async upsertDocumentFooter(@Body() data: {
@@ -271,6 +297,7 @@ export class ExportController {
     return this.exportService.upsertDocumentFooter(data.documentoId, data);
   }
 
+  @ApiOperation({ summary: 'Recupera document-footer' })
   @Get('document-footer/:documentoId')
   async getDocumentFooter(@Param('documentoId') documentoId: string) {
     return this.exportService.getDocumentFooter(parseInt(documentoId));
@@ -278,6 +305,7 @@ export class ExportController {
 
   // ==================== MANCANTI ====================
 
+  @ApiOperation({ summary: 'Crea missing-data' })
   @Post('missing-data')
   @LogActivity({ module: 'export', action: 'create', entity: 'MissingData', description: 'Aggiunta dati mancanti' })
   async addMissingData(@Body() data: {
@@ -288,16 +316,19 @@ export class ExportController {
     return this.exportService.addMissingData(data.documentoId, data);
   }
 
+  @ApiOperation({ summary: 'Recupera missing-data' })
   @Get('missing-data/:documentoId')
   async getMissingDataForDocument(@Param('documentoId') documentoId: string) {
     return this.exportService.getMissingDataForDocument(parseInt(documentoId));
   }
 
+  @ApiOperation({ summary: 'Recupera missing-data-from-closed' })
   @Get('missing-data-from-closed/:terzistaId')
   async getMissingDataFromClosedDocuments(@Param('terzistaId') terzistaId: string) {
     return this.exportService.getMissingDataFromClosedDocuments(parseInt(terzistaId));
   }
 
+  @ApiOperation({ summary: 'Elimina missing-data' })
   @Delete('missing-data/:id')
   @LogActivity({ module: 'export', action: 'delete', entity: 'MissingData', description: 'Eliminazione dati mancanti' })
   async deleteMissingData(@Param('id') id: string) {
@@ -306,6 +337,7 @@ export class ExportController {
 
   // ==================== LANCI ====================
 
+  @ApiOperation({ summary: 'Crea launch-data' })
   @Post('launch-data')
   @LogActivity({ module: 'export', action: 'create', entity: 'LaunchData', description: 'Aggiunta lanci' })
   async addLaunchData(@Body() data: {
@@ -318,11 +350,13 @@ export class ExportController {
     return this.exportService.addLaunchData(data.documentoId, data);
   }
 
+  @ApiOperation({ summary: 'Recupera launch-data' })
   @Get('launch-data/:documentoId')
   async getLaunchDataForDocument(@Param('documentoId') documentoId: string) {
     return this.exportService.getLaunchDataForDocument(parseInt(documentoId));
   }
 
+  @ApiOperation({ summary: 'Elimina launch-data' })
   @Delete('launch-data/:id')
   @LogActivity({ module: 'export', action: 'delete', entity: 'LaunchData', description: 'Eliminazione lanci' })
   async deleteLaunchData(@Param('id') id: string) {
@@ -331,6 +365,7 @@ export class ExportController {
 
   // ==================== EXCEL UPLOAD & PROCESSING ====================
 
+  @ApiOperation({ summary: 'Crea upload-excel' })
   @Post('documents/:progressivo/upload-excel')
   @UseInterceptors(FileInterceptor('file'))
   @LogActivity({ module: 'export', action: 'upload', entity: 'Excel', description: 'Upload file Excel' })
@@ -345,11 +380,13 @@ export class ExportController {
     return { success: true, fileName };
   }
 
+  @ApiOperation({ summary: 'Recupera uploaded-files' })
   @Get('documents/:progressivo/uploaded-files')
   async getUploadedFiles(@Param('progressivo') progressivo: string) {
     return this.excelProcessor.getUploadedFiles(progressivo);
   }
 
+  @ApiOperation({ summary: 'Crea process-excel' })
   @Post('documents/:progressivo/process-excel')
   @LogActivity({ module: 'export', action: 'process', entity: 'Excel', description: 'Elaborazione file Excel' })
   async processExcelFile(
@@ -359,6 +396,7 @@ export class ExportController {
     return this.excelProcessor.processExcelFile(body.fileName, progressivo);
   }
 
+  @ApiOperation({ summary: 'Elimina uploaded-files' })
   @Delete('documents/:progressivo/uploaded-files/:fileName')
   @LogActivity({ module: 'export', action: 'delete', entity: 'Excel', description: 'Eliminazione file Excel' })
   async deleteUploadedFile(
@@ -369,6 +407,7 @@ export class ExportController {
     return { success: true };
   }
 
+  @ApiOperation({ summary: 'Crea save-excel-data' })
   @Post('documents/:progressivo/save-excel-data')
   @LogActivity({ module: 'export', action: 'save', entity: 'ExcelData', description: 'Salvataggio dati Excel' })
   async saveExcelData(
@@ -397,10 +436,12 @@ export class ExportController {
     return result;
   }
 
+  @ApiOperation({ summary: 'Crea generate-ddt' })
   @Post('documents/:progressivo/generate-ddt')
   @LogActivity({ module: 'export', action: 'generate', entity: 'DDT', description: 'Generazione DDT da Excel' })
   async generateDDT(@Param('progressivo') progressivo: string) {
     // Generate DDT from processed Excel files
+
     return this.excelProcessor.generateDDT(progressivo);
   }
 }
