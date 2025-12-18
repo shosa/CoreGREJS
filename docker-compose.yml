@@ -114,7 +114,8 @@ services:
     container_name: coregrejs-mobile
     restart: unless-stopped
 
-    # Nessuna porta esposta direttamente - accesso tramite nginx porta 84
+    expose:
+      - "3012"  # Espone la porta solo nella rete Docker interna
 
     environment:
       # Application
