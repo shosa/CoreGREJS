@@ -271,6 +271,7 @@ export default function ExceptionModal({
                         ref={cameraInputRef}
                         type="file"
                         accept="image/*"
+                        capture="environment"
                         style={{ display: 'none' }}
                         onChange={handlePhotoCapture}
                       />
