@@ -82,8 +82,8 @@ export default function InsertQualityPage() {
             <div className="flex-1">
               <h3 className="font-semibold text-gray-800 mb-2">Come procedere</h3>
               <ol className="text-sm text-gray-600 space-y-1 list-decimal list-inside">
-                <li>Inserisci il numero del cartellino</li>
-                <li>Verifica i dati del cartellino</li>
+                <li>Inserisci il numero del cartellino o la commessa</li>
+                <li>Verifica i dati</li>
                 <li>Compila il controllo qualità</li>
               </ol>
             </div>
@@ -95,7 +95,7 @@ export default function InsertQualityPage() {
           <form onSubmit={handleCheckCartellino} className="space-y-4">
             <div>
               <label htmlFor="cartellino" className="block text-sm font-medium text-gray-700 mb-2">
-                Numero Cartellino
+                Cartellino o Commessa
               </label>
               <input
                 type="text"
@@ -103,14 +103,12 @@ export default function InsertQualityPage() {
                 value={cartellino}
                 onChange={(e) => setCartellino(e.target.value)}
                 className="input-mobile"
-                placeholder="Es: 12345"
-                inputMode="numeric"
-                pattern="[0-9]*"
+                placeholder="Es: 12345 o COMM123"
                 disabled={loading}
                 autoFocus
               />
               <p className="text-xs text-gray-500 mt-2">
-                Inserisci il numero del cartellino da controllare
+                Inserisci il numero del cartellino o la commessa da controllare
               </p>
             </div>
 

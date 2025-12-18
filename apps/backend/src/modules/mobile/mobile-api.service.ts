@@ -144,16 +144,46 @@ export class MobileApiService {
         orderBy: { dataControllo: 'desc' },
       });
 
+      // Recupera i dati CoreData per ogni cartellino
+      const cartellinoIds = records.map(r => parseInt(r.numeroCartellino, 10)).filter(id => !isNaN(id));
+      const coreDataMap = new Map();
+
+      if (cartellinoIds.length > 0) {
+        const coreDataRecords = await this.prisma.coreData.findMany({
+          where: {
+            cartel: { in: cartellinoIds },
+          },
+          select: {
+            cartel: true,
+            commessaCli: true,
+          },
+        });
+
+        coreDataRecords.forEach(cd => {
+          if (cd.cartel) {
+            coreDataMap.set(cd.cartel, cd.commessaCli || '');
+          }
+        });
+      }
+
       // L'app si aspetta: { data, summary: { totale, controlli: [...] } }
-      const controlli = records.map((r) => ({
-        id: r.id,
-        numero_cartellino: r.numeroCartellino,
-        articolo: r.articolo,
-        reparto: r.reparto,
-        ora_controllo: r.dataControllo.toLocaleTimeString('it-IT'),
-        tipo_cq: r.tipoCq,
-        numero_eccezioni: r.exceptions.length,
-      }));
+      const controlli = records.map((r) => {
+        const cartelNum = parseInt(r.numeroCartellino, 10);
+        const commessa = !isNaN(cartelNum) ? coreDataMap.get(cartelNum) : null;
+        const displayCartellino = commessa
+          ? `${r.numeroCartellino} / ${commessa}`
+          : r.numeroCartellino;
+
+        return {
+          id: r.id,
+          numero_cartellino: displayCartellino,
+          articolo: r.articolo,
+          reparto: r.reparto,
+          ora_controllo: r.dataControllo.toLocaleTimeString('it-IT'),
+          tipo_cq: r.tipoCq,
+          numero_eccezioni: r.exceptions.length,
+        };
+      });
 
       return {
         data: new Date(data).toLocaleDateString('it-IT'),
@@ -234,26 +264,39 @@ export class MobileApiService {
 
  /**
    * Verifica cartellino/commessa
+   * Se type è 'cartellino', prova prima come numero cartellino, poi come commessa
    */
   async checkData(type: string, value: string) {
     if (type === 'cartellino') {
+      // Prova prima come numero cartellino
       const cartel = parseInt(value, 10);
-      const coreData = await this.prisma.coreData.findUnique({
-        where: { cartel },
-      });
+      let coreData = null;
+
+      if (!isNaN(cartel)) {
+        coreData = await this.prisma.coreData.findUnique({
+          where: { cartel },
+        });
+      }
+
+      // Se non trovato come cartellino, prova come commessa
+      if (!coreData) {
+        coreData = await this.prisma.coreData.findFirst({
+          where: { commessaCli: value },
+        });
+      }
 
       if (!coreData) {
         return {
           status: 'success',
           exists: false,
-          message: 'Cartellino non trovato',
+          message: 'Cartellino o commessa non trovato',
         };
       }
 
       return {
         status: 'success',
         exists: true,
-        message: 'Cartellino trovato',
+        message: 'Trovato',
         data: {
           cartellino: coreData.cartel,
           codice_articolo: coreData.articolo,
@@ -286,6 +329,7 @@ export class MobileApiService {
           cartellino: coreData.cartel,
           codice_articolo: coreData.articolo,
           descrizione_articolo: coreData.descrizioneArticolo,
+          commessa: coreData.commessaCli,
           cliente: coreData.ragioneSociale,
           paia: coreData.tot,
           linea: coreData.ln,

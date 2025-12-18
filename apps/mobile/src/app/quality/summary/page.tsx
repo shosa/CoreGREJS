@@ -217,7 +217,7 @@ export default function DailySummaryPage() {
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-1">
                           <span className="font-semibold text-gray-800">
-                            Cartellino: {record.numero_cartellino}
+                            {record.numero_cartellino}
                           </span>
                           {record.numero_eccezioni > 0 && (
                             <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full">
