@@ -1,5 +1,5 @@
 {
-  "name": "CoreGRE Mobile",
+  "name": "CoreGRE Mobile - InWork",
   "short_name": "CoreGRE",
   "description": "CoreGRE Mobile - Quality Control & Repairs",
   "theme_color": "#3b82f6",
@@ -8,18 +8,35 @@
   "orientation": "portrait",
   "scope": "/",
   "start_url": "/",
+  "id": "/",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "screenshots": [],
+  "related_applications": [],
+  "categories": ["productivity", "business"]
 }
