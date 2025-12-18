@@ -1,9 +1,24 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3011/api';
+// Configurazione da variabili d'ambiente
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3011';
+const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000', 10);
+const DEBUG = process.env.NEXT_PUBLIC_DEBUG === 'true';
+
+// URL completo dell'API
+const API_URL = `${BASE_URL}/api`;
+
+if (DEBUG) {
+  console.log('[API Config]', {
+    BASE_URL,
+    API_URL,
+    API_TIMEOUT,
+  });
+}
 
 export const api = axios.create({
   baseURL: API_URL,
+  timeout: API_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
   },

@@ -105,6 +105,53 @@ services:
       - "io.portainer.accesscontrol.public"
       - "com.coresuite.environment=${NODE_ENV:-production}"
 
+  mobile:
+    build:
+      context: .
+      dockerfile: apps/mobile/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3011}
+    container_name: coregrejs-mobile
+    restart: unless-stopped
+
+    ports:
+      - "84:3012"  # Mobile PWA UI (porta 84 su host -> 3012 nel container)
+
+    environment:
+      # Application
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3012
+
+      # Backend API URL
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3011}
+
+      # Timeout API
+      NEXT_PUBLIC_API_TIMEOUT: ${NEXT_PUBLIC_API_TIMEOUT:-30000}
+
+      # Debug
+      NEXT_PUBLIC_DEBUG: ${NEXT_PUBLIC_DEBUG:-false}
+
+      # Timezone
+      TZ: Europe/Rome
+
+    depends_on:
+      - backend
+
+    networks:
+      - core-network  # Network condivisa con tutti i servizi Core
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3012"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+    labels:
+      - "com.coresuite.app=coregrejs-mobile"
+      - "io.portainer.accesscontrol.public"
+      - "com.coresuite.environment=${NODE_ENV:-production}"
+
 networks:
   # Usa la network condivisa CoreSuite
   core-network:

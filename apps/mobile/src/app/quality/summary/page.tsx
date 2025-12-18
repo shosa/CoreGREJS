@@ -226,7 +226,7 @@ export default function DailySummaryPage() {
                           )}
                         </div>
                         <p className="text-sm text-gray-600">
-                          Articolo: {record.articolo}
+                          {record.articolo}
                         </p>
                       </div>
                       <div className="text-right flex items-center gap-2">
@@ -239,10 +239,7 @@ export default function DailySummaryPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">
-                        Reparto: {record.reparto}
-                      </span>
+                    <div className="flex items-center justify-end text-sm">
                       <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">
                         {record.tipo_cq}
                       </span>
@@ -269,7 +266,7 @@ export default function DailySummaryPage() {
       {/* Modal Dettagli Controllo */}
       {(selectedControl || detailsLoading) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center">
-          <div className="bg-white w-full sm:max-w-2xl sm:rounded-lg max-h-[90vh] overflow-y-auto">
+          <div className="bg-white w-full sm:max-w-2xl sm:rounded-lg max-h-[90vh] flex flex-col overflow-hidden">
             {detailsLoading ? (
               <div className="p-8 text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
@@ -277,8 +274,8 @@ export default function DailySummaryPage() {
               </div>
             ) : selectedControl && (
               <>
-                {/* Header Modal */}
-                <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 flex items-center justify-between">
+                {/* Header Modal - Fisso in alto */}
+                <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 flex items-center justify-between flex-shrink-0">
                   <h2 className="text-lg font-semibold">Dettagli Controllo</h2>
                   <button
                     onClick={() => {
@@ -293,8 +290,8 @@ export default function DailySummaryPage() {
                   </button>
                 </div>
 
-                {/* Contenuto Modal */}
-                <div className="p-4 space-y-4">
+                {/* Contenuto Modal - Scrollabile */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
                   {/* Informazioni Controllo */}
                   <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                     <div className="grid grid-cols-2 gap-3">
@@ -385,8 +382,10 @@ export default function DailySummaryPage() {
                       </div>
                     )}
                   </div>
+                </div>
 
-                  {/* Pulsante Elimina */}
+                {/* Footer Modal - Fisso in basso */}
+                <div className="border-t border-gray-200 bg-white p-4 flex-shrink-0">
                   {!deleteConfirm ? (
                     <button
                       onClick={() => setDeleteConfirm(true)}

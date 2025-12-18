@@ -371,13 +371,33 @@ export class QualityApiService {
             select: { descrizione: true },
           });
 
+          // Costruisci l'URL della foto usando lo stesso pattern del desktop
+          let photoUrl = null;
+          if (ecc.fotoPath) {
+            // Se inizia con "quality/", è già un object name completo
+            if (ecc.fotoPath.startsWith('quality/')) {
+              photoUrl = `/api/quality/photo-stream/${encodeURIComponent(ecc.fotoPath)}`;
+            }
+            // Se è solo il filename, ricostruisci il path completo
+            else if (ecc.fotoPath.match(/^eccezione_\d+_\d+\./)) {
+              const parts = ecc.fotoPath.split('_');
+              const cartellinoId = parts[1];
+              const objectName = `quality/cq_uploads/${cartellinoId}/${ecc.fotoPath}`;
+              photoUrl = `/api/quality/photo-stream/${encodeURIComponent(objectName)}`;
+            }
+            // Fallback: prova come object name diretto
+            else {
+              photoUrl = `/api/quality/photo-stream/${encodeURIComponent(ecc.fotoPath)}`;
+            }
+          }
+
           return {
             id: ecc.id,
             taglia: ecc.taglia,
             tipo_difetto: defect?.descrizione || ecc.tipoDifetto,
             descrizione_difetto: defect?.descrizione || ecc.tipoDifetto,
             note_operatore: ecc.noteOperatore,
-            fotoPath: ecc.fotoPath ? `/api/quality/photo/${encodeURIComponent(ecc.fotoPath)}` : null,
+            fotoPath: photoUrl,
           };
         })
       );
