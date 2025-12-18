@@ -34,15 +34,30 @@ import {
 } from './dto/standard-phase.dto';
 
 @ApiTags('SCM')
-@ApiBearerAuth()
 @Controller('scm')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('scm_admin')
 export class ScmController {
   constructor(private readonly scmService: ScmService) {}
 
-  // ==================== STATISTICS ====================
+  // ==================== PUBLIC ENDPOINTS (Laboratory Access) ====================
 
+  @ApiOperation({ summary: 'Login laboratorio esterno' })
+  @Post('login')
+  async login(@Body() credentials: { username: string; password: string }) {
+    return this.scmService.loginLaboratory(credentials.username, credentials.password);
+  }
+
+  @ApiOperation({ summary: 'Dashboard laboratorio' })
+  @Get('dashboard')
+  async getDashboard(@Query('laboratoryId') laboratoryId?: string) {
+    const labId = laboratoryId ? parseInt(laboratoryId, 10) : undefined;
+    return this.scmService.getDashboard(labId);
+  }
+
+  // ==================== ADMIN ENDPOINTS ====================
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('scm_admin')
   @ApiOperation({ summary: 'Recupera statistics' })
   @Get('statistics')
   async getStatistics(@Query('laboratoryId') laboratoryId?: string) {
@@ -51,6 +66,9 @@ export class ScmController {
 
   // ==================== LABORATORIES ====================
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('scm_admin')
   @ApiOperation({ summary: 'Recupera laboratories' })
   @Get('laboratories')
   async getLaboratories(@Query('attivo') attivo?: string) {

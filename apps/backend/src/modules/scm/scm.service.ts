@@ -1,9 +1,111 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class ScmService {
   constructor(private prisma: PrismaService) {}
+
+  // ==================== AUTH ====================
+
+  async loginLaboratory(username: string, password: string) {
+    // Find laboratory by code (username) and accessCode (password)
+    const laboratory = await this.prisma.scmLaboratory.findFirst({
+      where: {
+        codice: username,
+        accessCode: password,
+        attivo: true,
+      },
+    });
+
+    if (!laboratory) {
+      throw new UnauthorizedException('Credenziali non valide');
+    }
+
+    // For now, return a simple token (laboratory ID as string)
+    // In production, you should use proper JWT tokens
+    const token = Buffer.from(`${laboratory.id}:${laboratory.codice}`).toString('base64');
+
+    return {
+      status: 'success',
+      message: 'Login effettuato con successo',
+      data: {
+        laboratory: {
+          id: laboratory.id,
+          name: laboratory.nome,
+          code: laboratory.codice,
+        },
+        token,
+      },
+    };
+  }
+
+  async getDashboard(laboratoryId?: number) {
+    const where: any = {};
+    if (laboratoryId) {
+      where.laboratoryId = laboratoryId;
+    }
+
+    // Get launches grouped by status
+    const launches = await this.prisma.scmLaunch.findMany({
+      where,
+      include: {
+        laboratory: true,
+        articles: true,
+      },
+      orderBy: { dataLancio: 'desc' },
+    });
+
+    // Group launches by status
+    const preparazione = launches.filter((l) => l.stato === 'IN_PREPARAZIONE');
+    const lavorazione = launches.filter((l) => l.stato === 'IN_LAVORAZIONE');
+    const completi = launches.filter((l) => l.stato === 'COMPLETATO');
+
+    // Calculate statistics
+    const totalPairs = launches.reduce((sum, launch) => {
+      return sum + launch.articles.reduce((articleSum, article) => articleSum + article.quantita, 0);
+    }, 0);
+
+    const inPreparation = preparazione.reduce((sum, launch) => {
+      return sum + launch.articles.reduce((articleSum, article) => articleSum + article.quantita, 0);
+    }, 0);
+
+    const inProgress = lavorazione.reduce((sum, launch) => {
+      return sum + launch.articles.reduce((articleSum, article) => articleSum + article.quantita, 0);
+    }, 0);
+
+    const completed = completi.reduce((sum, launch) => {
+      return sum + launch.articles.reduce((articleSum, article) => articleSum + article.quantita, 0);
+    }, 0);
+
+    // Transform launches for display
+    const transformLaunch = (launch: any) => ({
+      id: launch.id,
+      code: launch.numero,
+      description: launch.note || 'Nessuna descrizione',
+      status: launch.stato,
+      created_at: launch.dataLancio.toISOString(),
+      total_articles: launch.articles.length,
+      total_pairs: launch.articles.reduce((sum: number, article: any) => sum + article.quantita, 0),
+    });
+
+    return {
+      status: 'success',
+      data: {
+        launches_by_status: {
+          preparazione: preparazione.map(transformLaunch),
+          lavorazione: lavorazione.map(transformLaunch),
+          completi: completi.map(transformLaunch),
+        },
+        statistics: {
+          total_launches: launches.length,
+          total_pairs: totalPairs,
+          in_preparation: inPreparation,
+          in_progress: inProgress,
+          completed: completed,
+        },
+      },
+    };
+  }
 
   // ==================== LABORATORIES ====================
 
