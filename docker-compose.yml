@@ -110,7 +110,8 @@ services:
       context: .
       dockerfile: apps/mobile/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3011}
+        # IMPORTANTE: Non includere /api - viene aggiunto automaticamente in api.ts
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://192.168.3.40:3011}
     container_name: coregrejs-mobile
     restart: unless-stopped
 
@@ -122,8 +123,8 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 3012
 
-      # Backend API URL
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3011}
+      # Backend API URL - ATTENZIONE: NON includere /api finale!
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://192.168.3.40:3011}
 
       # Timeout API
       NEXT_PUBLIC_API_TIMEOUT: ${NEXT_PUBLIC_API_TIMEOUT:-30000}
