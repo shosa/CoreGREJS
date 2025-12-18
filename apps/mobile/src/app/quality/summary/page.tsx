@@ -363,7 +363,10 @@ export default function DailySummaryPage() {
                             {eccezione.fotoPath && (
                               <div className="mt-2">
                                 <img
-                                  src={eccezione.fotoPath}
+                                  src={eccezione.fotoPath.startsWith('http')
+                                    ? eccezione.fotoPath
+                                    : `${process.env.NEXT_PUBLIC_API_URL || 'http://192.168.3.40:3011'}${eccezione.fotoPath}`
+                                  }
                                   alt="Foto difetto"
                                   className="w-full rounded-lg"
                                 />
