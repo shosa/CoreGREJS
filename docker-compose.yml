@@ -114,8 +114,7 @@ services:
     container_name: coregrejs-mobile
     restart: unless-stopped
 
-    ports:
-      - "84:3012"  # Mobile PWA UI (porta 84 su host -> 3012 nel container)
+    # Nessuna porta esposta direttamente - accesso tramite nginx porta 84
 
     environment:
       # Application
