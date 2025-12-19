@@ -228,6 +228,17 @@ export class ScmController {
     return this.scmService.getProgressTracking(phaseId);
   }
 
+  @ApiOperation({ summary: 'Aggiorna progress della fase (laboratory endpoint)' })
+  @Post('launches/:launchId/articles/:articleId/phases/:phaseId/progress')
+  async updatePhaseProgress(
+    @Param('launchId', ParseIntPipe) launchId: number,
+    @Param('articleId', ParseIntPipe) articleId: number,
+    @Param('phaseId', ParseIntPipe) phaseId: number,
+    @Body() data: { stato: string; note?: string }
+  ) {
+    return this.scmService.updateArticlePhase(phaseId, data);
+  }
+
   // ==================== STANDARD PHASES ====================
 
   @ApiOperation({ summary: 'Recupera standard-phases' })
