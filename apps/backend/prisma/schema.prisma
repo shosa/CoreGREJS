@@ -478,6 +478,34 @@ model ExportLaunchData {
   @@map("exp_dati_lanci_ddt")
 }
 
+// Aspetto Merce (opzioni per piede documento)
+model ExportAspettoMerce {
+  id          Int      @id @default(autoincrement())
+  descrizione String   @db.VarChar(255)
+  codice      String?  @unique @db.VarChar(50)
+  attivo      Boolean  @default(true)
+  ordine      Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("exp_aspetto_merce")
+}
+
+// Vettori/Trasportatori (opzioni per piede documento)
+model ExportVettore {
+  id             Int      @id @default(autoincrement())
+  ragioneSociale String   @map("ragione_sociale") @db.VarChar(255)
+  codice         String?  @unique @db.VarChar(50)
+  indirizzo      String?  @db.VarChar(255)
+  telefono       String?  @db.VarChar(50)
+  attivo         Boolean  @default(true)
+  ordine         Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("exp_vettori")
+}
+
 // ==================== SCM (Subcontractors) ====================
 
 model ScmLaboratory {

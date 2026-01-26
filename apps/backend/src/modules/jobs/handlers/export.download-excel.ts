@@ -1,6 +1,6 @@
 import { JobHandler } from '../types';
 import * as fs from 'fs';
-import * as path from 'path';
+import * as fsp from 'fs/promises';
 
 const handler: JobHandler = async (payload, helpers) => {
   const { progressivo, fileName, userId, jobId } = payload as {
@@ -9,19 +9,25 @@ const handler: JobHandler = async (payload, helpers) => {
     userId: number;
     jobId: string;
   };
-  const { ensureOutputPath } = helpers;
+  const { ensureOutputPath, storageService } = helpers;
 
-  // Path del file originale
-  const srcDir = path.join(process.cwd(), 'storage', 'export', 'src');
-  const sourcePath = path.join(srcDir, progressivo, fileName);
+  // Path del file in MinIO
+  const objectName = `export/${progressivo}/${fileName}`;
 
-  if (!fs.existsSync(sourcePath)) {
-    throw new Error(`File ${fileName} non trovato`);
+  // Scarica il file da MinIO
+  let buffer: Buffer;
+  try {
+    buffer = await storageService.getFileBuffer(objectName);
+  } catch (error: any) {
+    if (error.code === 'FILE_NOT_FOUND' || error.message?.includes('does not exist')) {
+      throw new Error(`File ${fileName} non trovato`);
+    }
+    throw error;
   }
 
   // Copia il file nella directory output del job
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
-  fs.copyFileSync(sourcePath, fullPath);
+  await fsp.writeFile(fullPath, buffer);
 
   const stat = fs.statSync(fullPath);
 

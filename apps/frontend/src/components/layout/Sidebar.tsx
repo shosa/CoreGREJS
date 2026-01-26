@@ -85,9 +85,10 @@ const menuItems: MenuItem[] = [
     children: [
       { name: 'Dashboard', href: '/export', icon: 'fa-home' },
       { name: 'Nuovo DDT', href: '/export/create', icon: 'fa-plus-circle' },
-      { name: 'Archivio', href: '/export/archive', icon: 'fa-archive' },
-      { name: 'Terzisti', href: '/export/terzisti', icon: 'fa-truck' },
+      { name: 'Elenco', href: '/export/archive', icon: 'fa-archive' },
+      { name: 'Terzisti', href: '/export/terzisti', icon: 'fa-user-check' },
       { name: 'Articoli', href: '/export/articles', icon: 'fa-box' },
+      { name: 'Opzioni', href: '/export/impostazioni-ddt', icon: 'fa-cog' },
     ]
   },
   {

@@ -90,6 +90,7 @@ export class JobsQueueService implements OnModuleInit, OnModuleDestroy {
         trackingService: this.trackingService,
         produzioneService: this.produzioneService,
         exportService: this.exportService,
+        storageService: this.storageService,
         ensureOutputPath: this.ensureOutputPath,
         waitForPdf: this.waitForPdf,
       };

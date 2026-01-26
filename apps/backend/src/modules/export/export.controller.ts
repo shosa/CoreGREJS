@@ -444,4 +444,102 @@ export class ExportController {
 
     return this.excelProcessor.generateDDT(progressivo);
   }
+
+  // ==================== ASPETTO MERCE ====================
+
+  @ApiOperation({ summary: 'Recupera tutti gli aspetti merce' })
+  @Get('aspetto-merce')
+  async getAllAspettoMerce(@Query('onlyActive') onlyActive?: string) {
+    return this.exportService.getAllAspettoMerce(onlyActive !== 'false');
+  }
+
+  @ApiOperation({ summary: 'Recupera aspetto merce per ID' })
+  @Get('aspetto-merce/:id')
+  async getAspettoMerceById(@Param('id') id: string) {
+    return this.exportService.getAspettoMerceById(parseInt(id));
+  }
+
+  @ApiOperation({ summary: 'Crea aspetto merce' })
+  @Post('aspetto-merce')
+  @LogActivity({ module: 'export', action: 'create', entity: 'AspettoMerce', description: 'Creazione aspetto merce' })
+  async createAspettoMerce(@Body() data: {
+    descrizione: string;
+    codice?: string;
+    ordine?: number;
+  }) {
+    return this.exportService.createAspettoMerce(data);
+  }
+
+  @ApiOperation({ summary: 'Aggiorna aspetto merce' })
+  @Put('aspetto-merce/:id')
+  @LogActivity({ module: 'export', action: 'update', entity: 'AspettoMerce', description: 'Modifica aspetto merce' })
+  async updateAspettoMerce(
+    @Param('id') id: string,
+    @Body() data: Partial<{
+      descrizione: string;
+      codice: string;
+      attivo: boolean;
+      ordine: number;
+    }>
+  ) {
+    return this.exportService.updateAspettoMerce(parseInt(id), data);
+  }
+
+  @ApiOperation({ summary: 'Elimina aspetto merce' })
+  @Delete('aspetto-merce/:id')
+  @LogActivity({ module: 'export', action: 'delete', entity: 'AspettoMerce', description: 'Eliminazione aspetto merce' })
+  async deleteAspettoMerce(@Param('id') id: string) {
+    return this.exportService.deleteAspettoMerce(parseInt(id));
+  }
+
+  // ==================== VETTORI ====================
+
+  @ApiOperation({ summary: 'Recupera tutti i vettori' })
+  @Get('vettori')
+  async getAllVettori(@Query('onlyActive') onlyActive?: string) {
+    return this.exportService.getAllVettori(onlyActive !== 'false');
+  }
+
+  @ApiOperation({ summary: 'Recupera vettore per ID' })
+  @Get('vettori/:id')
+  async getVettoreById(@Param('id') id: string) {
+    return this.exportService.getVettoreById(parseInt(id));
+  }
+
+  @ApiOperation({ summary: 'Crea vettore' })
+  @Post('vettori')
+  @LogActivity({ module: 'export', action: 'create', entity: 'Vettore', description: 'Creazione vettore' })
+  async createVettore(@Body() data: {
+    ragioneSociale: string;
+    codice?: string;
+    indirizzo?: string;
+    telefono?: string;
+    ordine?: number;
+  }) {
+    return this.exportService.createVettore(data);
+  }
+
+  @ApiOperation({ summary: 'Aggiorna vettore' })
+  @Put('vettori/:id')
+  @LogActivity({ module: 'export', action: 'update', entity: 'Vettore', description: 'Modifica vettore' })
+  async updateVettore(
+    @Param('id') id: string,
+    @Body() data: Partial<{
+      ragioneSociale: string;
+      codice: string;
+      indirizzo: string;
+      telefono: string;
+      attivo: boolean;
+      ordine: number;
+    }>
+  ) {
+    return this.exportService.updateVettore(parseInt(id), data);
+  }
+
+  @ApiOperation({ summary: 'Elimina vettore' })
+  @Delete('vettori/:id')
+  @LogActivity({ module: 'export', action: 'delete', entity: 'Vettore', description: 'Eliminazione vettore' })
+  async deleteVettore(@Param('id') id: string) {
+    return this.exportService.deleteVettore(parseInt(id));
+  }
 }

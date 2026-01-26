@@ -347,6 +347,33 @@ export default function ExportPage() {
               </div>
             </Link>
           </motion.div>
+
+          {/* 6. Impostazioni DDT */}
+          <motion.div variants={itemVariants}>
+            <Link href="/export/impostazioni-ddt">
+              <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer h-full">
+                <div className="absolute inset-0 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/10 dark:to-cyan-800/10"></div>
+                <div className="relative p-6">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-600 shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
+                      <i className="fas fa-cog text-white text-xl"></i>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                        Impostazioni DDT
+                      </h3>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Aspetto merce e vettori
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center text-teal-600 dark:text-teal-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-300">
+                    Apri <i className="fas fa-arrow-right ml-2"></i>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          </motion.div>
         </div>
       </div>
     </motion.div>

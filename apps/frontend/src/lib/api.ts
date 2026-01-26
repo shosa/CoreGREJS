@@ -883,6 +883,52 @@ export const exportApi = {
     });
     return response.data;
   },
+
+  // ==================== ASPETTO MERCE ====================
+
+  getAllAspettoMerce: async (onlyActive: boolean = true) => {
+    const response = await api.get(`/export/aspetto-merce?onlyActive=${onlyActive}`);
+    return response.data;
+  },
+  getAspettoMerceById: async (id: number) => {
+    const response = await api.get(`/export/aspetto-merce/${id}`);
+    return response.data;
+  },
+  createAspettoMerce: async (data: { descrizione: string; codice?: string; ordine?: number }) => {
+    const response = await api.post('/export/aspetto-merce', data);
+    return response.data;
+  },
+  updateAspettoMerce: async (id: number, data: Partial<{ descrizione: string; codice: string; attivo: boolean; ordine: number }>) => {
+    const response = await api.put(`/export/aspetto-merce/${id}`, data);
+    return response.data;
+  },
+  deleteAspettoMerce: async (id: number) => {
+    const response = await api.delete(`/export/aspetto-merce/${id}`);
+    return response.data;
+  },
+
+  // ==================== VETTORI ====================
+
+  getAllVettori: async (onlyActive: boolean = true) => {
+    const response = await api.get(`/export/vettori?onlyActive=${onlyActive}`);
+    return response.data;
+  },
+  getVettoreById: async (id: number) => {
+    const response = await api.get(`/export/vettori/${id}`);
+    return response.data;
+  },
+  createVettore: async (data: { ragioneSociale: string; codice?: string; indirizzo?: string; telefono?: string; ordine?: number }) => {
+    const response = await api.post('/export/vettori', data);
+    return response.data;
+  },
+  updateVettore: async (id: number, data: Partial<{ ragioneSociale: string; codice: string; indirizzo: string; telefono: string; attivo: boolean; ordine: number }>) => {
+    const response = await api.put(`/export/vettori/${id}`, data);
+    return response.data;
+  },
+  deleteVettore: async (id: number) => {
+    const response = await api.delete(`/export/vettori/${id}`);
+    return response.data;
+  },
 };
 
 // ==================== RIPARAZIONI API ====================

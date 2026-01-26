@@ -805,4 +805,130 @@ export class ExportService {
 
     return (maxNum + 1).toString();
   }
+
+  // ==================== ASPETTO MERCE ====================
+
+  async getAllAspettoMerce(onlyActive: boolean = true) {
+    return this.prisma.exportAspettoMerce.findMany({
+      where: onlyActive ? { attivo: true } : {},
+      orderBy: [{ ordine: "asc" }, { descrizione: "asc" }],
+    });
+  }
+
+  async getAspettoMerceById(id: number) {
+    const aspetto = await this.prisma.exportAspettoMerce.findUnique({
+      where: { id },
+    });
+
+    if (!aspetto) {
+      throw new NotFoundException("Aspetto merce non trovato");
+    }
+
+    return aspetto;
+  }
+
+  async createAspettoMerce(data: {
+    descrizione: string;
+    codice?: string;
+    ordine?: number;
+  }) {
+    return this.prisma.exportAspettoMerce.create({
+      data: {
+        descrizione: data.descrizione,
+        codice: data.codice,
+        ordine: data.ordine ?? 0,
+      },
+    });
+  }
+
+  async updateAspettoMerce(
+    id: number,
+    data: Partial<{
+      descrizione: string;
+      codice: string;
+      attivo: boolean;
+      ordine: number;
+    }>
+  ) {
+    await this.getAspettoMerceById(id);
+
+    return this.prisma.exportAspettoMerce.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async deleteAspettoMerce(id: number) {
+    await this.getAspettoMerceById(id);
+
+    return this.prisma.exportAspettoMerce.delete({
+      where: { id },
+    });
+  }
+
+  // ==================== VETTORI ====================
+
+  async getAllVettori(onlyActive: boolean = true) {
+    return this.prisma.exportVettore.findMany({
+      where: onlyActive ? { attivo: true } : {},
+      orderBy: [{ ordine: "asc" }, { ragioneSociale: "asc" }],
+    });
+  }
+
+  async getVettoreById(id: number) {
+    const vettore = await this.prisma.exportVettore.findUnique({
+      where: { id },
+    });
+
+    if (!vettore) {
+      throw new NotFoundException("Vettore non trovato");
+    }
+
+    return vettore;
+  }
+
+  async createVettore(data: {
+    ragioneSociale: string;
+    codice?: string;
+    indirizzo?: string;
+    telefono?: string;
+    ordine?: number;
+  }) {
+    return this.prisma.exportVettore.create({
+      data: {
+        ragioneSociale: data.ragioneSociale,
+        codice: data.codice,
+        indirizzo: data.indirizzo,
+        telefono: data.telefono,
+        ordine: data.ordine ?? 0,
+      },
+    });
+  }
+
+  async updateVettore(
+    id: number,
+    data: Partial<{
+      ragioneSociale: string;
+      codice: string;
+      indirizzo: string;
+      telefono: string;
+      attivo: boolean;
+      ordine: number;
+    }>
+  ) {
+    await this.getVettoreById(id);
+
+    return this.prisma.exportVettore.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async deleteVettore(id: number) {
+    await this.getVettoreById(id);
+
+    return this.prisma.exportVettore.delete({
+      where: { id },
+    });
+  }
 }

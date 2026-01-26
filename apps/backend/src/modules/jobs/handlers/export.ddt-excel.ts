@@ -43,7 +43,7 @@ const handler: JobHandler = async (payload, helpers) => {
     const descrizione = riga.article?.descrizione || riga.descrizioneLibera || '';
     const voce = riga.article?.voceDoganale || riga.voceLibera || '';
     const um = riga.article?.um || riga.umLibera || '';
-    const qta = riga.qtaReale || riga.qtaOriginale || 0;
+    const qta = Number(riga.qtaReale || riga.qtaOriginale || 0);
     const prezzo = Number(riga.article?.prezzoUnitario ?? riga.prezzoLibero ?? 0);
     const totale = qta * prezzo;
     materialsSheet.addRow([codice, descrizione, voce, um, qta, prezzo, totale]);
@@ -71,7 +71,7 @@ const handler: JobHandler = async (payload, helpers) => {
     (a.codiceArticolo || '').localeCompare(b.codiceArticolo || '', undefined, { numeric: true })
   );
   mancanti.forEach((mancante: any) => {
-    mancantiSheet.addRow([mancante.codiceArticolo || '', mancante.qtaMancante || 0]);
+    mancantiSheet.addRow([mancante.codiceArticolo || '', Number(mancante.qtaMancante || 0)]);
   });
   mancantiSheet.columns.forEach((col, idx) => {
     if (!col) return;

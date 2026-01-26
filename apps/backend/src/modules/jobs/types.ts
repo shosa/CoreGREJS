@@ -1,11 +1,13 @@
 import { TrackingService } from '../tracking/tracking.service';
 import { ProduzioneService } from '../produzione/produzione.service';
 import { ExportService } from '../export/export.service';
+import { StorageService } from '../storage/storage.service';
 
 export interface JobHandlerHelpers {
   trackingService: TrackingService;
   produzioneService: ProduzioneService;
   exportService: ExportService;
+  storageService: StorageService;
   ensureOutputPath: (userId: number | string, jobId: string, fileName: string) => Promise<{ fullPath: string }>;
   waitForPdf: (doc: PDFKit.PDFDocument, filePath: string) => Promise<void>;
 }

@@ -223,9 +223,15 @@ export default function DocumentDetailPage() {
     Array<{ voce: string; peso: number; }>
   >([]);
 
+  // Opzioni per aspetto merce e vettori
+  const [aspettoMerceOptions, setAspettoMerceOptions] = useState<Array<{ id: number; descrizione: string }>>([]);
+  const [vettoriOptions, setVettoriOptions] = useState<Array<{ id: number; ragioneSociale: string }>>([]);
+
   useEffect(() => {
     fetchDocument();
     fetchArticles();
+    fetchAspettoMerceOptions();
+    fetchVettoriOptions();
   }, [progressivo]);
 
   useEffect(() => {
@@ -301,6 +307,24 @@ export default function DocumentDetailPage() {
       setArticles(data);
     } catch (error) {
       console.error("Errore nel caricamento articoli", error);
+    }
+  };
+
+  const fetchAspettoMerceOptions = async () => {
+    try {
+      const data = await exportApi.getAllAspettoMerce();
+      setAspettoMerceOptions(data);
+    } catch (error) {
+      console.error("Errore nel caricamento opzioni aspetto merce", error);
+    }
+  };
+
+  const fetchVettoriOptions = async () => {
+    try {
+      const data = await exportApi.getAllVettori();
+      setVettoriOptions(data);
+    } catch (error) {
+      console.error("Errore nel caricamento opzioni vettori", error);
     }
   };
 
@@ -385,8 +409,8 @@ export default function DocumentDetailPage() {
         // Forza 2 decimali - qtaReale può essere modificato per tutti i tipi
         updateData.qtaReale = parseFloat(parseFloat(value).toFixed(2)) || 0;
       } else if (field === "prezzo") {
-        // Forza 2 decimali
-        const prezzo = parseFloat(parseFloat(value).toFixed(2)) || 0;
+        // Forza 3 decimali (il DB supporta Decimal(10,3))
+        const prezzo = parseFloat(parseFloat(value).toFixed(3)) || 0;
         if (tipoRiga === "libera") {
           updateData.prezzoLibero = prezzo;
         } else {
@@ -965,11 +989,12 @@ export default function DocumentDetailPage() {
   const sanitizeDecimalInput = (value: string) =>
     value.replace(/[^0-9.,]/g, "");
 
-  const parseDecimalInput = (value: string) => {
+  const parseDecimalInput = (value: string, decimals: number = 2) => {
     const normalized = value.replace(",", ".");
     const num = parseFloat(normalized);
     if (Number.isNaN(num)) return 0;
-    return Math.round(num * 100) / 100;
+    const multiplier = Math.pow(10, decimals);
+    return Math.round(num * multiplier) / multiplier;
   };
 
   const handleDecimalChange = (
@@ -977,7 +1002,9 @@ export default function DocumentDetailPage() {
     value: string
   ) => {
     const sanitized = sanitizeDecimalInput(value);
-    const parsed = parseDecimalInput(sanitized);
+    // prezzoLibero usa 3 decimali, le quantità usano 2 decimali
+    const decimals = field === "prezzoLibero" ? 3 : 2;
+    const parsed = parseDecimalInput(sanitized, decimals);
     setNewItem((prev) => ({
       ...prev,
       [field]: parsed,
@@ -1618,13 +1645,19 @@ export default function DocumentDetailPage() {
                 <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
                   Aspetto Colli
                 </label>
-                <EditableCell
+                <select
                   value={document.piede?.aspettoColli || ""}
-                  onChange={(value) =>
-                    handleUpdateFooterField("aspettoColli", value)
-                  }
-                  readOnly={!isOpen}
-                />
+                  onChange={(e) => handleUpdateFooterField("aspettoColli", e.target.value)}
+                  disabled={!isOpen}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-gray-800"
+                >
+                  <option value="">-- Seleziona --</option>
+                  {aspettoMerceOptions.map((opt) => (
+                    <option key={opt.id} value={opt.descrizione}>
+                      {opt.descrizione}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* N. Colli */}
@@ -1683,13 +1716,19 @@ export default function DocumentDetailPage() {
                 <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
                   Trasportatore
                 </label>
-                <EditableCell
+                <select
                   value={document.piede?.trasportatore || ""}
-                  onChange={(value) =>
-                    handleUpdateFooterField("trasportatore", value)
-                  }
-                  readOnly={!isOpen}
-                />
+                  onChange={(e) => handleUpdateFooterField("trasportatore", e.target.value)}
+                  disabled={!isOpen}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-gray-800"
+                >
+                  <option value="">-- Seleziona --</option>
+                  {vettoriOptions.map((opt) => (
+                    <option key={opt.id} value={opt.ragioneSociale}>
+                      {opt.ragioneSociale}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Consegnato Per */}
@@ -2333,14 +2372,20 @@ export default function DocumentDetailPage() {
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Aspetto Colli
                 </label>
-                <input
-                  type="text"
+                <select
                   value={footer.aspettoColli || ""}
                   onChange={(e) =>
                     setFooter({ ...footer, aspettoColli: e.target.value })
                   }
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                />
+                >
+                  <option value="">-- Seleziona --</option>
+                  {aspettoMerceOptions.map((opt) => (
+                    <option key={opt.id} value={opt.descrizione}>
+                      {opt.descrizione}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -2396,14 +2441,20 @@ export default function DocumentDetailPage() {
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Trasportatore
                 </label>
-                <input
-                  type="text"
+                <select
                   value={footer.trasportatore || ""}
                   onChange={(e) =>
                     setFooter({ ...footer, trasportatore: e.target.value })
                   }
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                />
+                >
+                  <option value="">-- Seleziona --</option>
+                  {vettoriOptions.map((opt) => (
+                    <option key={opt.id} value={opt.ragioneSociale}>
+                      {opt.ragioneSociale}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -3103,7 +3154,7 @@ export default function DocumentDetailPage() {
         open={showVociDoganaliOffcanvas}
         onClose={() => setShowVociDoganaliOffcanvas(false)}
         title="Gestisci Voci Doganali"
-      
+
         iconColor="text-blue-500"
         width="xl"
         footer={
@@ -3126,6 +3177,61 @@ export default function DocumentDetailPage() {
         }
       >
         <div className="px-6">
+          {/* Riepilogo Pesi */}
+          {(() => {
+            const sommaPesiVoci = vociDoganaliEdit.reduce((sum, v) => sum + (v.peso || 0), 0);
+            const pesoNettoDoc = Number(document?.piede?.totPesoNetto || 0);
+            const differenza = pesoNettoDoc - sommaPesiVoci;
+            const isMatch = Math.abs(differenza) < 0.01;
+
+            return (
+              <div className="mb-6 rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 dark:border-blue-800 dark:from-blue-900/20 dark:to-indigo-900/20">
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Peso Netto Documento */}
+                  <div className="text-center">
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
+                      Peso Netto Doc.
+                    </p>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {pesoNettoDoc.toFixed(2)}
+                      <span className="text-sm font-normal ml-1">kg</span>
+                    </p>
+                  </div>
+
+                  {/* Somma Voci Doganali */}
+                  <div className="text-center border-x border-blue-200 dark:border-blue-800">
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
+                      Somma Voci
+                    </p>
+                    <p className={`text-2xl font-bold ${isMatch ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
+                      {sommaPesiVoci.toFixed(2)}
+                      <span className="text-sm font-normal ml-1">kg</span>
+                    </p>
+                  </div>
+
+                  {/* Differenza */}
+                  <div className="text-center">
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
+                      Differenza
+                    </p>
+                    <p className={`text-2xl font-bold ${isMatch ? 'text-green-600 dark:text-green-400' : differenza > 0 ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400'}`}>
+                      {differenza > 0 ? '+' : ''}{differenza.toFixed(2)}
+                      <span className="text-sm font-normal ml-1">kg</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Indicatore stato */}
+                <div className={`mt-3 flex items-center justify-center gap-2 rounded-lg py-2 ${isMatch ? 'bg-green-100 dark:bg-green-900/30' : 'bg-orange-100 dark:bg-orange-900/30'}`}>
+                  <i className={`fas ${isMatch ? 'fa-check-circle text-green-600 dark:text-green-400' : 'fa-exclamation-triangle text-orange-600 dark:text-orange-400'}`}></i>
+                  <span className={`text-sm font-medium ${isMatch ? 'text-green-700 dark:text-green-300' : 'text-orange-700 dark:text-orange-300'}`}>
+                    {isMatch ? 'I pesi corrispondono' : 'I pesi non corrispondono'}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Pulsante per aggiungere SOTTOPIEDI */}
           <div className="mb-4">
             <button
@@ -3164,6 +3270,9 @@ export default function DocumentDetailPage() {
                     </th>
                     <th className="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                       Azioni
+                    </th>
+                    <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Qta
                     </th>
                   </tr>
                 </thead>
@@ -3211,6 +3320,25 @@ export default function DocumentDetailPage() {
                               <i className="fas fa-trash"></i>
                             </button>
                           )}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          {(() => {
+                            // Calcola la somma delle qta reali per questa voce doganale
+                            const sumQtaReale = (document?.righe || []).reduce((sum, riga) => {
+                              const rigaVoce = riga.tipoRiga === "articolo" && riga.article?.voceDoganale
+                                ? riga.article.voceDoganale
+                                : riga.voceLibera;
+                              if (rigaVoce === item.voce) {
+                                return sum + Number(riga.qtaReale || 0);
+                              }
+                              return sum;
+                            }, 0);
+                            return (
+                              <span className="font-mono text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                {sumQtaReale.toLocaleString('it-IT')}
+                              </span>
+                            );
+                          })()}
                         </td>
                       </tr>
                     ))}
