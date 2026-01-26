@@ -1672,6 +1672,7 @@ export default function DocumentDetailPage() {
                   }
                   readOnly={!isOpen}
                   align="right"
+                  showBorder
                 />
               </div>
 
@@ -1690,6 +1691,7 @@ export default function DocumentDetailPage() {
                   }
                   readOnly={!isOpen}
                   align="right"
+                  showBorder
                 />
               </div>
 
@@ -1708,6 +1710,7 @@ export default function DocumentDetailPage() {
                   }
                   readOnly={!isOpen}
                   align="right"
+                  showBorder
                 />
               </div>
 
@@ -1742,6 +1745,7 @@ export default function DocumentDetailPage() {
                     handleUpdateFooterField("consegnatoPer", value)
                   }
                   readOnly={!isOpen}
+                  showBorder
                 />
               </div>
 

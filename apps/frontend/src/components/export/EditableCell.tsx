@@ -10,6 +10,7 @@ interface EditableCellProps {
   align?: 'left' | 'right' | 'center';
   highlight?: boolean; // Evidenzia la cella in giallo
   maxValue?: number; // Valore massimo consentito (per qtaReale)
+  showBorder?: boolean; // Mostra bordo visibile (per campi form)
 }
 
 export default function EditableCell({
@@ -20,6 +21,7 @@ export default function EditableCell({
   align = 'left',
   highlight = false,
   maxValue,
+  showBorder = false,
 }: EditableCellProps) {
   const divRef = useRef<HTMLDivElement>(null);
 
@@ -63,7 +65,9 @@ export default function EditableCell({
   const bgClass = readOnly
     ? 'bg-gray-100 dark:bg-gray-700'
     : highlight
-    ? 'bg-yellow-100 dark:bg-yellow-900/30 hover:border-yellow-400 focus:border-yellow-500'
+    ? 'bg-yellow-100 dark:bg-yellow-900/30 hover:border-yellow-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/20'
+    : showBorder
+    ? 'bg-white dark:bg-gray-800 hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20'
     : 'hover:border-blue-300 focus:border-blue-500';
 
   if (readOnly) {
@@ -83,7 +87,7 @@ export default function EditableCell({
         onInput={handleInput}
         onBlur={handleBlur}
         className={`
-          min-h-[1.5rem] p-2 rounded border-2 border-transparent
+          min-h-[1.5rem] p-2 rounded ${showBorder ? 'border border-gray-300 dark:border-gray-600' : 'border-2 border-transparent'}
           ${textAlignClass} ${bgClass}
           focus:outline-none transition-colors
           ${isLoading ? 'opacity-50' : ''}
