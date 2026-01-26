@@ -115,8 +115,8 @@ services:
     container_name: coregrejs-mobile
     restart: unless-stopped
 
-    expose:
-      - "3012"  # Espone la porta solo nella rete Docker interna
+    ports:
+      - "3012:3012"  # Espone la porta all'esterno
 
     environment:
       # Application
