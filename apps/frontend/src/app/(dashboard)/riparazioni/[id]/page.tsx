@@ -85,6 +85,12 @@ interface Riparazione {
   p18: number;
   p19: number;
   p20: number;
+  // Dati arricchiti da core_dati
+  codiceArticolo?: string;
+  descrizioneArticolo?: string;
+  cliente?: string;
+  commessa?: string;
+  qtaOriginale?: number;
 }
 
 export default function RiparazioneDetailPage() {
@@ -254,12 +260,67 @@ export default function RiparazioneDetailPage() {
         </div>
       </motion.div>
 
+      {/* Articolo Info Card */}
+      {(riparazione.codiceArticolo || riparazione.descrizioneArticolo || riparazione.cliente) && (
+        <motion.div
+          variants={itemVariants}
+          className="mb-6 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 shadow-lg dark:border-blue-800 dark:from-blue-900/20 dark:to-indigo-900/20 backdrop-blur-sm"
+        >
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <i className="fas fa-shoe-prints text-blue-500 mr-2"></i>
+            Dati Articolo
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Codice Articolo</div>
+              <div className="text-lg font-mono font-bold text-blue-600 dark:text-blue-400">
+                {riparazione.codiceArticolo || '-'}
+              </div>
+            </div>
+
+            <div className="md:col-span-2 lg:col-span-3">
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Descrizione</div>
+              <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                {riparazione.descrizioneArticolo || '-'}
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Cliente</div>
+              <div className="text-base font-medium text-gray-900 dark:text-white">
+                {riparazione.cliente || '-'}
+              </div>
+            </div>
+
+            {riparazione.commessa && (
+              <div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Commessa</div>
+                <div className="text-base font-medium text-gray-900 dark:text-white">
+                  {riparazione.commessa}
+                </div>
+              </div>
+            )}
+
+            {riparazione.qtaOriginale !== undefined && (
+              <div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Qta Originale Cartellino</div>
+                <div className="text-base font-bold text-gray-900 dark:text-white">
+                  {riparazione.qtaOriginale} paia
+                </div>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
       {/* Info Card */}
       <motion.div
         variants={itemVariants}
         className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
       >
-        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-200 dark:border-gray-700 pb-2 flex items-center">
+          <i className="fas fa-tools text-orange-500 mr-2"></i>
           Informazioni Riparazione
         </h3>
 
@@ -285,22 +346,22 @@ export default function RiparazioneDetailPage() {
             </div>
           </div>
 
-          <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Quantità Totale</div>
-            <div className="text-base font-bold text-blue-600 dark:text-blue-400">
+          <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg border border-orange-200 dark:border-orange-800">
+            <div className="text-xs text-orange-600 dark:text-orange-400 mb-1 font-medium">Quantità in Riparazione</div>
+            <div className="text-xl font-bold text-orange-600 dark:text-orange-400">
               {riparazione.qtaTotale} paia
             </div>
           </div>
 
           <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Laboratorio</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Laboratorio (Destinazione)</div>
             <div className="text-base font-semibold text-gray-900 dark:text-white">
               {riparazione.laboratorio?.nome || '-'}
             </div>
           </div>
 
           <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Reparto</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Reparto (Provenienza)</div>
             <div className="text-base font-semibold text-gray-900 dark:text-white">
               {riparazione.reparto?.nome || '-'}
             </div>
@@ -314,15 +375,24 @@ export default function RiparazioneDetailPage() {
               </div>
             </div>
           )}
+
+          {riparazione.completa && riparazione.dataChiusura && (
+            <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="text-xs text-green-600 dark:text-green-400 mb-1 font-medium">Data Chiusura</div>
+              <div className="text-base font-semibold text-green-700 dark:text-green-300">
+                {new Date(riparazione.dataChiusura).toLocaleDateString('it-IT')}
+              </div>
+            </div>
+          )}
         </div>
 
         {riparazione.causale && (
           <div className="mt-6">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               <i className="fas fa-exclamation-circle text-orange-500 mr-2"></i>
-              Causale
+              Causale / Motivo Riparazione
             </div>
-            <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/50">
+            <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-900/20">
               <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                 {riparazione.causale}
               </p>

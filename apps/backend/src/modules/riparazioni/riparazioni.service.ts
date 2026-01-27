@@ -36,7 +36,37 @@ export class RiparazioniService {
       this.prisma.riparazione.count({ where }),
     ]);
 
-    return { data, total };
+    // Arricchisci i dati con le info del cartellino da core_dati
+    const enrichedData = await Promise.all(
+      data.map(async (rip) => {
+        if (rip.cartellino) {
+          const cartelNum = parseInt(rip.cartellino);
+          if (!isNaN(cartelNum)) {
+            const coreData = await this.prisma.coreData.findFirst({
+              where: { cartel: cartelNum },
+              select: {
+                articolo: true,
+                descrizioneArticolo: true,
+                ragioneSociale: true,
+                commessaCli: true,
+              },
+            });
+            if (coreData) {
+              return {
+                ...rip,
+                codiceArticolo: coreData.articolo,
+                descrizioneArticolo: coreData.descrizioneArticolo,
+                cliente: coreData.ragioneSociale,
+                commessa: coreData.commessaCli,
+              };
+            }
+          }
+        }
+        return rip;
+      })
+    );
+
+    return { data: enrichedData, total };
   }
 
   /**
@@ -55,6 +85,33 @@ export class RiparazioniService {
 
     if (!riparazione) {
       throw new NotFoundException(`Riparazione con ID ${id} non trovata`);
+    }
+
+    // Arricchisci con dati del cartellino da core_dati
+    if (riparazione.cartellino) {
+      const cartelNum = parseInt(riparazione.cartellino);
+      if (!isNaN(cartelNum)) {
+        const coreData = await this.prisma.coreData.findFirst({
+          where: { cartel: cartelNum },
+          select: {
+            articolo: true,
+            descrizioneArticolo: true,
+            ragioneSociale: true,
+            commessaCli: true,
+            tot: true,
+          },
+        });
+        if (coreData) {
+          return {
+            ...riparazione,
+            codiceArticolo: coreData.articolo,
+            descrizioneArticolo: coreData.descrizioneArticolo,
+            cliente: coreData.ragioneSociale,
+            commessa: coreData.commessaCli,
+            qtaOriginale: coreData.tot,
+          };
+        }
+      }
     }
 
     return riparazione;

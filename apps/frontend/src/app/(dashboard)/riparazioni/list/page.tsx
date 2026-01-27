@@ -25,6 +25,7 @@ interface Riparazione {
   cartellino?: string;
   data: string;
   completa: boolean;
+  qtaTotale: number;
   laboratorio?: {
     nome: string;
   };
@@ -35,6 +36,11 @@ interface Riparazione {
     nome: string;
   };
   causale?: string;
+  // Dati arricchiti da core_dati
+  codiceArticolo?: string;
+  descrizioneArticolo?: string;
+  cliente?: string;
+  commessa?: string;
 }
 
 interface Laboratorio {
@@ -102,12 +108,17 @@ export default function RiparazioniListPage() {
 
   // Apply filters
   const filteredRiparazioni = riparazioni.filter((rip) => {
+    const search = searchTerm.toLowerCase();
     const matchesSearch =
-      rip.idRiparazione.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rip.cartellino?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rip.causale?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rip.laboratorio?.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rip.reparto?.nome.toLowerCase().includes(searchTerm.toLowerCase());
+      rip.idRiparazione.toLowerCase().includes(search) ||
+      rip.cartellino?.toLowerCase().includes(search) ||
+      rip.causale?.toLowerCase().includes(search) ||
+      rip.laboratorio?.nome.toLowerCase().includes(search) ||
+      rip.reparto?.nome.toLowerCase().includes(search) ||
+      rip.codiceArticolo?.toLowerCase().includes(search) ||
+      rip.descrizioneArticolo?.toLowerCase().includes(search) ||
+      rip.cliente?.toLowerCase().includes(search) ||
+      rip.commessa?.toLowerCase().includes(search);
 
     // Logica completa: ESCLUDI (solo aperte), INCLUDI (tutte), SOLO (solo completate)
     let matchesCompleta = true;
@@ -381,25 +392,31 @@ export default function RiparazioniListPage() {
           <table className="w-full">
             <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  ID Riparazione
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                   Cartellino
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Data
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  Articolo
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  Cliente
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  Qta
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                   Laboratorio
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Reparto
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  Data
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                   Stato
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                   Azioni
                 </th>
               </tr>
@@ -416,32 +433,45 @@ export default function RiparazioniListPage() {
                     className="hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors cursor-pointer"
                     onClick={() => handleOpenRiparazione(rip.id)}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-mono font-medium text-gray-900 dark:text-white">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm font-mono font-bold text-blue-600 dark:text-blue-400">
                         {rip.idRiparazione}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {rip.cartellino || '-'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {new Date(rip.data).toLocaleDateString('it-IT')}
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {rip.codiceArticolo || '-'}
+                      </div>
+                      <div className="text-sm text-gray-900 dark:text-white truncate max-w-[200px]" title={rip.descrizioneArticolo}>
+                        {rip.descrizioneArticolo || '-'}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-[150px]" title={rip.cliente}>
+                        {rip.cliente || '-'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center">
+                      <div className="text-sm font-bold text-orange-600 dark:text-orange-400">
+                        {rip.qtaTotale}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="text-sm text-gray-600 dark:text-gray-400">
                         {rip.laboratorio?.nome || '-'}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {rip.reparto?.nome || '-'}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {new Date(rip.data).toLocaleDateString('it-IT')}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <td className="px-4 py-3 whitespace-nowrap text-center">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           !rip.completa
@@ -449,10 +479,10 @@ export default function RiparazioniListPage() {
                             : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                         }`}
                       >
-                        {rip.completa ? 'Completata' : 'Aperta'}
+                        {rip.completa ? 'Chiusa' : 'Aperta'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={(e) => {
