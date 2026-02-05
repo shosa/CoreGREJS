@@ -95,7 +95,7 @@ async function generateReportPdf(
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ margin: 40, size: 'A4' });
+      const doc = new PDFDocument({ margin: 40, size: 'A4', bufferPages: true });
       const chunks: Buffer[] = [];
 
       doc.on('data', (chunk) => chunks.push(chunk));
@@ -149,7 +149,7 @@ async function generateReportPdf(
       let totalMontaggio = 0;
 
       records.forEach((r: any) => {
-        totalPaia += r.paia || 0;
+        totalPaia += Number(r.quantita) || 0;
         totalTaglio += Number(r.costoTaglio) || 0;
         totalOrlatura += Number(r.costoOrlatura) || 0;
         totalStrobel += Number(r.costoStrobel) || 0;
@@ -194,7 +194,7 @@ async function generateReportPdf(
         boxHeight,
         '#E8F5E9',
         '#388E3C',
-        'Paia Totali',
+        'Quantità Tot.',
         totalPaia.toLocaleString('it-IT'),
       );
 
@@ -222,7 +222,7 @@ async function generateReportPdf(
         boxHeight,
         '#FCE4EC',
         '#C2185B',
-        'Costo/Paio',
+        'Costo Unit.',
         `€ ${costoMedio.toLocaleString('it-IT', {
           minimumFractionDigits: 2,
         })}`,
@@ -380,7 +380,7 @@ function groupRecords(
     if (!grouped.has(key)) {
       grouped.set(key, {
         count: 0,
-        paia: 0,
+        quantita: 0,
         costoTaglio: 0,
         costoOrlatura: 0,
         costoStrobel: 0,
@@ -391,7 +391,7 @@ function groupRecords(
 
     const g = grouped.get(key);
     g.count++;
-    g.paia += r.paia || 0;
+    g.quantita += Number(r.quantita) || 0;
     g.costoTaglio += Number(r.costoTaglio) || 0;
     g.costoOrlatura += Number(r.costoOrlatura) || 0;
     g.costoStrobel += Number(r.costoStrobel) || 0;
@@ -412,9 +412,9 @@ function drawGroupedTable(
   const headers = [
     groupBy.charAt(0).toUpperCase() + groupBy.slice(1),
     'Record',
-    'Paia',
+    'Quantità',
     'Costo Tot.',
-    'Costo/Paio',
+    'Costo Unit.',
     '% Totale',
   ];
 
@@ -453,7 +453,7 @@ function drawGroupedTable(
       g.altriCosti +
       g.costoMontaggio;
 
-    const costoPerPaio = g.paia > 0 ? totalCosto / g.paia : 0;
+    const costoPerPaio = g.quantita > 0 ? totalCosto / g.quantita : 0;
     const percentuale =
       grandTotal > 0 ? (totalCosto / grandTotal) * 100 : 0;
 
@@ -484,7 +484,7 @@ function drawGroupedTable(
       width: colWidths[1] - 5,
     });
     x += colWidths[1];
-    doc.text(g.paia.toLocaleString('it-IT'), x, y, {
+    doc.text(g.quantita.toLocaleString('it-IT'), x, y, {
       width: colWidths[2] - 5,
     });
     x += colWidths[2];

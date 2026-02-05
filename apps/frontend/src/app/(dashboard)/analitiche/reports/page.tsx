@@ -53,10 +53,14 @@ export default function AnaliticheReportsPage() {
       setLoading(true);
       const [repartiData, filtersData] = await Promise.all([
         analiticheApi.getReparti(true),
-        analiticheApi.getDistinctFilters(),
+        analiticheApi.getFilters(),
       ]);
       setReparti(repartiData || []);
-      setFilters(filtersData || { linee: [], tipiDocumento: [] });
+      // Map the filter data - backend returns { value, count } objects
+      setFilters({
+        linee: (filtersData?.linee || []).map((item: any) => item.value || item),
+        tipiDocumento: (filtersData?.tipiDocumento || []).map((item: any) => item.value || item),
+      });
     } catch (error) {
       showError("Errore nel caricamento dei dati");
     } finally {

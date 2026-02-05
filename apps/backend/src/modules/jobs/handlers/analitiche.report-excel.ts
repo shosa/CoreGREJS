@@ -113,7 +113,7 @@ const handler: JobHandler = async (payload, helpers) => {
   let totalMontaggio = 0;
 
   records.forEach((r: any) => {
-    totalPaia += r.paia || 0;
+    totalPaia += Number(r.quantita) || 0;
     totalTaglio += Number(r.costoTaglio) || 0;
     totalOrlatura += Number(r.costoOrlatura) || 0;
     totalStrobel += Number(r.costoStrobel) || 0;
@@ -132,14 +132,14 @@ const handler: JobHandler = async (payload, helpers) => {
 
   const summaryData = [
     ['Totale Record', records.length],
-    ['Totale Paia', totalPaia],
+    ['Totale Quantità', totalPaia],
     ['Costo Taglio', totalTaglio],
     ['Costo Orlatura', totalOrlatura],
     ['Costo Strobel', totalStrobel],
     ['Altri Costi', totalAltri],
     ['Costo Montaggio', totalMontaggio],
     ['COSTO TOTALE', totalCosti],
-    ['Costo Medio per Paio', costoMedio],
+    ['Costo Medio Unitario', costoMedio],
   ];
 
   summaryData.forEach(([label, value]) => {
@@ -166,11 +166,11 @@ const handler: JobHandler = async (payload, helpers) => {
   records.forEach((r: any) => {
     const key = r.reparto?.nome || 'Non assegnato';
     if (!byReparto.has(key)) {
-      byReparto.set(key, { count: 0, paia: 0, costoTaglio: 0, costoOrlatura: 0, costoStrobel: 0, altriCosti: 0, costoMontaggio: 0 });
+      byReparto.set(key, { count: 0, quantita: 0, costoTaglio: 0, costoOrlatura: 0, costoStrobel: 0, altriCosti: 0, costoMontaggio: 0 });
     }
     const g = byReparto.get(key);
     g.count++;
-    g.paia += r.paia || 0;
+    g.quantita += Number(r.quantita) || 0;
     g.costoTaglio += Number(r.costoTaglio) || 0;
     g.costoOrlatura += Number(r.costoOrlatura) || 0;
     g.costoStrobel += Number(r.costoStrobel) || 0;
@@ -178,7 +178,7 @@ const handler: JobHandler = async (payload, helpers) => {
     g.costoMontaggio += Number(r.costoMontaggio) || 0;
   });
 
-  const repartoHeaders = ['Reparto', 'Record', 'Paia', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Totale', 'Costo/Paio', '% Totale'];
+  const repartoHeaders = ['Reparto', 'Record', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Totale', 'Costo Unit.', '% Totale'];
   repartoHeaders.forEach((h, idx) => {
     repartoSheet.getCell(1, idx + 1).value = h;
     repartoSheet.getCell(1, idx + 1).font = { bold: true };
@@ -189,12 +189,12 @@ const handler: JobHandler = async (payload, helpers) => {
   Array.from(byReparto.keys()).sort().forEach((key) => {
     const g = byReparto.get(key);
     const tot = g.costoTaglio + g.costoOrlatura + g.costoStrobel + g.altriCosti + g.costoMontaggio;
-    const costoPaio = g.paia > 0 ? tot / g.paia : 0;
+    const costoPaio = g.quantita > 0 ? tot / g.quantita : 0;
     const perc = totalCosti > 0 ? (tot / totalCosti) * 100 : 0;
 
     repartoSheet.getCell(repartoRow, 1).value = key;
     repartoSheet.getCell(repartoRow, 2).value = g.count;
-    repartoSheet.getCell(repartoRow, 3).value = g.paia;
+    repartoSheet.getCell(repartoRow, 3).value = g.quantita;
     repartoSheet.getCell(repartoRow, 4).value = g.costoTaglio;
     repartoSheet.getCell(repartoRow, 5).value = g.costoOrlatura;
     repartoSheet.getCell(repartoRow, 6).value = g.costoStrobel;
@@ -226,11 +226,11 @@ const handler: JobHandler = async (payload, helpers) => {
   records.forEach((r: any) => {
     const key = r.dataDocumento ? new Date(r.dataDocumento).toISOString().slice(0, 7) : 'Senza data';
     if (!byMese.has(key)) {
-      byMese.set(key, { count: 0, paia: 0, costoTaglio: 0, costoOrlatura: 0, costoStrobel: 0, altriCosti: 0, costoMontaggio: 0 });
+      byMese.set(key, { count: 0, quantita: 0, costoTaglio: 0, costoOrlatura: 0, costoStrobel: 0, altriCosti: 0, costoMontaggio: 0 });
     }
     const g = byMese.get(key);
     g.count++;
-    g.paia += r.paia || 0;
+    g.quantita += Number(r.quantita) || 0;
     g.costoTaglio += Number(r.costoTaglio) || 0;
     g.costoOrlatura += Number(r.costoOrlatura) || 0;
     g.costoStrobel += Number(r.costoStrobel) || 0;
@@ -238,7 +238,7 @@ const handler: JobHandler = async (payload, helpers) => {
     g.costoMontaggio += Number(r.costoMontaggio) || 0;
   });
 
-  const meseHeaders = ['Mese', 'Record', 'Paia', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Totale', 'Costo/Paio'];
+  const meseHeaders = ['Mese', 'Record', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Totale', 'Costo Unit.'];
   meseHeaders.forEach((h, idx) => {
     meseSheet.getCell(1, idx + 1).value = h;
     meseSheet.getCell(1, idx + 1).font = { bold: true };
@@ -249,11 +249,11 @@ const handler: JobHandler = async (payload, helpers) => {
   Array.from(byMese.keys()).sort().reverse().forEach((key) => {
     const g = byMese.get(key);
     const tot = g.costoTaglio + g.costoOrlatura + g.costoStrobel + g.altriCosti + g.costoMontaggio;
-    const costoPaio = g.paia > 0 ? tot / g.paia : 0;
+    const costoPaio = g.quantita > 0 ? tot / g.quantita : 0;
 
     meseSheet.getCell(meseRow, 1).value = key;
     meseSheet.getCell(meseRow, 2).value = g.count;
-    meseSheet.getCell(meseRow, 3).value = g.paia;
+    meseSheet.getCell(meseRow, 3).value = g.quantita;
     meseSheet.getCell(meseRow, 4).value = g.costoTaglio;
     meseSheet.getCell(meseRow, 5).value = g.costoOrlatura;
     meseSheet.getCell(meseRow, 6).value = g.costoStrobel;
@@ -279,7 +279,7 @@ const handler: JobHandler = async (payload, helpers) => {
 
     const detailHeaders = [
       'ID', 'Data', 'Tipo Doc', 'N. Doc', 'Linea', 'Articolo', 'Descrizione',
-      'Paia', 'Prod. Estero', 'Reparto', 'Reparto Finale',
+      'Quantità', 'Prod. Estero', 'Reparto', 'Reparto Finale',
       'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Totale'
     ];
 
@@ -302,7 +302,7 @@ const handler: JobHandler = async (payload, helpers) => {
       detailSheet.getCell(rowNum, 5).value = r.linea || '';
       detailSheet.getCell(rowNum, 6).value = r.articolo || '';
       detailSheet.getCell(rowNum, 7).value = r.descrizioneArt || '';
-      detailSheet.getCell(rowNum, 8).value = r.paia || 0;
+      detailSheet.getCell(rowNum, 8).value = Number(r.quantita) || 0;
       detailSheet.getCell(rowNum, 9).value = r.prodottoEstero === true ? 'Sì' : r.prodottoEstero === false ? 'No' : '';
       detailSheet.getCell(rowNum, 10).value = r.reparto?.nome || '';
       detailSheet.getCell(rowNum, 11).value = r.repartoFinale?.nome || '';
