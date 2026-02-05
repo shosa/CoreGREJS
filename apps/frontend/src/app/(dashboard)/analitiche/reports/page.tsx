@@ -43,6 +43,7 @@ export default function AnaliticheReportsPage() {
   const [selectedLinea, setSelectedLinea] = useState("");
   const [groupBy, setGroupBy] = useState<"reparto" | "linea" | "tipoDocumento" | "mese">("reparto");
   const [includeDetails, setIncludeDetails] = useState(false);
+  const [includeArticoliPerReparto, setIncludeArticoliPerReparto] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -78,6 +79,7 @@ export default function AnaliticheReportsPage() {
         tipoDocumento: selectedTipoDocumento || undefined,
         linea: selectedLinea || undefined,
         groupBy,
+        includeArticoliPerReparto,
       });
       showSuccess(`Report PDF in coda (Job ID: ${result.jobId}). Controlla lo spool per il download.`);
     } catch (error: any) {
@@ -114,6 +116,7 @@ export default function AnaliticheReportsPage() {
     setSelectedLinea("");
     setGroupBy("reparto");
     setIncludeDetails(false);
+    setIncludeArticoliPerReparto(false);
   };
 
   if (loading) {
@@ -261,8 +264,20 @@ export default function AnaliticheReportsPage() {
               </div>
             </div>
 
-            {/* Include Details (solo Excel) */}
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            {/* Opzioni aggiuntive */}
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeArticoliPerReparto}
+                  onChange={(e) => setIncludeArticoliPerReparto(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  <i className="fas fa-file-pdf text-red-500 mr-1"></i>
+                  Dettaglio articoli per reparto/linea (PDF)
+                </span>
+              </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -271,7 +286,8 @@ export default function AnaliticheReportsPage() {
                   className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 />
                 <span className="text-sm text-gray-700 dark:text-gray-300">
-                  Includi dettaglio record (solo Excel)
+                  <i className="fas fa-file-excel text-emerald-500 mr-1"></i>
+                  Includi dettaglio record (Excel)
                 </span>
               </label>
             </div>
