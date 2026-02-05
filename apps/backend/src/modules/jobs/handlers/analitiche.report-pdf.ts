@@ -14,6 +14,67 @@ interface ReportFilters {
   includeArticoliPerReparto?: boolean;
 }
 
+// Mappa dei nomi dei campi costo
+const COST_FIELDS = ['costoTaglio', 'costoOrlatura', 'costoStrobel', 'altriCosti', 'costoMontaggio'];
+const COST_LABELS: Record<string, string> = {
+  costoTaglio: 'Taglio',
+  costoOrlatura: 'Orlatura',
+  costoStrobel: 'Strobel',
+  altriCosti: 'Altri',
+  costoMontaggio: 'Montaggio',
+};
+
+/**
+ * Calcola i costi applicabili per un record in base a:
+ * - costiAssociati del reparto finale (se presente)
+ * - prodottoEstero (se true, esclude taglio e orlatura)
+ */
+function getApplicableCosts(
+  record: any,
+  repartoMap: Map<number, any>,
+): { costs: Record<string, number>; totalCosto: number; fatturato: number } {
+  const qty = Number(record.quantita) || 0;
+  const prezzoUnit = Number(record.prezzoUnitario) || 0;
+  const fatturato = qty * prezzoUnit;
+
+  // Ottieni i costi associati al reparto finale
+  const repartoFinale = record.repartoFinaleId ? repartoMap.get(record.repartoFinaleId) : null;
+  let costiAssociati: string[] | null = null;
+
+  if (repartoFinale?.costiAssociati) {
+    try {
+      costiAssociati = typeof repartoFinale.costiAssociati === 'string'
+        ? JSON.parse(repartoFinale.costiAssociati)
+        : repartoFinale.costiAssociati;
+    } catch {
+      costiAssociati = null;
+    }
+  }
+
+  const costs: Record<string, number> = {};
+  let totalCosto = 0;
+
+  COST_FIELDS.forEach((field) => {
+    let costoUnit = Number(record[field]) || 0;
+
+    // Se prodotto estero, escludi taglio e orlatura
+    if (record.prodottoEstero === true && (field === 'costoTaglio' || field === 'costoOrlatura')) {
+      costoUnit = 0;
+    }
+
+    // Se ci sono costi associati configurati, verifica che questo campo sia incluso
+    if (costiAssociati && costiAssociati.length > 0 && !costiAssociati.includes(field)) {
+      costoUnit = 0;
+    }
+
+    const costoTotale = costoUnit * qty;
+    costs[field] = costoTotale;
+    totalCosto += costoTotale;
+  });
+
+  return { costs, totalCosto, fatturato };
+}
+
 const handler: JobHandler = async (payload, helpers) => {
   const {
     userId,
@@ -36,7 +97,7 @@ const handler: JobHandler = async (payload, helpers) => {
 
   // Build query filters - IMPORTANTE: solo record con repartoFinaleId
   const where: any = {
-    repartoFinaleId: { not: null }, // Solo record completi
+    repartoFinaleId: { not: null },
   };
 
   if (dataFrom || dataTo) {
@@ -48,7 +109,7 @@ const handler: JobHandler = async (payload, helpers) => {
       where.dataDocumento.lte = endDate;
     }
   }
-  if (repartoId) where.repartoFinaleId = repartoId; // Usa repartoFinale!
+  if (repartoId) where.repartoFinaleId = repartoId;
   if (tipoDocumento) where.tipoDocumento = tipoDocumento;
   if (linea) where.linea = linea;
 
@@ -115,7 +176,6 @@ async function generateReportPdf(
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
-      // PDF ORIZZONTALE per maggiore spazio
       const doc = new PDFDocument({
         margin: 40,
         size: 'A4',
@@ -133,14 +193,14 @@ async function generateReportPdf(
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      const pageWidth = doc.page.width - 80; // margin 40 each side
+      const pageWidth = doc.page.width - 80;
       const primaryColor = '#1565C0';
       const secondaryColor = '#424242';
       const accentColor = '#E3F2FD';
 
       // ==================== PAGINA 1: COPERTINA E RIEPILOGO ====================
 
-      // Header con logo area
+      // Header
       doc.rect(0, 0, doc.page.width, 80).fill(primaryColor);
       doc.fillColor('#FFFFFF')
          .fontSize(28)
@@ -150,12 +210,11 @@ async function generateReportPdf(
          .font('Helvetica')
          .text('Sistema Analitico CoreGRE', 40, 55);
 
-      // Data generazione
       doc.fillColor(secondaryColor)
          .fontSize(10)
          .text(`Generato: ${new Date().toLocaleString('it-IT')}`, 40, 100);
 
-      // Box filtri applicati
+      // Box filtri
       const filterBoxY = 130;
       doc.rect(40, filterBoxY, 300, 100).stroke(primaryColor);
       doc.fillColor(primaryColor)
@@ -185,28 +244,22 @@ async function generateReportPdf(
       }
       doc.text(`Raggruppamento: ${filters.groupBy.toUpperCase()}`, 50, filterY);
 
-      // Calculate totals - NOTA: i costi nei record sono UNITARI, moltiplicare per quantità
+      // Calculate totals con nuova logica
       let totalQuantita = 0;
-      let totalTaglio = 0;
-      let totalOrlatura = 0;
-      let totalStrobel = 0;
-      let totalAltri = 0;
-      let totalMontaggio = 0;
+      let totalFatturato = 0;
+      const totalCosts: Record<string, number> = {};
+      COST_FIELDS.forEach(f => totalCosts[f] = 0);
+      let grandTotalCosti = 0;
 
       records.forEach((r: any) => {
-        const qty = Number(r.quantita) || 0;
-        totalQuantita += qty;
-        // Moltiplica costo unitario per quantità per ottenere il costo totale del record
-        totalTaglio += (Number(r.costoTaglio) || 0) * qty;
-        totalOrlatura += (Number(r.costoOrlatura) || 0) * qty;
-        totalStrobel += (Number(r.costoStrobel) || 0) * qty;
-        totalAltri += (Number(r.altriCosti) || 0) * qty;
-        totalMontaggio += (Number(r.costoMontaggio) || 0) * qty;
+        const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap);
+        totalQuantita += Number(r.quantita) || 0;
+        totalFatturato += fatturato;
+        grandTotalCosti += totalCosto;
+        COST_FIELDS.forEach(f => totalCosts[f] += costs[f]);
       });
 
-      const totalCosti = totalTaglio + totalOrlatura + totalStrobel + totalAltri + totalMontaggio;
-
-      // Box KPI principali
+      // Box KPI
       const kpiBoxY = filterBoxY;
       const kpiBoxX = 360;
       const kpiBoxW = 420;
@@ -217,17 +270,28 @@ async function generateReportPdf(
          .font('Helvetica-Bold')
          .text('INDICATORI CHIAVE', kpiBoxX + 10, kpiBoxY + 10);
 
-      // KPI Grid
       const kpiData = [
-        { label: 'Record Analizzati', value: records.length.toLocaleString('it-IT'), x: kpiBoxX + 20, y: kpiBoxY + 35 },
-        { label: 'Quantità Totale', value: totalQuantita.toLocaleString('it-IT', { maximumFractionDigits: 0 }), x: kpiBoxX + 150, y: kpiBoxY + 35 },
-        { label: 'Costo Totale', value: `€ ${totalCosti.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, x: kpiBoxX + 280, y: kpiBoxY + 35 },
+        { label: 'Record Analizzati', value: records.length.toLocaleString('it-IT'), x: kpiBoxX + 15, y: kpiBoxY + 35 },
+        { label: 'Quantità Totale', value: totalQuantita.toLocaleString('it-IT', { maximumFractionDigits: 0 }), x: kpiBoxX + 115, y: kpiBoxY + 35 },
+        { label: 'Totale Costi', value: `€ ${grandTotalCosti.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, x: kpiBoxX + 215, y: kpiBoxY + 35 },
+        { label: 'Fatturato', value: `€ ${totalFatturato.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, x: kpiBoxX + 315, y: kpiBoxY + 35 },
       ];
 
       kpiData.forEach(kpi => {
         doc.fillColor('#666').fontSize(8).font('Helvetica').text(kpi.label, kpi.x, kpi.y);
-        doc.fillColor(secondaryColor).fontSize(16).font('Helvetica-Bold').text(kpi.value, kpi.x, kpi.y + 12);
+        doc.fillColor(secondaryColor).fontSize(14).font('Helvetica-Bold').text(kpi.value, kpi.x, kpi.y + 12);
       });
+
+      // Margine
+      if (totalFatturato > 0) {
+        const margine = totalFatturato - grandTotalCosti;
+        const marginePerc = (margine / totalFatturato) * 100;
+        doc.fillColor('#666').fontSize(8).font('Helvetica').text('Margine', kpiBoxX + 15, kpiBoxY + 70);
+        doc.fillColor(margine >= 0 ? '#2E7D32' : '#C62828')
+           .fontSize(14)
+           .font('Helvetica-Bold')
+           .text(`€ ${margine.toLocaleString('it-IT', { minimumFractionDigits: 2 })} (${marginePerc.toFixed(1)}%)`, kpiBoxX + 15, kpiBoxY + 82);
+      }
 
       // Nota record esclusi
       if (filters.excludedCount > 0) {
@@ -245,15 +309,8 @@ async function generateReportPdf(
          .font('Helvetica-Bold')
          .text('DETTAGLIO COMPOSIZIONE COSTI', 40, costTableY);
 
-      const costHeaders = ['Voce di Costo', 'Importo (€)', '% sul Totale', 'Incidenza'];
-      const costColWidths = [200, 150, 100, 300];
-      const costData = [
-        { voce: 'Taglio', importo: totalTaglio, perc: totalCosti > 0 ? (totalTaglio / totalCosti) * 100 : 0 },
-        { voce: 'Orlatura', importo: totalOrlatura, perc: totalCosti > 0 ? (totalOrlatura / totalCosti) * 100 : 0 },
-        { voce: 'Strobel', importo: totalStrobel, perc: totalCosti > 0 ? (totalStrobel / totalCosti) * 100 : 0 },
-        { voce: 'Altri Costi', importo: totalAltri, perc: totalCosti > 0 ? (totalAltri / totalCosti) * 100 : 0 },
-        { voce: 'Montaggio', importo: totalMontaggio, perc: totalCosti > 0 ? (totalMontaggio / totalCosti) * 100 : 0 },
-      ];
+      const costHeaders = ['Voce di Costo', 'Importo (€)', 'Incidenza'];
+      const costColWidths = [200, 150, 350];
 
       // Header tabella
       let tableY = costTableY + 20;
@@ -268,23 +325,26 @@ async function generateReportPdf(
       // Righe dati
       tableY += 22;
       doc.font('Helvetica').fontSize(9);
-      costData.forEach((row, idx) => {
+
+      COST_FIELDS.forEach((field, idx) => {
+        const value = totalCosts[field];
+        const perc = grandTotalCosti > 0 ? (value / grandTotalCosti) * 100 : 0;
+
         if (idx % 2 === 0) {
           doc.rect(40, tableY, costColWidths.reduce((a, b) => a + b, 0), 20).fill('#F5F5F5');
         }
         doc.fillColor(secondaryColor);
 
         tableX = 45;
-        doc.text(row.voce, tableX, tableY + 6);
+        doc.text(COST_LABELS[field], tableX, tableY + 6);
         tableX += costColWidths[0];
-        doc.text(`€ ${row.importo.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, tableX, tableY + 6);
+        doc.text(`€ ${value.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, tableX, tableY + 6);
         tableX += costColWidths[1];
-        doc.text(`${row.perc.toFixed(1)}%`, tableX, tableY + 6);
-        tableX += costColWidths[2];
 
         // Barra grafica incidenza
-        const barWidth = (row.perc / 100) * 280;
+        const barWidth = (perc / 100) * 320;
         doc.rect(tableX, tableY + 5, barWidth, 10).fill(primaryColor);
+        doc.fillColor(secondaryColor).text(`${perc.toFixed(1)}%`, tableX + barWidth + 5, tableY + 6);
 
         tableY += 20;
       });
@@ -292,26 +352,31 @@ async function generateReportPdf(
       // Riga totale
       doc.rect(40, tableY, costColWidths.reduce((a, b) => a + b, 0), 22).fill(primaryColor);
       doc.fillColor('#FFFFFF').fontSize(10).font('Helvetica-Bold');
-      doc.text('TOTALE', 45, tableY + 6);
-      doc.text(`€ ${totalCosti.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 45 + costColWidths[0], tableY + 6);
-      doc.text('100%', 45 + costColWidths[0] + costColWidths[1], tableY + 6);
+      doc.text('TOTALE COSTI', 45, tableY + 6);
+      doc.text(`€ ${grandTotalCosti.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 45 + costColWidths[0], tableY + 6);
+
+      // Riga fatturato
+      tableY += 22;
+      doc.rect(40, tableY, costColWidths.reduce((a, b) => a + b, 0), 22).fill('#E8F5E9');
+      doc.fillColor('#2E7D32').fontSize(10).font('Helvetica-Bold');
+      doc.text('FATTURATO', 45, tableY + 6);
+      doc.text(`€ ${totalFatturato.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 45 + costColWidths[0], tableY + 6);
 
       // ==================== PAGINA 2: ANALISI PER GRUPPO ====================
       doc.addPage();
 
-      // Header pagina
       doc.rect(0, 0, doc.page.width, 50).fill(primaryColor);
       doc.fillColor('#FFFFFF')
          .fontSize(18)
          .font('Helvetica-Bold')
          .text(`ANALISI PER ${filters.groupBy.toUpperCase()}`, 40, 15);
 
-      // Raggruppa i dati - USA REPARTO FINALE!
-      const grouped = groupRecordsByRepartoFinale(records, filters.groupBy, repartoMap);
+      // Raggruppa i dati
+      const grouped = groupRecordsByKey(records, filters.groupBy, repartoMap);
 
-      // Headers tabella analisi
-      const analysisHeaders = [filters.groupBy.charAt(0).toUpperCase() + filters.groupBy.slice(1), 'N° Doc', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'TOTALE', '% Inc.'];
-      const analysisColWidths = [120, 50, 70, 70, 70, 70, 70, 70, 90, 60];
+      // Headers senza % totale
+      const analysisHeaders = [filters.groupBy.charAt(0).toUpperCase() + filters.groupBy.slice(1), 'N° Doc', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tot. Costi', 'Fatturato'];
+      const analysisColWidths = [110, 45, 65, 65, 65, 65, 65, 70, 85, 85];
 
       let analysisY = 70;
       doc.rect(40, analysisY, analysisColWidths.reduce((a, b) => a + b, 0), 22).fill(primaryColor);
@@ -332,7 +397,6 @@ async function generateReportPdf(
         if (analysisY > 520) {
           doc.addPage();
           analysisY = 50;
-          // Ripeti header
           doc.rect(40, analysisY, analysisColWidths.reduce((a, b) => a + b, 0), 22).fill(primaryColor);
           doc.fillColor('#FFFFFF').fontSize(8).font('Helvetica-Bold');
           analysisX = 45;
@@ -345,8 +409,6 @@ async function generateReportPdf(
         }
 
         const g = grouped.get(key);
-        const tot = g.costoTaglio + g.costoOrlatura + g.costoStrobel + g.altriCosti + g.costoMontaggio;
-        const perc = totalCosti > 0 ? (tot / totalCosti) * 100 : 0;
 
         if (rowIdx % 2 === 0) {
           doc.rect(40, analysisY, analysisColWidths.reduce((a, b) => a + b, 0), 18).fill('#F8F9FA');
@@ -354,7 +416,7 @@ async function generateReportPdf(
         doc.fillColor(secondaryColor);
 
         analysisX = 45;
-        doc.text(key.substring(0, 18), analysisX, analysisY + 5, { width: analysisColWidths[0] - 5 });
+        doc.text(key.substring(0, 16), analysisX, analysisY + 5, { width: analysisColWidths[0] - 5 });
         analysisX += analysisColWidths[0];
         doc.text(g.count.toString(), analysisX, analysisY + 5);
         analysisX += analysisColWidths[1];
@@ -370,12 +432,13 @@ async function generateReportPdf(
         analysisX += analysisColWidths[6];
         doc.text(formatCurrency(g.costoMontaggio), analysisX, analysisY + 5);
         analysisX += analysisColWidths[7];
-        doc.font('Helvetica-Bold').text(formatCurrency(tot), analysisX, analysisY + 5);
+        doc.font('Helvetica-Bold').text(formatCurrency(g.totalCosto), analysisX, analysisY + 5);
         analysisX += analysisColWidths[8];
-        doc.font('Helvetica').text(`${perc.toFixed(1)}%`, analysisX, analysisY + 5);
+        doc.fillColor('#2E7D32').text(formatCurrency(g.fatturato), analysisX, analysisY + 5);
 
         analysisY += 18;
         rowIdx++;
+        doc.font('Helvetica').fillColor(secondaryColor);
       });
 
       // ==================== PAGINA 3: ARTICOLI PER REPARTO (opzionale) ====================
@@ -388,7 +451,6 @@ async function generateReportPdf(
            .font('Helvetica-Bold')
            .text('DETTAGLIO ARTICOLI PER REPARTO E LINEA', 40, 15);
 
-        // Raggruppa per reparto finale -> linea -> articolo
         const byRepartoLinea = new Map<string, Map<string, Map<string, any>>>();
 
         records.forEach((r: any) => {
@@ -407,15 +469,13 @@ async function generateReportPdf(
           const articoloMap = lineaMap.get(lineaNome)!;
 
           if (!articoloMap.has(articoloNome)) {
-            articoloMap.set(articoloNome, { quantita: 0, costo: 0, count: 0 });
+            articoloMap.set(articoloNome, { quantita: 0, costo: 0, fatturato: 0, count: 0 });
           }
           const art = articoloMap.get(articoloNome)!;
-          const qty = Number(r.quantita) || 0;
-          art.quantita += qty;
-          // Moltiplica costi unitari per quantità
-          art.costo += ((Number(r.costoTaglio) || 0) + (Number(r.costoOrlatura) || 0) +
-                       (Number(r.costoStrobel) || 0) + (Number(r.altriCosti) || 0) +
-                       (Number(r.costoMontaggio) || 0)) * qty;
+          const { totalCosto, fatturato } = getApplicableCosts(r, repartoMap);
+          art.quantita += Number(r.quantita) || 0;
+          art.costo += totalCosto;
+          art.fatturato += fatturato;
           art.count++;
         });
 
@@ -428,7 +488,6 @@ async function generateReportPdf(
             detailY = 50;
           }
 
-          // Header reparto
           doc.rect(40, detailY, pageWidth, 20).fill(primaryColor);
           doc.fillColor('#FFFFFF').fontSize(10).font('Helvetica-Bold')
              .text(`REPARTO: ${repartoNome}`, 45, detailY + 5);
@@ -443,30 +502,31 @@ async function generateReportPdf(
               detailY = 50;
             }
 
-            // Subheader linea
             doc.rect(50, detailY, pageWidth - 20, 16).fill(accentColor);
             doc.fillColor(primaryColor).fontSize(9).font('Helvetica-Bold')
                .text(`Linea: ${lineaNome}`, 55, detailY + 4);
             detailY += 20;
 
-            // Mini header articoli
             doc.fillColor('#666').fontSize(7).font('Helvetica-Bold');
             doc.text('Articolo', 60, detailY);
-            doc.text('N°', 250, detailY);
-            doc.text('Quantità', 300, detailY);
-            doc.text('Costo Totale', 380, detailY);
+            doc.text('N°', 220, detailY);
+            doc.text('Quantità', 260, detailY);
+            doc.text('Costo Tot.', 330, detailY);
+            doc.text('Fatturato', 410, detailY);
             detailY += 12;
 
             const articoloMap = lineaMap.get(lineaNome)!;
             const articoliSorted = Array.from(articoloMap.keys()).sort();
 
             doc.font('Helvetica').fontSize(7).fillColor(secondaryColor);
-            articoliSorted.slice(0, 15).forEach((artNome) => { // Limita a 15 articoli per linea
+            articoliSorted.slice(0, 15).forEach((artNome) => {
               const art = articoloMap.get(artNome)!;
-              doc.text(artNome.substring(0, 35), 60, detailY);
-              doc.text(art.count.toString(), 250, detailY);
-              doc.text(art.quantita.toLocaleString('it-IT', { maximumFractionDigits: 0 }), 300, detailY);
-              doc.text(`€ ${art.costo.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 380, detailY);
+              doc.text(artNome.substring(0, 30), 60, detailY);
+              doc.text(art.count.toString(), 220, detailY);
+              doc.text(art.quantita.toLocaleString('it-IT', { maximumFractionDigits: 0 }), 260, detailY);
+              doc.text(`€ ${art.costo.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 330, detailY);
+              doc.fillColor('#2E7D32').text(`€ ${art.fatturato.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 410, detailY);
+              doc.fillColor(secondaryColor);
               detailY += 10;
             });
 
@@ -511,7 +571,7 @@ function formatCurrency(value: number): string {
   return `€ ${value.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-function groupRecordsByRepartoFinale(
+function groupRecordsByKey(
   records: any[],
   groupBy: string,
   repartoMap: Map<number, any>,
@@ -523,7 +583,6 @@ function groupRecordsByRepartoFinale(
 
     switch (groupBy) {
       case 'reparto':
-        // USA REPARTO FINALE!
         key = r.repartoFinale?.nome || 'Non assegnato';
         break;
       case 'linea':
@@ -550,19 +609,23 @@ function groupRecordsByRepartoFinale(
         costoStrobel: 0,
         altriCosti: 0,
         costoMontaggio: 0,
+        totalCosto: 0,
+        fatturato: 0,
       });
     }
 
     const g = grouped.get(key);
-    const qty = Number(r.quantita) || 0;
+    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap);
+
     g.count++;
-    g.quantita += qty;
-    // Moltiplica costo unitario per quantità
-    g.costoTaglio += (Number(r.costoTaglio) || 0) * qty;
-    g.costoOrlatura += (Number(r.costoOrlatura) || 0) * qty;
-    g.costoStrobel += (Number(r.costoStrobel) || 0) * qty;
-    g.altriCosti += (Number(r.altriCosti) || 0) * qty;
-    g.costoMontaggio += (Number(r.costoMontaggio) || 0) * qty;
+    g.quantita += Number(r.quantita) || 0;
+    g.costoTaglio += costs.costoTaglio;
+    g.costoOrlatura += costs.costoOrlatura;
+    g.costoStrobel += costs.costoStrobel;
+    g.altriCosti += costs.altriCosti;
+    g.costoMontaggio += costs.costoMontaggio;
+    g.totalCosto += totalCosto;
+    g.fatturato += fatturato;
   });
 
   return grouped;

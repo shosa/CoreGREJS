@@ -13,6 +13,60 @@ interface ReportFilters {
   includeDetails?: boolean;
 }
 
+// Mappa dei nomi dei campi costo
+const COST_FIELDS = ['costoTaglio', 'costoOrlatura', 'costoStrobel', 'altriCosti', 'costoMontaggio'];
+
+/**
+ * Calcola i costi applicabili per un record in base a:
+ * - costiAssociati del reparto finale (se presente)
+ * - prodottoEstero (se true, esclude taglio e orlatura)
+ */
+function getApplicableCosts(
+  record: any,
+  repartoMap: Map<number, any>,
+): { costs: Record<string, number>; totalCosto: number; fatturato: number } {
+  const qty = Number(record.quantita) || 0;
+  const prezzoUnit = Number(record.prezzoUnitario) || 0;
+  const fatturato = qty * prezzoUnit;
+
+  // Ottieni i costi associati al reparto finale
+  const repartoFinale = record.repartoFinaleId ? repartoMap.get(record.repartoFinaleId) : null;
+  let costiAssociati: string[] | null = null;
+
+  if (repartoFinale?.costiAssociati) {
+    try {
+      costiAssociati = typeof repartoFinale.costiAssociati === 'string'
+        ? JSON.parse(repartoFinale.costiAssociati)
+        : repartoFinale.costiAssociati;
+    } catch {
+      costiAssociati = null;
+    }
+  }
+
+  const costs: Record<string, number> = {};
+  let totalCosto = 0;
+
+  COST_FIELDS.forEach((field) => {
+    let costoUnit = Number(record[field]) || 0;
+
+    // Se prodotto estero, escludi taglio e orlatura
+    if (record.prodottoEstero === true && (field === 'costoTaglio' || field === 'costoOrlatura')) {
+      costoUnit = 0;
+    }
+
+    // Se ci sono costi associati configurati, verifica che questo campo sia incluso
+    if (costiAssociati && costiAssociati.length > 0 && !costiAssociati.includes(field)) {
+      costoUnit = 0;
+    }
+
+    const costoTotale = costoUnit * qty;
+    costs[field] = costoTotale;
+    totalCosto += costoTotale;
+  });
+
+  return { costs, totalCosto, fatturato };
+}
+
 const handler: JobHandler = async (payload, helpers) => {
   const {
     userId,
@@ -34,7 +88,7 @@ const handler: JobHandler = async (payload, helpers) => {
 
   // Build query filters - IMPORTANTE: solo record con repartoFinaleId
   const where: any = {
-    repartoFinaleId: { not: null }, // Solo record completi
+    repartoFinaleId: { not: null },
   };
   if (dataFrom || dataTo) {
     where.dataDocumento = {};
@@ -45,7 +99,7 @@ const handler: JobHandler = async (payload, helpers) => {
       where.dataDocumento.lte = endDate;
     }
   }
-  if (repartoId) where.repartoFinaleId = repartoId; // Usa repartoFinale!
+  if (repartoId) where.repartoFinaleId = repartoId;
   if (tipoDocumento) where.tipoDocumento = tipoDocumento;
   if (linea) where.linea = linea;
 
@@ -59,7 +113,7 @@ const handler: JobHandler = async (payload, helpers) => {
     orderBy: { dataDocumento: 'desc' },
   });
 
-  // Count excluded records (senza repartoFinaleId)
+  // Count excluded records
   const totalRecordsCount = await prisma.analiticaRecord.count({
     where: {
       ...(dataFrom || dataTo ? {
@@ -78,6 +132,9 @@ const handler: JobHandler = async (payload, helpers) => {
   const reparti = await prisma.analiticaReparto.findMany({
     orderBy: { ordine: 'asc' },
   });
+  const repartoMap: Map<number, any> = new Map(
+    reparti.map((r: any) => [r.id as number, r]),
+  );
 
   // Create workbook
   const workbook = new ExcelJS.Workbook();
@@ -121,26 +178,20 @@ const handler: JobHandler = async (payload, helpers) => {
     row++;
   }
 
-  // Calculate totals - NOTA: i costi nei record sono UNITARI, moltiplicare per quantità
+  // Calculate totals con nuova logica (costiAssociati + prodottoEstero)
   let totalQuantita = 0;
-  let totalTaglio = 0;
-  let totalOrlatura = 0;
-  let totalStrobel = 0;
-  let totalAltri = 0;
-  let totalMontaggio = 0;
+  let totalFatturato = 0;
+  const totalCosts: Record<string, number> = {};
+  COST_FIELDS.forEach(f => totalCosts[f] = 0);
+  let grandTotalCosti = 0;
 
   records.forEach((r: any) => {
-    const qty = Number(r.quantita) || 0;
-    totalQuantita += qty;
-    // Moltiplica costo unitario per quantità per ottenere il costo totale del record
-    totalTaglio += (Number(r.costoTaglio) || 0) * qty;
-    totalOrlatura += (Number(r.costoOrlatura) || 0) * qty;
-    totalStrobel += (Number(r.costoStrobel) || 0) * qty;
-    totalAltri += (Number(r.altriCosti) || 0) * qty;
-    totalMontaggio += (Number(r.costoMontaggio) || 0) * qty;
+    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap);
+    totalQuantita += Number(r.quantita) || 0;
+    totalFatturato += fatturato;
+    grandTotalCosti += totalCosto;
+    COST_FIELDS.forEach(f => totalCosts[f] += costs[f]);
   });
-
-  const totalCosti = totalTaglio + totalOrlatura + totalStrobel + totalAltri + totalMontaggio;
 
   // Nota record esclusi
   if (excludedCount > 0) {
@@ -157,28 +208,43 @@ const handler: JobHandler = async (payload, helpers) => {
   row++;
 
   const summaryData = [
-    ['Totale Record', records.length],
-    ['Totale Quantità', totalQuantita],
-    ['Costo Taglio', totalTaglio],
-    ['Costo Orlatura', totalOrlatura],
-    ['Costo Strobel', totalStrobel],
-    ['Altri Costi', totalAltri],
-    ['Costo Montaggio', totalMontaggio],
-    ['COSTO TOTALE', totalCosti],
+    ['Totale Record', records.length, false],
+    ['Totale Quantità', totalQuantita, false],
+    ['Costo Taglio', totalCosts.costoTaglio, true],
+    ['Costo Orlatura', totalCosts.costoOrlatura, true],
+    ['Costo Strobel', totalCosts.costoStrobel, true],
+    ['Altri Costi', totalCosts.altriCosti, true],
+    ['Costo Montaggio', totalCosts.costoMontaggio, true],
+    ['TOTALE COSTI', grandTotalCosti, true],
+    ['FATTURATO', totalFatturato, true],
   ];
 
-  summaryData.forEach(([label, value]) => {
+  summaryData.forEach(([label, value, isCurrency]) => {
     summarySheet.getCell(`A${row}`).value = label as string;
     summarySheet.getCell(`B${row}`).value = value as number;
-    if (typeof value === 'number' && label !== 'Totale Record' && label !== 'Totale Quantità') {
+    if (isCurrency) {
       summarySheet.getCell(`B${row}`).numFmt = '€ #,##0.00';
     }
-    if (label === 'COSTO TOTALE') {
+    if (label === 'TOTALE COSTI' || label === 'FATTURATO') {
       summarySheet.getCell(`A${row}`).font = { bold: true };
       summarySheet.getCell(`B${row}`).font = { bold: true };
     }
+    if (label === 'FATTURATO') {
+      summarySheet.getCell(`A${row}`).font = { bold: true, color: { argb: 'FF2E7D32' } };
+      summarySheet.getCell(`B${row}`).font = { bold: true, color: { argb: 'FF2E7D32' } };
+    }
     row++;
   });
+
+  // Margine
+  if (totalFatturato > 0) {
+    const margine = totalFatturato - grandTotalCosti;
+    summarySheet.getCell(`A${row}`).value = 'MARGINE';
+    summarySheet.getCell(`B${row}`).value = margine;
+    summarySheet.getCell(`B${row}`).numFmt = '€ #,##0.00';
+    summarySheet.getCell(`A${row}`).font = { bold: true, color: { argb: margine >= 0 ? 'FF2E7D32' : 'FFC62828' } };
+    summarySheet.getCell(`B${row}`).font = { bold: true, color: { argb: margine >= 0 ? 'FF2E7D32' : 'FFC62828' } };
+  }
 
   summarySheet.getColumn('A').width = 25;
   summarySheet.getColumn('B').width = 20;
@@ -186,25 +252,32 @@ const handler: JobHandler = async (payload, helpers) => {
   // ==================== SHEET 2: Per Reparto Finale ====================
   const repartoSheet = workbook.addWorksheet('Per Reparto');
 
-  // Group by reparto FINALE - i costi sono unitari, moltiplicare per quantità
+  // Group by reparto FINALE con nuova logica costi
   const byReparto = new Map<string, any>();
   records.forEach((r: any) => {
     const key = r.repartoFinale?.nome || 'Non assegnato';
     if (!byReparto.has(key)) {
-      byReparto.set(key, { count: 0, quantita: 0, costoTaglio: 0, costoOrlatura: 0, costoStrobel: 0, altriCosti: 0, costoMontaggio: 0 });
+      byReparto.set(key, {
+        count: 0, quantita: 0,
+        costoTaglio: 0, costoOrlatura: 0, costoStrobel: 0, altriCosti: 0, costoMontaggio: 0,
+        totalCosto: 0, fatturato: 0
+      });
     }
     const g = byReparto.get(key);
-    const qty = Number(r.quantita) || 0;
+    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap);
     g.count++;
-    g.quantita += qty;
-    g.costoTaglio += (Number(r.costoTaglio) || 0) * qty;
-    g.costoOrlatura += (Number(r.costoOrlatura) || 0) * qty;
-    g.costoStrobel += (Number(r.costoStrobel) || 0) * qty;
-    g.altriCosti += (Number(r.altriCosti) || 0) * qty;
-    g.costoMontaggio += (Number(r.costoMontaggio) || 0) * qty;
+    g.quantita += Number(r.quantita) || 0;
+    g.costoTaglio += costs.costoTaglio;
+    g.costoOrlatura += costs.costoOrlatura;
+    g.costoStrobel += costs.costoStrobel;
+    g.altriCosti += costs.altriCosti;
+    g.costoMontaggio += costs.costoMontaggio;
+    g.totalCosto += totalCosto;
+    g.fatturato += fatturato;
   });
 
-  const repartoHeaders = ['Reparto', 'Record', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Totale', 'Costo Unit.', '% Totale'];
+  // Headers senza % Totale, con Fatturato
+  const repartoHeaders = ['Reparto', 'Record', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tot. Costi', 'Fatturato'];
   repartoHeaders.forEach((h, idx) => {
     repartoSheet.getCell(1, idx + 1).value = h;
     repartoSheet.getCell(1, idx + 1).font = { bold: true };
@@ -214,9 +287,6 @@ const handler: JobHandler = async (payload, helpers) => {
   let repartoRow = 2;
   Array.from(byReparto.keys()).sort().forEach((key) => {
     const g = byReparto.get(key);
-    const tot = g.costoTaglio + g.costoOrlatura + g.costoStrobel + g.altriCosti + g.costoMontaggio;
-    const costoPaio = g.quantita > 0 ? tot / g.quantita : 0;
-    const perc = totalCosti > 0 ? (tot / totalCosti) * 100 : 0;
 
     repartoSheet.getCell(repartoRow, 1).value = key;
     repartoSheet.getCell(repartoRow, 2).value = g.count;
@@ -226,20 +296,19 @@ const handler: JobHandler = async (payload, helpers) => {
     repartoSheet.getCell(repartoRow, 6).value = g.costoStrobel;
     repartoSheet.getCell(repartoRow, 7).value = g.altriCosti;
     repartoSheet.getCell(repartoRow, 8).value = g.costoMontaggio;
-    repartoSheet.getCell(repartoRow, 9).value = tot;
-    repartoSheet.getCell(repartoRow, 10).value = costoPaio;
-    repartoSheet.getCell(repartoRow, 11).value = perc / 100;
+    repartoSheet.getCell(repartoRow, 9).value = g.totalCosto;
+    repartoSheet.getCell(repartoRow, 10).value = g.fatturato;
 
-    // Format
+    // Format cost columns
     for (let col = 4; col <= 10; col++) {
       repartoSheet.getCell(repartoRow, col).numFmt = '€ #,##0.00';
     }
-    repartoSheet.getCell(repartoRow, 11).numFmt = '0.0%';
+    // Fatturato in verde
+    repartoSheet.getCell(repartoRow, 10).font = { color: { argb: 'FF2E7D32' } };
 
     repartoRow++;
   });
 
-  // Auto-fit columns
   repartoSheet.columns.forEach((col, idx) => {
     col.width = idx === 0 ? 25 : 12;
   });
@@ -247,25 +316,31 @@ const handler: JobHandler = async (payload, helpers) => {
   // ==================== SHEET 3: Per Mese ====================
   const meseSheet = workbook.addWorksheet('Per Mese');
 
-  // Group by month - i costi sono unitari, moltiplicare per quantità
+  // Group by month con nuova logica
   const byMese = new Map<string, any>();
   records.forEach((r: any) => {
     const key = r.dataDocumento ? new Date(r.dataDocumento).toISOString().slice(0, 7) : 'Senza data';
     if (!byMese.has(key)) {
-      byMese.set(key, { count: 0, quantita: 0, costoTaglio: 0, costoOrlatura: 0, costoStrobel: 0, altriCosti: 0, costoMontaggio: 0 });
+      byMese.set(key, {
+        count: 0, quantita: 0,
+        costoTaglio: 0, costoOrlatura: 0, costoStrobel: 0, altriCosti: 0, costoMontaggio: 0,
+        totalCosto: 0, fatturato: 0
+      });
     }
     const g = byMese.get(key);
-    const qty = Number(r.quantita) || 0;
+    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap);
     g.count++;
-    g.quantita += qty;
-    g.costoTaglio += (Number(r.costoTaglio) || 0) * qty;
-    g.costoOrlatura += (Number(r.costoOrlatura) || 0) * qty;
-    g.costoStrobel += (Number(r.costoStrobel) || 0) * qty;
-    g.altriCosti += (Number(r.altriCosti) || 0) * qty;
-    g.costoMontaggio += (Number(r.costoMontaggio) || 0) * qty;
+    g.quantita += Number(r.quantita) || 0;
+    g.costoTaglio += costs.costoTaglio;
+    g.costoOrlatura += costs.costoOrlatura;
+    g.costoStrobel += costs.costoStrobel;
+    g.altriCosti += costs.altriCosti;
+    g.costoMontaggio += costs.costoMontaggio;
+    g.totalCosto += totalCosto;
+    g.fatturato += fatturato;
   });
 
-  const meseHeaders = ['Mese', 'Record', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Totale', 'Costo Unit.'];
+  const meseHeaders = ['Mese', 'Record', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tot. Costi', 'Fatturato'];
   meseHeaders.forEach((h, idx) => {
     meseSheet.getCell(1, idx + 1).value = h;
     meseSheet.getCell(1, idx + 1).font = { bold: true };
@@ -275,8 +350,6 @@ const handler: JobHandler = async (payload, helpers) => {
   let meseRow = 2;
   Array.from(byMese.keys()).sort().reverse().forEach((key) => {
     const g = byMese.get(key);
-    const tot = g.costoTaglio + g.costoOrlatura + g.costoStrobel + g.altriCosti + g.costoMontaggio;
-    const costoPaio = g.quantita > 0 ? tot / g.quantita : 0;
 
     meseSheet.getCell(meseRow, 1).value = key;
     meseSheet.getCell(meseRow, 2).value = g.count;
@@ -286,12 +359,13 @@ const handler: JobHandler = async (payload, helpers) => {
     meseSheet.getCell(meseRow, 6).value = g.costoStrobel;
     meseSheet.getCell(meseRow, 7).value = g.altriCosti;
     meseSheet.getCell(meseRow, 8).value = g.costoMontaggio;
-    meseSheet.getCell(meseRow, 9).value = tot;
-    meseSheet.getCell(meseRow, 10).value = costoPaio;
+    meseSheet.getCell(meseRow, 9).value = g.totalCosto;
+    meseSheet.getCell(meseRow, 10).value = g.fatturato;
 
     for (let col = 4; col <= 10; col++) {
       meseSheet.getCell(meseRow, col).numFmt = '€ #,##0.00';
     }
+    meseSheet.getCell(meseRow, 10).font = { color: { argb: 'FF2E7D32' } };
 
     meseRow++;
   });
@@ -307,7 +381,7 @@ const handler: JobHandler = async (payload, helpers) => {
     const detailHeaders = [
       'ID', 'Data', 'Tipo Doc', 'N. Doc', 'Linea', 'Articolo', 'Descrizione',
       'Quantità', 'Prod. Estero', 'Reparto', 'Reparto Finale',
-      'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Totale'
+      'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tot. Costi', 'Fatturato'
     ];
 
     detailHeaders.forEach((h, idx) => {
@@ -318,12 +392,7 @@ const handler: JobHandler = async (payload, helpers) => {
 
     records.forEach((r: any, idx: number) => {
       const rowNum = idx + 2;
-      const qty = Number(r.quantita) || 0;
-      // I costi nel DB sono unitari - calcola totale riga moltiplicando per quantità
-      const costoUnitTotale = (Number(r.costoTaglio) || 0) + (Number(r.costoOrlatura) || 0) +
-                  (Number(r.costoStrobel) || 0) + (Number(r.altriCosti) || 0) +
-                  (Number(r.costoMontaggio) || 0);
-      const costoTotaleRiga = costoUnitTotale * qty;
+      const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap);
 
       detailSheet.getCell(rowNum, 1).value = r.id;
       detailSheet.getCell(rowNum, 2).value = r.dataDocumento ? new Date(r.dataDocumento).toLocaleDateString('it-IT') : '';
@@ -332,28 +401,29 @@ const handler: JobHandler = async (payload, helpers) => {
       detailSheet.getCell(rowNum, 5).value = r.linea || '';
       detailSheet.getCell(rowNum, 6).value = r.articolo || '';
       detailSheet.getCell(rowNum, 7).value = r.descrizioneArt || '';
-      detailSheet.getCell(rowNum, 8).value = qty;
+      detailSheet.getCell(rowNum, 8).value = Number(r.quantita) || 0;
       detailSheet.getCell(rowNum, 9).value = r.prodottoEstero === true ? 'Sì' : r.prodottoEstero === false ? 'No' : '';
       detailSheet.getCell(rowNum, 10).value = r.reparto?.nome || '';
       detailSheet.getCell(rowNum, 11).value = r.repartoFinale?.nome || '';
-      // Costi unitari
-      detailSheet.getCell(rowNum, 12).value = Number(r.costoTaglio) || 0;
-      detailSheet.getCell(rowNum, 13).value = Number(r.costoOrlatura) || 0;
-      detailSheet.getCell(rowNum, 14).value = Number(r.costoStrobel) || 0;
-      detailSheet.getCell(rowNum, 15).value = Number(r.altriCosti) || 0;
-      detailSheet.getCell(rowNum, 16).value = Number(r.costoMontaggio) || 0;
-      // Totale = somma costi unitari * quantità
-      detailSheet.getCell(rowNum, 17).value = costoTotaleRiga;
+      // Costi calcolati (già applicata logica costiAssociati e prodottoEstero)
+      detailSheet.getCell(rowNum, 12).value = costs.costoTaglio;
+      detailSheet.getCell(rowNum, 13).value = costs.costoOrlatura;
+      detailSheet.getCell(rowNum, 14).value = costs.costoStrobel;
+      detailSheet.getCell(rowNum, 15).value = costs.altriCosti;
+      detailSheet.getCell(rowNum, 16).value = costs.costoMontaggio;
+      detailSheet.getCell(rowNum, 17).value = totalCosto;
+      detailSheet.getCell(rowNum, 18).value = fatturato;
 
       // Format cost columns
-      for (let col = 12; col <= 17; col++) {
+      for (let col = 12; col <= 18; col++) {
         detailSheet.getCell(rowNum, col).numFmt = '€ #,##0.00';
       }
+      detailSheet.getCell(rowNum, 18).font = { color: { argb: 'FF2E7D32' } };
     });
 
     // Auto-fit columns
     detailSheet.columns.forEach((col, idx) => {
-      const widths = [6, 12, 12, 12, 15, 15, 25, 8, 10, 20, 20, 10, 10, 10, 10, 10, 12];
+      const widths = [6, 12, 12, 12, 15, 15, 25, 8, 10, 20, 20, 10, 10, 10, 10, 10, 12, 12];
       col.width = widths[idx] || 12;
     });
   }
