@@ -49,7 +49,7 @@ const handler: JobHandler = async (payload, helpers) => {
   const date = new Date();
   const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
   const timeStr = date.toTimeString().slice(0, 8).replace(/:/g, '');
-  const fileName = `CEDOLA_${rip.idRiparazione}_${dateStr}_${timeStr}.pdf`;
+  const fileName = `CEDOLA RIP ${rip.idRiparazione}_${dateStr}_${timeStr}.pdf`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
 
   // TCPDF margins: 7mm = ~20pt (1mm = 2.83465pt)

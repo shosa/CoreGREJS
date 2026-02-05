@@ -22,7 +22,7 @@ const handler: JobHandler = async (payload, helpers) => {
     throw new Error('Informazioni sui colli non trovate nel documento');
   }
 
-  const fileName = `segnacolli_${progressivo}_${new Date().toISOString().split('T')[0]}.pdf`;
+  const fileName = `SOVRACCOLLI DDT ${progressivo}_${new Date().toISOString().split('T')[0]}.pdf`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
 
   const doc = new PDFDocument({

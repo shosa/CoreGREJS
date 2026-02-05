@@ -1433,4 +1433,188 @@ export const inworkApi = {
   },
 };
 
+// ==================== ANALITICHE API ====================
+
+export const analiticheApi = {
+  // ==================== STATS ====================
+
+  getStats: async () => {
+    const response = await api.get('/analitiche/stats');
+    return response.data;
+  },
+
+  // ==================== RECORDS ====================
+
+  getRecords: async (filters?: {
+    search?: string;
+    tipoDocumento?: string;
+    linea?: string;
+    dataFrom?: string;
+    dataTo?: string;
+    prodottoEstero?: boolean | "null";
+    repartoId?: number;
+    importId?: number;
+    page?: number;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.tipoDocumento) params.append('tipoDocumento', filters.tipoDocumento);
+    if (filters?.linea) params.append('linea', filters.linea);
+    if (filters?.dataFrom) params.append('dataFrom', filters.dataFrom);
+    if (filters?.dataTo) params.append('dataTo', filters.dataTo);
+    if (filters?.prodottoEstero !== undefined) params.append('prodottoEstero', filters.prodottoEstero.toString());
+    if (filters?.repartoId) params.append('repartoId', filters.repartoId.toString());
+    if (filters?.importId) params.append('importId', filters.importId.toString());
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    const response = await api.get(`/analitiche/records?${params}`);
+    return response.data;
+  },
+
+  getFilters: async () => {
+    const response = await api.get('/analitiche/filters');
+    return response.data;
+  },
+
+  getRecordById: async (id: number) => {
+    const response = await api.get(`/analitiche/records/${id}`);
+    return response.data;
+  },
+
+  updateRecord: async (id: number, data: {
+    prodottoEstero?: boolean | null;
+    repartoId?: number | null;
+    repartoFinaleId?: number | null;
+    costoTaglio?: number | null;
+    costoOrlatura?: number | null;
+    costoStrobel?: number | null;
+    altriCosti?: number | null;
+    costoMontaggio?: number | null;
+  }) => {
+    const response = await api.put(`/analitiche/records/${id}`, data);
+    return response.data;
+  },
+
+  deleteRecord: async (id: number) => {
+    const response = await api.delete(`/analitiche/records/${id}`);
+    return response.data;
+  },
+
+  // ==================== REPARTI ====================
+
+  getReparti: async (onlyActive = true) => {
+    const response = await api.get(`/analitiche/reparti?onlyActive=${onlyActive}`);
+    return response.data;
+  },
+
+  getRepartoById: async (id: number) => {
+    const response = await api.get(`/analitiche/reparti/${id}`);
+    return response.data;
+  },
+
+  createReparto: async (data: {
+    nome: string;
+    codice?: string;
+    descrizione?: string;
+    attivo?: boolean;
+    ordine?: number;
+    costiAssociati?: string[];
+  }) => {
+    const response = await api.post('/analitiche/reparti', data);
+    return response.data;
+  },
+
+  updateReparto: async (id: number, data: {
+    nome?: string;
+    codice?: string;
+    descrizione?: string;
+    attivo?: boolean;
+    ordine?: number;
+    costiAssociati?: string[];
+  }) => {
+    const response = await api.put(`/analitiche/reparti/${id}`, data);
+    return response.data;
+  },
+
+  deleteReparto: async (id: number) => {
+    const response = await api.delete(`/analitiche/reparti/${id}`);
+    return response.data;
+  },
+
+  // ==================== IMPORTS ====================
+
+  getImports: async (page = 1, limit = 20) => {
+    const response = await api.get(`/analitiche/imports?page=${page}&limit=${limit}`);
+    return response.data;
+  },
+
+  getImportById: async (id: number) => {
+    const response = await api.get(`/analitiche/imports/${id}`);
+    return response.data;
+  },
+
+  deleteImport: async (id: number) => {
+    const response = await api.delete(`/analitiche/imports/${id}`);
+    return response.data;
+  },
+
+  // ==================== EXCEL UPLOAD ====================
+
+  uploadExcel: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/analitiche/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  previewExcel: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/analitiche/preview', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // ==================== TIPI DOCUMENTO ====================
+
+  getTipiDocumento: async () => {
+    const response = await api.get('/analitiche/tipi-documento');
+    return response.data;
+  },
+
+  // ==================== REPORTS ====================
+
+  generatePdfReport: async (data: {
+    dataFrom?: string;
+    dataTo?: string;
+    repartoId?: number;
+    tipoDocumento?: string;
+    linea?: string;
+    groupBy?: 'reparto' | 'linea' | 'tipoDocumento' | 'mese';
+  }) => {
+    const response = await api.post('/analitiche/reports/pdf', data);
+    return response.data;
+  },
+
+  generateExcelReport: async (data: {
+    dataFrom?: string;
+    dataTo?: string;
+    repartoId?: number;
+    tipoDocumento?: string;
+    linea?: string;
+    includeDetails?: boolean;
+  }) => {
+    const response = await api.post('/analitiche/reports/excel', data);
+    return response.data;
+  },
+};
+
 export default api;

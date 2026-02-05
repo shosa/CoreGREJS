@@ -318,7 +318,7 @@ const handler: JobHandler = async (payload, helpers) => {
     throw new Error(`Documento ${progressivo} non trovato`);
   }
 
-  const fileName = `ddt_valorizzato_${progressivo}_${new Date().toISOString().split('T')[0]}.pdf`;
+  const fileName = `DDT ${progressivo}_${new Date().toISOString().split('T')[0]}.pdf`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
 
   const doc = new PDFDocument({

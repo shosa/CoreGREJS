@@ -132,6 +132,21 @@ const menuItems: MenuItem[] = [
       { name: 'Albero Dettagli', href: '/tracking/tree-view', icon: 'fa-sitemap' },
     ]
   },
+  {
+    name: 'Analitiche',
+    href: '/analitiche',
+    icon: 'fa-chart-line',
+    gradient: 'from-emerald-500 to-teal-600',
+    hoverGradient: 'hover:from-emerald-50 hover:to-teal-100 dark:hover:from-emerald-900/20 dark:hover:to-teal-800/20',
+    permission: 'analitiche',
+    children: [
+      { name: 'Dashboard', href: '/analitiche', icon: 'fa-home' },
+      { name: 'Carica Dati', href: '/analitiche/upload', icon: 'fa-file-upload' },
+      { name: 'Elenco Record', href: '/analitiche/records', icon: 'fa-list' },
+      { name: 'Reparti', href: '/analitiche/reparti', icon: 'fa-building' },
+      { name: 'Storico Import', href: '/analitiche/imports', icon: 'fa-history' },
+    ]
+  },
 ];
 
 const adminItems: MenuItem[] = [

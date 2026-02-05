@@ -15,11 +15,29 @@ import { JobHandlerHelpers } from './types';
 
 const QUEUE_NAME = 'coregre-jobs';
 
-type ReportPayload =
+
+
+type BaseReportPayload = {
+  dataFrom?: string;
+  dataTo?: string;
+  repartoId?: number;
+  tipoDocumento?: string;
+  linea?: string;
+};
+
+export type ReportPayload =
   | { lots: string[] }
   | { cartelli: number[] }
   | { date: string }
-  | { csvData: any[] };
+  | { csvData: any[] }
+  | (BaseReportPayload & {
+      groupBy?: 'reparto' | 'linea' | 'tipoDocumento' | 'mese';
+    })
+  | (BaseReportPayload & {
+      includeDetails?: boolean;
+    });
+
+/* ------------------------------------------------------------------ */
 
 @Injectable()
 export class JobsQueueService implements OnModuleInit, OnModuleDestroy {
@@ -40,7 +58,10 @@ export class JobsQueueService implements OnModuleInit, OnModuleDestroy {
     const connection = {
       host: this.configService.get<string>('REDIS_HOST', '127.0.0.1'),
       port: Number(this.configService.get<string>('REDIS_PORT', '6379')),
-      password: this.configService.get<string>('REDIS_PASSWORD', 'coresuite_redis'),
+      password: this.configService.get<string>(
+        'REDIS_PASSWORD',
+        'coresuite_redis',
+      ),
     };
 
     this.queue = new Queue(QUEUE_NAME, {
@@ -71,12 +92,21 @@ export class JobsQueueService implements OnModuleInit, OnModuleDestroy {
 
   async enqueue(type: string, payload: ReportPayload, userId: number) {
     const jobRecord = await this.jobsService.createJob(userId, type, payload);
-    await this.queue.add(type, { ...payload, userId, jobId: jobRecord.id });
+
+    await this.queue.add(type, {
+      ...payload,
+      userId,
+      jobId: jobRecord.id,
+    });
+
     return jobRecord;
   }
 
   private async handleJob(job: Job) {
-    const { jobId, userId } = job.data as { jobId: string; userId: number };
+    const { jobId, userId } = job.data as {
+      jobId: string;
+      userId: number;
+    };
 
     try {
       await this.jobsService.markRunning(jobId);
@@ -97,39 +127,53 @@ export class JobsQueueService implements OnModuleInit, OnModuleDestroy {
 
       const output = await handler(job.data, helpers);
 
-      // Check if output exists
       if (!output) {
         await this.jobsService.markDone(jobId, {});
         return;
       }
 
-      // Upload file to MinIO if it was created
-      // Handlers can return either 'outputPath' or 'fullPath'
       const filePath = output.outputPath || output.fullPath;
 
       if (filePath && fs.existsSync(filePath)) {
-        const fileName = output.outputName || output.fileName || path.basename(filePath);
-        const objectName = this.storageService.generateJobObjectName(userId, jobId, fileName);
+        const fileName =
+          output.outputName ||
+          output.fileName ||
+          path.basename(filePath);
+
+        const objectName =
+          this.storageService.generateJobObjectName(
+            userId,
+            jobId,
+            fileName,
+          );
 
         await this.storageService.uploadFile(objectName, filePath, {
-          'Content-Type': output.outputMime || output.mime || 'application/octet-stream',
+          'Content-Type':
+            output.outputMime ||
+            output.mime ||
+            'application/octet-stream',
           'user-id': String(userId),
           'job-id': jobId,
         });
 
-        // Delete local temp directory after upload (removes file + empty folders)
         try {
-          const jobDir = path.join(process.cwd(), 'storage', 'jobs', String(userId), jobId);
+          const jobDir = path.join(
+            process.cwd(),
+            'storage',
+            'jobs',
+            String(userId),
+            jobId,
+          );
           await fsp.rm(jobDir, { recursive: true, force: true });
           this.logger.log(`Temp directory cleaned: ${jobDir}`);
-        } catch (e) {
-          this.logger.warn(`Failed to delete temp directory: ${e.message}`);
+        } catch (e: any) {
+          this.logger.warn(
+            `Failed to delete temp directory: ${e.message}`,
+          );
         }
 
-        // Update output to reference MinIO object instead of local path
         output.outputPath = objectName;
 
-        // Remove fullPath if it exists (legacy)
         if (output.fullPath) {
           delete output.fullPath;
         }
@@ -137,25 +181,42 @@ export class JobsQueueService implements OnModuleInit, OnModuleDestroy {
 
       await this.jobsService.markDone(jobId, output);
     } catch (err: any) {
-      await this.jobsService.markFailed(jobId, err?.message || 'Errore job');
+      await this.jobsService.markFailed(
+        jobId,
+        err?.message || 'Errore job',
+      );
       throw err;
     }
   }
 
-  private ensureOutputPath = async (userId: number, jobId: string, fileName: string) => {
-    // Use container storage directory (can be a Docker volume)
-    const storageDir = path.join(process.cwd(), 'storage', 'jobs', String(userId), jobId);
+  private ensureOutputPath = async (
+    userId: number,
+    jobId: string,
+    fileName: string,
+  ) => {
+    const storageDir = path.join(
+      process.cwd(),
+      'storage',
+      'jobs',
+      String(userId),
+      jobId,
+    );
+
     await fsp.mkdir(storageDir, { recursive: true });
+
     const fullPath = path.join(storageDir, fileName);
     return { fullPath };
   };
 
-  private waitForPdf = (doc: InstanceType<typeof PDFDocument>, filePath: string) => {
+  private waitForPdf = (
+    doc: InstanceType<typeof PDFDocument>,
+    filePath: string,
+  ) => {
     return new Promise<void>((resolve, reject) => {
       const stream = fs.createWriteStream(filePath);
       doc.pipe(stream);
       stream.on('finish', () => resolve());
-      stream.on('error', (err) => reject(err));
+      stream.on('error', reject);
       doc.end();
     });
   };

@@ -863,6 +863,87 @@ model InworkAvailableModule {
   @@map("inwork_available_modules")
 }
 
+// ==================== ANALITICHE ====================
+
+// Record principale importato da Excel ERP
+model AnaliticaRecord {
+  id               Int      @id @default(autoincrement())
+
+  // Campi estratti dall'Excel ERP
+  tipoDocumento    String?  @map("tipo_documento") @db.VarChar(50)
+  numeroDocumento  String?  @map("numero_documento") @db.VarChar(50)
+  dataDocumento    DateTime? @map("data_documento") @db.Date
+  linea            String?  @db.VarChar(100) // DESCRIZIONE dopo LINEA
+  articolo         String?  @db.VarChar(255)
+  descrizioneArt   String?  @map("descrizione_art") @db.VarChar(255) // DESCRIZIONE dopo ARTICOLO
+  tipologiaOrdine  String?  @map("tipologia_ordine") @db.VarChar(100)
+  quantita         Decimal? @db.Decimal(10, 2)
+  prezzoUnitario   Decimal? @map("prezzo_unitario") @db.Decimal(10, 3)
+
+  // Campi aggiuntivi per analisi costi
+  prodottoEstero   Boolean? @map("prodotto_estero") // flag ITALIA/ESTERO (null = non definito)
+  repartoId        Int?     @map("reparto_id") // se Italia
+  repartoFinaleId  Int?     @map("reparto_finale_id")
+  costoTaglio      Decimal? @map("costo_taglio") @db.Decimal(10, 3)
+  costoOrlatura    Decimal? @map("costo_orlatura") @db.Decimal(10, 3)
+  costoStrobel     Decimal? @map("costo_strobel") @db.Decimal(10, 3)
+  altriCosti       Decimal? @map("altri_costi") @db.Decimal(10, 3)
+  costoMontaggio   Decimal? @map("costo_montaggio") @db.Decimal(10, 3)
+
+  // Riferimento all'import
+  importId         Int?     @map("import_id")
+
+  // Timestamp
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relazioni
+  reparto          AnaliticaReparto?  @relation("RepartoItalia", fields: [repartoId], references: [id])
+  repartoFinale    AnaliticaReparto?  @relation("RepartoFinale", fields: [repartoFinaleId], references: [id])
+  import           AnaliticaImport?   @relation(fields: [importId], references: [id], onDelete: SetNull)
+
+  @@index([dataDocumento])
+  @@index([articolo])
+  @@index([tipoDocumento])
+  @@index([importId])
+  @@map("ana_records")
+}
+
+// Reparti per analisi costi
+model AnaliticaReparto {
+  id             Int      @id @default(autoincrement())
+  nome           String   @db.VarChar(100)
+  codice         String?  @unique @db.VarChar(20)
+  descrizione    String?  @db.Text
+  attivo         Boolean  @default(true)
+  ordine         Int      @default(0)
+  costiAssociati String?  @map("costi_associati") @db.Text // JSON array: ["costoTaglio", "costoOrlatura", ...]
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  recordsReparto       AnaliticaRecord[] @relation("RepartoItalia")
+  recordsRepartoFinale AnaliticaRecord[] @relation("RepartoFinale")
+
+  @@map("ana_reparti")
+}
+
+// Storico importazioni Excel
+model AnaliticaImport {
+  id           Int      @id @default(autoincrement())
+  fileName     String   @map("file_name") @db.VarChar(255)
+  fileSize     Int?     @map("file_size")
+  recordsCount Int      @default(0) @map("records_count")
+  stato        String   @default("completato") @db.VarChar(20) // completato, errore, in_corso
+  errorMessage String?  @map("error_message") @db.Text
+  userId       Int?     @map("user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  records AnaliticaRecord[]
+
+  @@index([createdAt])
+  @@map("ana_imports")
+}
+
 // ==================== FILE MANAGER ====================
 
 model MinioFile {

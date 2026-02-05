@@ -23,7 +23,7 @@ const handler: JobHandler = async (payload, helpers) => {
     tipoCq,
   };
 
-  const fileName = `REPORT_QUALITA_${new Date().toISOString().split('T')[0]}.pdf`;
+  const fileName = `REPORT QUALITA ${new Date().toISOString().split('T')[0]}.pdf`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
 
   // Genera il PDF usando il QualityService attraverso il metodo helper

@@ -27,7 +27,7 @@ const handler: JobHandler = async (payload, helpers) => {
     throw new Error('Nessun dato CSV disponibile per la generazione del report');
   }
 
-  const fileName = `Report_Produzione_CSV_${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`;
+  const fileName = `REPORT PRODUZIONE ${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
 
   // Group data by Fase and Data

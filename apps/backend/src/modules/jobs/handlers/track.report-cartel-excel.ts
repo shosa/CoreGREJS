@@ -7,7 +7,7 @@ const handler: JobHandler = async (payload, helpers) => {
   const { trackingService, ensureOutputPath } = helpers;
 
   const { groupedByCartel, allTypeNames } = await trackingService.getReportDataByCartellini(cartelli);
-  const fileName = `packing_list_cartellini_${new Date().toISOString().split('T')[0]}.xlsx`;
+  const fileName = `TRACKING LIST CARTELLINI ${new Date().toISOString().split('T')[0]}.xlsx`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
 
   const workbook = new ExcelJS.Workbook();

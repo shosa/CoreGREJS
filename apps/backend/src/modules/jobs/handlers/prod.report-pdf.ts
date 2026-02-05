@@ -5,7 +5,7 @@ const handler: JobHandler = async (payload, helpers) => {
   const { date, userId, jobId } = payload as { date: string; userId: number; jobId: string };
   const { produzioneService, ensureOutputPath } = helpers;
 
-  const fileName = `PRODUZIONE_${date}.pdf`;
+  const fileName = `PRODUZIONE ${date}.pdf`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
 
   const buffer = await produzioneService.generatePdf(date);

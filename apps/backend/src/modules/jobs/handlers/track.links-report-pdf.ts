@@ -12,7 +12,7 @@ const handler: JobHandler = async (payload, helpers) => {
   };
   const { ensureOutputPath, trackingService } = helpers;
 
-  const fileName = `REPORT_COLLEGAMENTI_${new Date().toISOString().split('T')[0]}.pdf`;
+  const fileName = `REPORT COLLEGAMENTI ${new Date().toISOString().split('T')[0]}.pdf`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
 
   // Get data from trackingService methods

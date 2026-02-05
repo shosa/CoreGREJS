@@ -27,6 +27,7 @@ import { HealthModule } from './modules/health/health.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { FileManagerModule } from './modules/file-manager/file-manager.module';
 import { MinioModule } from './services/minio.module';
+import { AnaliticheModule } from './modules/analitiche/analitiche.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { MinioModule } from './services/minio.module';
     InworkModule,
     JobsModule,
     MobileModule,
+    AnaliticheModule,
   ],
 })
 export class AppModule {}

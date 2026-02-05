@@ -109,6 +109,18 @@ const moduleConfigs: Record<string, {
     badgeText: 'text-orange-700 dark:text-orange-300',
     toggleBg: 'bg-orange-500',
   },
+  analitiche: {
+    label: 'Analitiche',
+    description: 'Analisi dati, import Excel e statistiche',
+    icon: 'fa-chart-bar',
+    category: 'FUNZIONI',
+    borderColor: 'border-purple-500',
+    bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+    iconBg: 'bg-purple-500',
+    badgeBg: 'bg-purple-100 dark:bg-purple-900/30',
+    badgeText: 'text-purple-700 dark:text-purple-300',
+    toggleBg: 'bg-purple-500',
+  },
   tracking: {
     label: 'Tracking',
     description: 'Tracciabilità materiali e movimentazioni',

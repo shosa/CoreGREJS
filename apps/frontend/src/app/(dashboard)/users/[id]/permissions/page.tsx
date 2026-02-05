@@ -33,6 +33,7 @@ const permissionsCategories: PermissionCategory[] = [
       { key: 'export', name: 'Export/DDT', description: 'Gestione esportazioni e documentazione DDT', icon: 'fa-globe-europe', color: 'purple' },
       { key: 'scm_admin', name: 'SCM', description: 'Supply Chain Management e lanci produzione', icon: 'fa-network-wired', color: 'orange' },
       { key: 'tracking', name: 'Tracking', description: 'Tracciabilità materiali e movimentazioni', icon: 'fa-map-marker-alt', color: 'red' },
+      { key: 'analitiche', name: 'Analitiche', description: 'Analisi dati, import Excel e statistiche', icon: 'fa-chart-bar', color: 'purple' },
     ]
   },
   {

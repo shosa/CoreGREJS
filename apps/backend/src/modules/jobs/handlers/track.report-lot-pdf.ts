@@ -7,7 +7,7 @@ const handler: JobHandler = async (payload, helpers) => {
   const { trackingService, ensureOutputPath, waitForPdf } = helpers;
 
   const { grouped } = await trackingService.getReportDataByLots(lots);
-  const fileName = `packing_list_lotti_${new Date().toISOString().split('T')[0]}.pdf`;
+  const fileName = `TRACKING LIST LOTTI ${new Date().toISOString().split('T')[0]}.pdf`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
 
   const doc = new PDFDocument({ margin: 20, size: 'A4' });

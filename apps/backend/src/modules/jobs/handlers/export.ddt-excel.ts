@@ -15,7 +15,7 @@ const handler: JobHandler = async (payload, helpers) => {
     throw new Error(`Documento ${progressivo} non trovato`);
   }
 
-  const fileName = `ddt_${progressivo}.xlsx`;
+  const fileName = `DDT ${progressivo}.xlsx`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
 
   const workbook = new ExcelJS.Workbook();

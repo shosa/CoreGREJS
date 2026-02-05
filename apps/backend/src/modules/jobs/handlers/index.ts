@@ -13,6 +13,8 @@ import exportDdtExcel from './export.ddt-excel';
 import exportDownloadExcel from './export.download-excel';
 import riparazioniCedolaPdf from './riparazioni.cedola-pdf';
 import qualityReportPdf from './quality.report-pdf';
+import analiticheReportPdf from './analitiche.report-pdf';
+import analiticheReportExcel from './analitiche.report-excel';
 import { JobHandler } from '../types';
 
 export const jobHandlers: Record<string, JobHandler> = {
@@ -31,4 +33,6 @@ export const jobHandlers: Record<string, JobHandler> = {
   'export.download-excel': exportDownloadExcel,
   'riparazioni.cedola-pdf': riparazioniCedolaPdf,
   'quality.report-pdf': qualityReportPdf,
+  'analitiche.report-pdf': analiticheReportPdf,
+  'analitiche.report-excel': analiticheReportExcel,
 };
