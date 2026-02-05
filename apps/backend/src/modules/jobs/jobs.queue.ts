@@ -32,6 +32,7 @@ export type ReportPayload =
   | { csvData: any[] }
   | (BaseReportPayload & {
       groupBy?: 'reparto' | 'linea' | 'tipoDocumento' | 'mese';
+      includeArticoliPerReparto?: boolean;
     })
   | (BaseReportPayload & {
       includeDetails?: boolean;

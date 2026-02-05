@@ -263,6 +263,7 @@ export class AnaliticheController {
       tipoDocumento?: string;
       linea?: string;
       groupBy?: 'reparto' | 'linea' | 'tipoDocumento' | 'mese';
+      includeArticoliPerReparto?: boolean;
     },
     @Request() req: any
   ) {
@@ -276,6 +277,7 @@ export class AnaliticheController {
         tipoDocumento: data.tipoDocumento,
         linea: data.linea,
         groupBy: data.groupBy || 'reparto',
+        includeArticoliPerReparto: data.includeArticoliPerReparto || false,
       },
       userId
     );

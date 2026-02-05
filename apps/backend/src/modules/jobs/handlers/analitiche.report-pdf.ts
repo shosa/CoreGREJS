@@ -495,7 +495,7 @@ async function generateReportPdf(
              `Pagina ${i + 1} di ${pages.count}  |  CoreGRE Sistema Analitico  |  Report generato automaticamente`,
              40,
              doc.page.height - 20,
-             { align: 'center', width: pageWidth }
+             { align: 'center', width: pageWidth, lineBreak: false }
            );
       }
 
