@@ -12,6 +12,7 @@ interface ReportFilters {
   linea?: string;
   groupBy?: 'reparto' | 'linea' | 'tipoDocumento' | 'mese';
   includeArticoliPerReparto?: boolean;
+  showUncorrelatedCosts?: boolean;
 }
 
 // Mappa dei nomi dei campi costo
@@ -26,12 +27,13 @@ const COST_LABELS: Record<string, string> = {
 
 /**
  * Calcola i costi applicabili per un record in base a:
- * - costiAssociati del reparto finale (se presente)
+ * - costiAssociati del reparto finale (se presente e showUncorrelatedCosts = false)
  * - prodottoEstero (se true, esclude taglio e orlatura)
  */
 function getApplicableCosts(
   record: any,
   repartoMap: Map<number, any>,
+  showUncorrelatedCosts: boolean = false,
 ): { costs: Record<string, number>; totalCosto: number; fatturato: number } {
   const qty = Number(record.quantita) || 0;
   const prezzoUnit = Number(record.prezzoUnitario) || 0;
@@ -41,7 +43,7 @@ function getApplicableCosts(
   const repartoFinale = record.repartoFinaleId ? repartoMap.get(record.repartoFinaleId) : null;
   let costiAssociati: string[] | null = null;
 
-  if (repartoFinale?.costiAssociati) {
+  if (!showUncorrelatedCosts && repartoFinale?.costiAssociati) {
     try {
       costiAssociati = typeof repartoFinale.costiAssociati === 'string'
         ? JSON.parse(repartoFinale.costiAssociati)
@@ -62,8 +64,8 @@ function getApplicableCosts(
       costoUnit = 0;
     }
 
-    // Se ci sono costi associati configurati, verifica che questo campo sia incluso
-    if (costiAssociati && costiAssociati.length > 0 && !costiAssociati.includes(field)) {
+    // Se ci sono costi associati configurati e non showUncorrelatedCosts, verifica che questo campo sia incluso
+    if (!showUncorrelatedCosts && costiAssociati && costiAssociati.length > 0 && !costiAssociati.includes(field)) {
       costoUnit = 0;
     }
 
@@ -86,6 +88,7 @@ const handler: JobHandler = async (payload, helpers) => {
     linea,
     groupBy = 'reparto',
     includeArticoliPerReparto = false,
+    showUncorrelatedCosts = false,
   } = payload as ReportFilters;
 
   const { ensureOutputPath, trackingService } = helpers;
@@ -155,6 +158,7 @@ const handler: JobHandler = async (payload, helpers) => {
     linea,
     groupBy,
     includeArticoliPerReparto,
+    showUncorrelatedCosts,
     excludedCount,
   });
 
@@ -180,7 +184,6 @@ async function generateReportPdf(
         margin: 40,
         size: 'A4',
         layout: 'landscape',
-        bufferPages: true,
         info: {
           Title: 'Report Analisi Costi',
           Author: 'CoreGRE Sistema Analitico',
@@ -243,6 +246,11 @@ async function generateReportPdf(
         filterY += 15;
       }
       doc.text(`Raggruppamento: ${filters.groupBy.toUpperCase()}`, 50, filterY);
+      if (filters.showUncorrelatedCosts) {
+        filterY += 15;
+        doc.fillColor('#FF6F00').text('* Inclusi costi non correlati ai reparti', 50, filterY);
+        doc.fillColor(secondaryColor);
+      }
 
       // Calculate totals con nuova logica
       let totalQuantita = 0;
@@ -252,7 +260,7 @@ async function generateReportPdf(
       let grandTotalCosti = 0;
 
       records.forEach((r: any) => {
-        const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap);
+        const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap, filters.showUncorrelatedCosts);
         totalQuantita += Number(r.quantita) || 0;
         totalFatturato += fatturato;
         grandTotalCosti += totalCosto;
@@ -281,17 +289,6 @@ async function generateReportPdf(
         doc.fillColor('#666').fontSize(8).font('Helvetica').text(kpi.label, kpi.x, kpi.y);
         doc.fillColor(secondaryColor).fontSize(14).font('Helvetica-Bold').text(kpi.value, kpi.x, kpi.y + 12);
       });
-
-      // Margine
-      if (totalFatturato > 0) {
-        const margine = totalFatturato - grandTotalCosti;
-        const marginePerc = (margine / totalFatturato) * 100;
-        doc.fillColor('#666').fontSize(8).font('Helvetica').text('Margine', kpiBoxX + 15, kpiBoxY + 70);
-        doc.fillColor(margine >= 0 ? '#2E7D32' : '#C62828')
-           .fontSize(14)
-           .font('Helvetica-Bold')
-           .text(`€ ${margine.toLocaleString('it-IT', { minimumFractionDigits: 2 })} (${marginePerc.toFixed(1)}%)`, kpiBoxX + 15, kpiBoxY + 82);
-      }
 
       // Nota record esclusi
       if (filters.excludedCount > 0) {
@@ -349,7 +346,7 @@ async function generateReportPdf(
         tableY += 20;
       });
 
-      // Riga totale
+      // Riga totale costi
       doc.rect(40, tableY, costColWidths.reduce((a, b) => a + b, 0), 22).fill(primaryColor);
       doc.fillColor('#FFFFFF').fontSize(10).font('Helvetica-Bold');
       doc.text('TOTALE COSTI', 45, tableY + 6);
@@ -372,7 +369,7 @@ async function generateReportPdf(
          .text(`ANALISI PER ${filters.groupBy.toUpperCase()}`, 40, 15);
 
       // Raggruppa i dati
-      const grouped = groupRecordsByKey(records, filters.groupBy, repartoMap);
+      const grouped = groupRecordsByKey(records, filters.groupBy, repartoMap, filters.showUncorrelatedCosts);
 
       // Headers senza % totale
       const analysisHeaders = [filters.groupBy.charAt(0).toUpperCase() + filters.groupBy.slice(1), 'N° Doc', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tot. Costi', 'Fatturato'];
@@ -457,6 +454,7 @@ async function generateReportPdf(
           const repartoNome = r.repartoFinale?.nome || 'Non assegnato';
           const lineaNome = r.linea || 'Non specificata';
           const articoloNome = r.articolo || 'N/D';
+          const descrizioneArt = r.descrizioneArt || '';
 
           if (!byRepartoLinea.has(repartoNome)) {
             byRepartoLinea.set(repartoNome, new Map());
@@ -468,15 +466,20 @@ async function generateReportPdf(
           }
           const articoloMap = lineaMap.get(lineaNome)!;
 
-          if (!articoloMap.has(articoloNome)) {
-            articoloMap.set(articoloNome, { quantita: 0, costo: 0, fatturato: 0, count: 0 });
+          // Chiave = articolo + descrizione per unicità
+          const artKey = articoloNome;
+          if (!articoloMap.has(artKey)) {
+            articoloMap.set(artKey, { quantita: 0, costo: 0, fatturato: 0, descrizione: descrizioneArt });
           }
-          const art = articoloMap.get(articoloNome)!;
-          const { totalCosto, fatturato } = getApplicableCosts(r, repartoMap);
+          const art = articoloMap.get(artKey)!;
+          const { totalCosto, fatturato } = getApplicableCosts(r, repartoMap, filters.showUncorrelatedCosts);
           art.quantita += Number(r.quantita) || 0;
           art.costo += totalCosto;
           art.fatturato += fatturato;
-          art.count++;
+          // Usa la prima descrizione trovata
+          if (!art.descrizione && descrizioneArt) {
+            art.descrizione = descrizioneArt;
+          }
         });
 
         let detailY = 70;
@@ -507,12 +510,13 @@ async function generateReportPdf(
                .text(`Linea: ${lineaNome}`, 55, detailY + 4);
             detailY += 20;
 
+            // Header articoli - RIMOSSO N°, AGGIUNTO Descrizione
             doc.fillColor('#666').fontSize(7).font('Helvetica-Bold');
             doc.text('Articolo', 60, detailY);
-            doc.text('N°', 220, detailY);
-            doc.text('Quantità', 260, detailY);
-            doc.text('Costo Tot.', 330, detailY);
-            doc.text('Fatturato', 410, detailY);
+            doc.text('Descrizione', 180, detailY);
+            doc.text('Quantità', 380, detailY);
+            doc.text('Costo Tot.', 450, detailY);
+            doc.text('Fatturato', 530, detailY);
             detailY += 12;
 
             const articoloMap = lineaMap.get(lineaNome)!;
@@ -521,11 +525,11 @@ async function generateReportPdf(
             doc.font('Helvetica').fontSize(7).fillColor(secondaryColor);
             articoliSorted.slice(0, 15).forEach((artNome) => {
               const art = articoloMap.get(artNome)!;
-              doc.text(artNome.substring(0, 30), 60, detailY);
-              doc.text(art.count.toString(), 220, detailY);
-              doc.text(art.quantita.toLocaleString('it-IT', { maximumFractionDigits: 0 }), 260, detailY);
-              doc.text(`€ ${art.costo.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 330, detailY);
-              doc.fillColor('#2E7D32').text(`€ ${art.fatturato.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 410, detailY);
+              doc.text(artNome.substring(0, 20), 60, detailY);
+              doc.text((art.descrizione || '').substring(0, 30), 180, detailY);
+              doc.text(art.quantita.toLocaleString('it-IT', { maximumFractionDigits: 0 }), 380, detailY);
+              doc.text(`€ ${art.costo.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 450, detailY);
+              doc.fillColor('#2E7D32').text(`€ ${art.fatturato.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 530, detailY);
               doc.fillColor(secondaryColor);
               detailY += 10;
             });
@@ -541,22 +545,6 @@ async function generateReportPdf(
 
           detailY += 10;
         });
-      }
-
-      // ==================== FOOTER SU TUTTE LE PAGINE ====================
-      const pages = doc.bufferedPageRange();
-      for (let i = 0; i < pages.count; i++) {
-        doc.switchToPage(i);
-        doc.rect(0, doc.page.height - 30, doc.page.width, 30).fill('#F5F5F5');
-        doc.fillColor('#666')
-           .fontSize(8)
-           .font('Helvetica')
-           .text(
-             `Pagina ${i + 1} di ${pages.count}  |  CoreGRE Sistema Analitico  |  Report generato automaticamente`,
-             40,
-             doc.page.height - 20,
-             { align: 'center', width: pageWidth, lineBreak: false }
-           );
       }
 
       doc.end();
@@ -575,6 +563,7 @@ function groupRecordsByKey(
   records: any[],
   groupBy: string,
   repartoMap: Map<number, any>,
+  showUncorrelatedCosts: boolean = false,
 ): Map<string, any> {
   const grouped = new Map<string, any>();
 
@@ -615,7 +604,7 @@ function groupRecordsByKey(
     }
 
     const g = grouped.get(key);
-    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap);
+    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts);
 
     g.count++;
     g.quantita += Number(r.quantita) || 0;

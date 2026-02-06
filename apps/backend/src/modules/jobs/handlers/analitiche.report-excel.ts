@@ -11,6 +11,7 @@ interface ReportFilters {
   tipoDocumento?: string;
   linea?: string;
   includeDetails?: boolean;
+  showUncorrelatedCosts?: boolean;
 }
 
 // Mappa dei nomi dei campi costo
@@ -18,12 +19,13 @@ const COST_FIELDS = ['costoTaglio', 'costoOrlatura', 'costoStrobel', 'altriCosti
 
 /**
  * Calcola i costi applicabili per un record in base a:
- * - costiAssociati del reparto finale (se presente)
+ * - costiAssociati del reparto finale (se presente e showUncorrelatedCosts = false)
  * - prodottoEstero (se true, esclude taglio e orlatura)
  */
 function getApplicableCosts(
   record: any,
   repartoMap: Map<number, any>,
+  showUncorrelatedCosts: boolean = false,
 ): { costs: Record<string, number>; totalCosto: number; fatturato: number } {
   const qty = Number(record.quantita) || 0;
   const prezzoUnit = Number(record.prezzoUnitario) || 0;
@@ -33,7 +35,7 @@ function getApplicableCosts(
   const repartoFinale = record.repartoFinaleId ? repartoMap.get(record.repartoFinaleId) : null;
   let costiAssociati: string[] | null = null;
 
-  if (repartoFinale?.costiAssociati) {
+  if (!showUncorrelatedCosts && repartoFinale?.costiAssociati) {
     try {
       costiAssociati = typeof repartoFinale.costiAssociati === 'string'
         ? JSON.parse(repartoFinale.costiAssociati)
@@ -54,8 +56,8 @@ function getApplicableCosts(
       costoUnit = 0;
     }
 
-    // Se ci sono costi associati configurati, verifica che questo campo sia incluso
-    if (costiAssociati && costiAssociati.length > 0 && !costiAssociati.includes(field)) {
+    // Se ci sono costi associati configurati e non showUncorrelatedCosts, verifica che questo campo sia incluso
+    if (!showUncorrelatedCosts && costiAssociati && costiAssociati.length > 0 && !costiAssociati.includes(field)) {
       costoUnit = 0;
     }
 
@@ -77,6 +79,7 @@ const handler: JobHandler = async (payload, helpers) => {
     tipoDocumento,
     linea,
     includeDetails = false,
+    showUncorrelatedCosts = false,
   } = payload as ReportFilters;
 
   const { trackingService, ensureOutputPath } = helpers;
@@ -177,6 +180,11 @@ const handler: JobHandler = async (payload, helpers) => {
     summarySheet.getCell(`A${row}`).value = `Linea: ${linea}`;
     row++;
   }
+  if (showUncorrelatedCosts) {
+    summarySheet.getCell(`A${row}`).value = '* Inclusi costi non correlati ai reparti';
+    summarySheet.getCell(`A${row}`).font = { italic: true, color: { argb: 'FFFF6F00' } };
+    row++;
+  }
 
   // Calculate totals con nuova logica (costiAssociati + prodottoEstero)
   let totalQuantita = 0;
@@ -186,7 +194,7 @@ const handler: JobHandler = async (payload, helpers) => {
   let grandTotalCosti = 0;
 
   records.forEach((r: any) => {
-    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap);
+    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts);
     totalQuantita += Number(r.quantita) || 0;
     totalFatturato += fatturato;
     grandTotalCosti += totalCosto;
@@ -236,16 +244,6 @@ const handler: JobHandler = async (payload, helpers) => {
     row++;
   });
 
-  // Margine
-  if (totalFatturato > 0) {
-    const margine = totalFatturato - grandTotalCosti;
-    summarySheet.getCell(`A${row}`).value = 'MARGINE';
-    summarySheet.getCell(`B${row}`).value = margine;
-    summarySheet.getCell(`B${row}`).numFmt = '€ #,##0.00';
-    summarySheet.getCell(`A${row}`).font = { bold: true, color: { argb: margine >= 0 ? 'FF2E7D32' : 'FFC62828' } };
-    summarySheet.getCell(`B${row}`).font = { bold: true, color: { argb: margine >= 0 ? 'FF2E7D32' : 'FFC62828' } };
-  }
-
   summarySheet.getColumn('A').width = 25;
   summarySheet.getColumn('B').width = 20;
 
@@ -264,7 +262,7 @@ const handler: JobHandler = async (payload, helpers) => {
       });
     }
     const g = byReparto.get(key);
-    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap);
+    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts);
     g.count++;
     g.quantita += Number(r.quantita) || 0;
     g.costoTaglio += costs.costoTaglio;
@@ -328,7 +326,7 @@ const handler: JobHandler = async (payload, helpers) => {
       });
     }
     const g = byMese.get(key);
-    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap);
+    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts);
     g.count++;
     g.quantita += Number(r.quantita) || 0;
     g.costoTaglio += costs.costoTaglio;
@@ -392,7 +390,7 @@ const handler: JobHandler = async (payload, helpers) => {
 
     records.forEach((r: any, idx: number) => {
       const rowNum = idx + 2;
-      const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap);
+      const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts);
 
       detailSheet.getCell(rowNum, 1).value = r.id;
       detailSheet.getCell(rowNum, 2).value = r.dataDocumento ? new Date(r.dataDocumento).toLocaleDateString('it-IT') : '';

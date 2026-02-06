@@ -264,6 +264,7 @@ export class AnaliticheController {
       linea?: string;
       groupBy?: 'reparto' | 'linea' | 'tipoDocumento' | 'mese';
       includeArticoliPerReparto?: boolean;
+      showUncorrelatedCosts?: boolean;
     },
     @Request() req: any
   ) {
@@ -278,6 +279,7 @@ export class AnaliticheController {
         linea: data.linea,
         groupBy: data.groupBy || 'reparto',
         includeArticoliPerReparto: data.includeArticoliPerReparto || false,
+        showUncorrelatedCosts: data.showUncorrelatedCosts || false,
       },
       userId
     );
@@ -295,6 +297,7 @@ export class AnaliticheController {
       tipoDocumento?: string;
       linea?: string;
       includeDetails?: boolean;
+      showUncorrelatedCosts?: boolean;
     },
     @Request() req: any
   ) {
@@ -308,6 +311,7 @@ export class AnaliticheController {
         tipoDocumento: data.tipoDocumento,
         linea: data.linea,
         includeDetails: data.includeDetails || false,
+        showUncorrelatedCosts: data.showUncorrelatedCosts || false,
       },
       userId
     );
