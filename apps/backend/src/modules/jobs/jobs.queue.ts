@@ -33,9 +33,11 @@ export type ReportPayload =
   | (BaseReportPayload & {
       groupBy?: 'reparto' | 'linea' | 'tipoDocumento' | 'mese';
       includeArticoliPerReparto?: boolean;
+      showUncorrelatedCosts?: boolean;
     })
   | (BaseReportPayload & {
       includeDetails?: boolean;
+      showUncorrelatedCosts?: boolean;
     });
 
 /* ------------------------------------------------------------------ */
