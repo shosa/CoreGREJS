@@ -13,6 +13,7 @@ interface ReportFilters {
   groupBy?: 'reparto' | 'linea' | 'tipoDocumento' | 'mese';
   includeArticoliPerReparto?: boolean;
   showUncorrelatedCosts?: boolean;
+  showCostoTomaia?: boolean;
 }
 
 // Mappa dei nomi dei campi costo
@@ -28,13 +29,15 @@ const COST_LABELS: Record<string, string> = {
 /**
  * Calcola i costi applicabili per un record in base a:
  * - costiAssociati del reparto finale (se presente e showUncorrelatedCosts = false)
- * - prodottoEstero (se true, esclude taglio e orlatura)
+ * - prodottoEstero (se true, esclude taglio e orlatura MA se showCostoTomaia aggiunge costoTomaia)
+ * - showCostoTomaia (se true e prodottoEstero, aggiunge Costo Tomaia = Taglio + Orlatura)
  */
 function getApplicableCosts(
   record: any,
   repartoMap: Map<number, any>,
   showUncorrelatedCosts: boolean = false,
-): { costs: Record<string, number>; totalCosto: number; fatturato: number } {
+  showCostoTomaia: boolean = false,
+): { costs: Record<string, number>; totalCosto: number; fatturato: number; costoTomaia: number } {
   const qty = Number(record.quantita) || 0;
   const prezzoUnit = Number(record.prezzoUnitario) || 0;
   const fatturato = qty * prezzoUnit;
@@ -55,11 +58,19 @@ function getApplicableCosts(
 
   const costs: Record<string, number> = {};
   let totalCosto = 0;
+  let costoTomaia = 0;
+
+  // Calcola Costo Tomaia per prodotti esteri (Taglio + Orlatura) * qty
+  if (showCostoTomaia && record.prodottoEstero === true) {
+    const costoTaglioUnit = Number(record.costoTaglio) || 0;
+    const costoOrlaturaUnit = Number(record.costoOrlatura) || 0;
+    costoTomaia = (costoTaglioUnit + costoOrlaturaUnit) * qty;
+  }
 
   COST_FIELDS.forEach((field) => {
     let costoUnit = Number(record[field]) || 0;
 
-    // Se prodotto estero, escludi taglio e orlatura
+    // Se prodotto estero, escludi taglio e orlatura (vengono sommati in costoTomaia se showCostoTomaia)
     if (record.prodottoEstero === true && (field === 'costoTaglio' || field === 'costoOrlatura')) {
       costoUnit = 0;
     }
@@ -74,7 +85,10 @@ function getApplicableCosts(
     totalCosto += costoTotale;
   });
 
-  return { costs, totalCosto, fatturato };
+  // Aggiungi costo tomaia al totale
+  totalCosto += costoTomaia;
+
+  return { costs, totalCosto, fatturato, costoTomaia };
 }
 
 const handler: JobHandler = async (payload, helpers) => {
@@ -89,6 +103,7 @@ const handler: JobHandler = async (payload, helpers) => {
     groupBy = 'reparto',
     includeArticoliPerReparto = false,
     showUncorrelatedCosts = false,
+    showCostoTomaia = false,
   } = payload as ReportFilters;
 
   const { ensureOutputPath, trackingService } = helpers;
@@ -159,6 +174,7 @@ const handler: JobHandler = async (payload, helpers) => {
     groupBy,
     includeArticoliPerReparto,
     showUncorrelatedCosts,
+    showCostoTomaia,
     excludedCount,
   });
 
@@ -251,19 +267,26 @@ async function generateReportPdf(
         doc.fillColor('#FF6F00').text('* Inclusi costi non correlati ai reparti', 50, filterY);
         doc.fillColor(secondaryColor);
       }
+      if (filters.showCostoTomaia) {
+        filterY += 15;
+        doc.fillColor('#7B1FA2').text('* Costo Tomaia attivo (Taglio+Orlatura per esteri)', 50, filterY);
+        doc.fillColor(secondaryColor);
+      }
 
       // Calculate totals con nuova logica
       let totalQuantita = 0;
       let totalFatturato = 0;
+      let totalCostoTomaia = 0;
       const totalCosts: Record<string, number> = {};
       COST_FIELDS.forEach(f => totalCosts[f] = 0);
       let grandTotalCosti = 0;
 
       records.forEach((r: any) => {
-        const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap, filters.showUncorrelatedCosts);
+        const { costs, totalCosto, fatturato, costoTomaia } = getApplicableCosts(r, repartoMap, filters.showUncorrelatedCosts, filters.showCostoTomaia);
         totalQuantita += Number(r.quantita) || 0;
         totalFatturato += fatturato;
         grandTotalCosti += totalCosto;
+        totalCostoTomaia += costoTomaia;
         COST_FIELDS.forEach(f => totalCosts[f] += costs[f]);
       });
 
@@ -323,11 +346,12 @@ async function generateReportPdf(
       tableY += 22;
       doc.font('Helvetica').fontSize(9);
 
-      COST_FIELDS.forEach((field, idx) => {
+      let rowCounter = 0;
+      COST_FIELDS.forEach((field) => {
         const value = totalCosts[field];
         const perc = grandTotalCosti > 0 ? (value / grandTotalCosti) * 100 : 0;
 
-        if (idx % 2 === 0) {
+        if (rowCounter % 2 === 0) {
           doc.rect(40, tableY, costColWidths.reduce((a, b) => a + b, 0), 20).fill('#F5F5F5');
         }
         doc.fillColor(secondaryColor);
@@ -344,7 +368,34 @@ async function generateReportPdf(
         doc.fillColor(secondaryColor).text(`${perc.toFixed(1)}%`, tableX + barWidth + 5, tableY + 6);
 
         tableY += 20;
+        rowCounter++;
       });
+
+      // Riga Costo Tomaia (solo se showCostoTomaia attivo e c'è valore)
+      if (filters.showCostoTomaia && totalCostoTomaia > 0) {
+        const percTomaia = grandTotalCosti > 0 ? (totalCostoTomaia / grandTotalCosti) * 100 : 0;
+
+        if (rowCounter % 2 === 0) {
+          doc.rect(40, tableY, costColWidths.reduce((a, b) => a + b, 0), 20).fill('#F3E5F5');
+        } else {
+          doc.rect(40, tableY, costColWidths.reduce((a, b) => a + b, 0), 20).fill('#EDE7F6');
+        }
+        doc.fillColor('#7B1FA2').font('Helvetica-Bold');
+
+        tableX = 45;
+        doc.text('Costo Tomaia', tableX, tableY + 6);
+        tableX += costColWidths[0];
+        doc.text(`€ ${totalCostoTomaia.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, tableX, tableY + 6);
+        tableX += costColWidths[1];
+
+        // Barra grafica incidenza viola
+        const barWidth = (percTomaia / 100) * 320;
+        doc.rect(tableX, tableY + 5, barWidth, 10).fill('#7B1FA2');
+        doc.fillColor('#7B1FA2').text(`${percTomaia.toFixed(1)}%`, tableX + barWidth + 5, tableY + 6);
+
+        tableY += 20;
+        doc.font('Helvetica').fillColor(secondaryColor);
+      }
 
       // Riga totale costi
       doc.rect(40, tableY, costColWidths.reduce((a, b) => a + b, 0), 22).fill(primaryColor);
@@ -369,7 +420,7 @@ async function generateReportPdf(
          .text(`ANALISI PER ${filters.groupBy.toUpperCase()}`, 40, 15);
 
       // Raggruppa i dati
-      const grouped = groupRecordsByKey(records, filters.groupBy, repartoMap, filters.showUncorrelatedCosts);
+      const grouped = groupRecordsByKey(records, filters.groupBy, repartoMap, filters.showUncorrelatedCosts, filters.showCostoTomaia);
 
       // Headers senza % totale
       const analysisHeaders = [filters.groupBy.charAt(0).toUpperCase() + filters.groupBy.slice(1), 'N° Doc', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tot. Costi', 'Fatturato'];
@@ -472,7 +523,7 @@ async function generateReportPdf(
             articoloMap.set(artKey, { quantita: 0, costo: 0, fatturato: 0, descrizione: descrizioneArt });
           }
           const art = articoloMap.get(artKey)!;
-          const { totalCosto, fatturato } = getApplicableCosts(r, repartoMap, filters.showUncorrelatedCosts);
+          const { totalCosto, fatturato } = getApplicableCosts(r, repartoMap, filters.showUncorrelatedCosts, filters.showCostoTomaia);
           art.quantita += Number(r.quantita) || 0;
           art.costo += totalCosto;
           art.fatturato += fatturato;
@@ -564,6 +615,7 @@ function groupRecordsByKey(
   groupBy: string,
   repartoMap: Map<number, any>,
   showUncorrelatedCosts: boolean = false,
+  showCostoTomaia: boolean = false,
 ): Map<string, any> {
   const grouped = new Map<string, any>();
 
@@ -598,13 +650,14 @@ function groupRecordsByKey(
         costoStrobel: 0,
         altriCosti: 0,
         costoMontaggio: 0,
+        costoTomaia: 0,
         totalCosto: 0,
         fatturato: 0,
       });
     }
 
     const g = grouped.get(key);
-    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts);
+    const { costs, totalCosto, fatturato, costoTomaia } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts, showCostoTomaia);
 
     g.count++;
     g.quantita += Number(r.quantita) || 0;
@@ -613,6 +666,7 @@ function groupRecordsByKey(
     g.costoStrobel += costs.costoStrobel;
     g.altriCosti += costs.altriCosti;
     g.costoMontaggio += costs.costoMontaggio;
+    g.costoTomaia += costoTomaia;
     g.totalCosto += totalCosto;
     g.fatturato += fatturato;
   });

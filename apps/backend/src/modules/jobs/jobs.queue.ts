@@ -34,10 +34,12 @@ export type ReportPayload =
       groupBy?: 'reparto' | 'linea' | 'tipoDocumento' | 'mese';
       includeArticoliPerReparto?: boolean;
       showUncorrelatedCosts?: boolean;
+      showCostoTomaia?: boolean;
     })
   | (BaseReportPayload & {
       includeDetails?: boolean;
       showUncorrelatedCosts?: boolean;
+      showCostoTomaia?: boolean;
     });
 
 /* ------------------------------------------------------------------ */

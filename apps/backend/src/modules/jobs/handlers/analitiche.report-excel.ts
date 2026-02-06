@@ -12,6 +12,7 @@ interface ReportFilters {
   linea?: string;
   includeDetails?: boolean;
   showUncorrelatedCosts?: boolean;
+  showCostoTomaia?: boolean;
 }
 
 // Mappa dei nomi dei campi costo
@@ -20,13 +21,15 @@ const COST_FIELDS = ['costoTaglio', 'costoOrlatura', 'costoStrobel', 'altriCosti
 /**
  * Calcola i costi applicabili per un record in base a:
  * - costiAssociati del reparto finale (se presente e showUncorrelatedCosts = false)
- * - prodottoEstero (se true, esclude taglio e orlatura)
+ * - prodottoEstero (se true, esclude taglio e orlatura MA se showCostoTomaia aggiunge costoTomaia)
+ * - showCostoTomaia (se true e prodottoEstero, aggiunge Costo Tomaia = Taglio + Orlatura)
  */
 function getApplicableCosts(
   record: any,
   repartoMap: Map<number, any>,
   showUncorrelatedCosts: boolean = false,
-): { costs: Record<string, number>; totalCosto: number; fatturato: number } {
+  showCostoTomaia: boolean = false,
+): { costs: Record<string, number>; totalCosto: number; fatturato: number; costoTomaia: number } {
   const qty = Number(record.quantita) || 0;
   const prezzoUnit = Number(record.prezzoUnitario) || 0;
   const fatturato = qty * prezzoUnit;
@@ -47,11 +50,19 @@ function getApplicableCosts(
 
   const costs: Record<string, number> = {};
   let totalCosto = 0;
+  let costoTomaia = 0;
+
+  // Calcola Costo Tomaia per prodotti esteri (Taglio + Orlatura) * qty
+  if (showCostoTomaia && record.prodottoEstero === true) {
+    const costoTaglioUnit = Number(record.costoTaglio) || 0;
+    const costoOrlaturaUnit = Number(record.costoOrlatura) || 0;
+    costoTomaia = (costoTaglioUnit + costoOrlaturaUnit) * qty;
+  }
 
   COST_FIELDS.forEach((field) => {
     let costoUnit = Number(record[field]) || 0;
 
-    // Se prodotto estero, escludi taglio e orlatura
+    // Se prodotto estero, escludi taglio e orlatura (vengono sommati in costoTomaia se showCostoTomaia)
     if (record.prodottoEstero === true && (field === 'costoTaglio' || field === 'costoOrlatura')) {
       costoUnit = 0;
     }
@@ -66,7 +77,10 @@ function getApplicableCosts(
     totalCosto += costoTotale;
   });
 
-  return { costs, totalCosto, fatturato };
+  // Aggiungi costo tomaia al totale
+  totalCosto += costoTomaia;
+
+  return { costs, totalCosto, fatturato, costoTomaia };
 }
 
 const handler: JobHandler = async (payload, helpers) => {
@@ -80,6 +94,7 @@ const handler: JobHandler = async (payload, helpers) => {
     linea,
     includeDetails = false,
     showUncorrelatedCosts = false,
+    showCostoTomaia = false,
   } = payload as ReportFilters;
 
   const { trackingService, ensureOutputPath } = helpers;
@@ -185,19 +200,26 @@ const handler: JobHandler = async (payload, helpers) => {
     summarySheet.getCell(`A${row}`).font = { italic: true, color: { argb: 'FFFF6F00' } };
     row++;
   }
+  if (showCostoTomaia) {
+    summarySheet.getCell(`A${row}`).value = '* Costo Tomaia attivo (Taglio+Orlatura per esteri)';
+    summarySheet.getCell(`A${row}`).font = { italic: true, color: { argb: 'FF7B1FA2' } };
+    row++;
+  }
 
-  // Calculate totals con nuova logica (costiAssociati + prodottoEstero)
+  // Calculate totals con nuova logica (costiAssociati + prodottoEstero + costoTomaia)
   let totalQuantita = 0;
   let totalFatturato = 0;
+  let totalCostoTomaia = 0;
   const totalCosts: Record<string, number> = {};
   COST_FIELDS.forEach(f => totalCosts[f] = 0);
   let grandTotalCosti = 0;
 
   records.forEach((r: any) => {
-    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts);
+    const { costs, totalCosto, fatturato, costoTomaia } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts, showCostoTomaia);
     totalQuantita += Number(r.quantita) || 0;
     totalFatturato += fatturato;
     grandTotalCosti += totalCosto;
+    totalCostoTomaia += costoTomaia;
     COST_FIELDS.forEach(f => totalCosts[f] += costs[f]);
   });
 
@@ -215,7 +237,7 @@ const handler: JobHandler = async (payload, helpers) => {
   summarySheet.getCell(`A${row}`).font = { bold: true, size: 12 };
   row++;
 
-  const summaryData = [
+  const summaryData: [string, number, boolean][] = [
     ['Totale Record', records.length, false],
     ['Totale Quantità', totalQuantita, false],
     ['Costo Taglio', totalCosts.costoTaglio, true],
@@ -223,9 +245,15 @@ const handler: JobHandler = async (payload, helpers) => {
     ['Costo Strobel', totalCosts.costoStrobel, true],
     ['Altri Costi', totalCosts.altriCosti, true],
     ['Costo Montaggio', totalCosts.costoMontaggio, true],
-    ['TOTALE COSTI', grandTotalCosti, true],
-    ['FATTURATO', totalFatturato, true],
   ];
+
+  // Aggiungi Costo Tomaia se attivo e c'è valore
+  if (showCostoTomaia && totalCostoTomaia > 0) {
+    summaryData.push(['Costo Tomaia', totalCostoTomaia, true]);
+  }
+
+  summaryData.push(['TOTALE COSTI', grandTotalCosti, true]);
+  summaryData.push(['FATTURATO', totalFatturato, true]);
 
   summaryData.forEach(([label, value, isCurrency]) => {
     summarySheet.getCell(`A${row}`).value = label as string;
@@ -240,6 +268,10 @@ const handler: JobHandler = async (payload, helpers) => {
     if (label === 'FATTURATO') {
       summarySheet.getCell(`A${row}`).font = { bold: true, color: { argb: 'FF2E7D32' } };
       summarySheet.getCell(`B${row}`).font = { bold: true, color: { argb: 'FF2E7D32' } };
+    }
+    if (label === 'Costo Tomaia') {
+      summarySheet.getCell(`A${row}`).font = { bold: true, color: { argb: 'FF7B1FA2' } };
+      summarySheet.getCell(`B${row}`).font = { bold: true, color: { argb: 'FF7B1FA2' } };
     }
     row++;
   });
@@ -258,11 +290,11 @@ const handler: JobHandler = async (payload, helpers) => {
       byReparto.set(key, {
         count: 0, quantita: 0,
         costoTaglio: 0, costoOrlatura: 0, costoStrobel: 0, altriCosti: 0, costoMontaggio: 0,
-        totalCosto: 0, fatturato: 0
+        costoTomaia: 0, totalCosto: 0, fatturato: 0
       });
     }
     const g = byReparto.get(key);
-    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts);
+    const { costs, totalCosto, fatturato, costoTomaia } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts, showCostoTomaia);
     g.count++;
     g.quantita += Number(r.quantita) || 0;
     g.costoTaglio += costs.costoTaglio;
@@ -270,6 +302,7 @@ const handler: JobHandler = async (payload, helpers) => {
     g.costoStrobel += costs.costoStrobel;
     g.altriCosti += costs.altriCosti;
     g.costoMontaggio += costs.costoMontaggio;
+    g.costoTomaia += costoTomaia;
     g.totalCosto += totalCosto;
     g.fatturato += fatturato;
   });
@@ -322,11 +355,11 @@ const handler: JobHandler = async (payload, helpers) => {
       byMese.set(key, {
         count: 0, quantita: 0,
         costoTaglio: 0, costoOrlatura: 0, costoStrobel: 0, altriCosti: 0, costoMontaggio: 0,
-        totalCosto: 0, fatturato: 0
+        costoTomaia: 0, totalCosto: 0, fatturato: 0
       });
     }
     const g = byMese.get(key);
-    const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts);
+    const { costs, totalCosto, fatturato, costoTomaia } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts, showCostoTomaia);
     g.count++;
     g.quantita += Number(r.quantita) || 0;
     g.costoTaglio += costs.costoTaglio;
@@ -334,6 +367,7 @@ const handler: JobHandler = async (payload, helpers) => {
     g.costoStrobel += costs.costoStrobel;
     g.altriCosti += costs.altriCosti;
     g.costoMontaggio += costs.costoMontaggio;
+    g.costoTomaia += costoTomaia;
     g.totalCosto += totalCosto;
     g.fatturato += fatturato;
   });
@@ -379,7 +413,9 @@ const handler: JobHandler = async (payload, helpers) => {
     const detailHeaders = [
       'ID', 'Data', 'Tipo Doc', 'N. Doc', 'Linea', 'Articolo', 'Descrizione',
       'Quantità', 'Prod. Estero', 'Reparto', 'Reparto Finale',
-      'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tot. Costi', 'Fatturato'
+      'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio',
+      ...(showCostoTomaia ? ['Tomaia'] : []),
+      'Tot. Costi', 'Fatturato'
     ];
 
     detailHeaders.forEach((h, idx) => {
@@ -390,7 +426,7 @@ const handler: JobHandler = async (payload, helpers) => {
 
     records.forEach((r: any, idx: number) => {
       const rowNum = idx + 2;
-      const { costs, totalCosto, fatturato } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts);
+      const { costs, totalCosto, fatturato, costoTomaia } = getApplicableCosts(r, repartoMap, showUncorrelatedCosts, showCostoTomaia);
 
       detailSheet.getCell(rowNum, 1).value = r.id;
       detailSheet.getCell(rowNum, 2).value = r.dataDocumento ? new Date(r.dataDocumento).toLocaleDateString('it-IT') : '';
@@ -409,19 +445,34 @@ const handler: JobHandler = async (payload, helpers) => {
       detailSheet.getCell(rowNum, 14).value = costs.costoStrobel;
       detailSheet.getCell(rowNum, 15).value = costs.altriCosti;
       detailSheet.getCell(rowNum, 16).value = costs.costoMontaggio;
-      detailSheet.getCell(rowNum, 17).value = totalCosto;
-      detailSheet.getCell(rowNum, 18).value = fatturato;
+
+      let colOffset = 17;
+      if (showCostoTomaia) {
+        detailSheet.getCell(rowNum, colOffset).value = costoTomaia;
+        detailSheet.getCell(rowNum, colOffset).numFmt = '€ #,##0.00';
+        if (costoTomaia > 0) {
+          detailSheet.getCell(rowNum, colOffset).font = { color: { argb: 'FF7B1FA2' } };
+        }
+        colOffset++;
+      }
+
+      detailSheet.getCell(rowNum, colOffset).value = totalCosto;
+      detailSheet.getCell(rowNum, colOffset + 1).value = fatturato;
 
       // Format cost columns
-      for (let col = 12; col <= 18; col++) {
+      for (let col = 12; col <= 16; col++) {
         detailSheet.getCell(rowNum, col).numFmt = '€ #,##0.00';
       }
-      detailSheet.getCell(rowNum, 18).font = { color: { argb: 'FF2E7D32' } };
+      detailSheet.getCell(rowNum, colOffset).numFmt = '€ #,##0.00';
+      detailSheet.getCell(rowNum, colOffset + 1).numFmt = '€ #,##0.00';
+      detailSheet.getCell(rowNum, colOffset + 1).font = { color: { argb: 'FF2E7D32' } };
     });
 
     // Auto-fit columns
     detailSheet.columns.forEach((col, idx) => {
-      const widths = [6, 12, 12, 12, 15, 15, 25, 8, 10, 20, 20, 10, 10, 10, 10, 10, 12, 12];
+      const baseWidths = [6, 12, 12, 12, 15, 15, 25, 8, 10, 20, 20, 10, 10, 10, 10, 10];
+      const extraWidths = showCostoTomaia ? [10, 12, 12] : [12, 12];
+      const widths = [...baseWidths, ...extraWidths];
       col.width = widths[idx] || 12;
     });
   }

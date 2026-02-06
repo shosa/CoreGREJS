@@ -45,6 +45,7 @@ export default function AnaliticheReportsPage() {
   const [includeDetails, setIncludeDetails] = useState(false);
   const [includeArticoliPerReparto, setIncludeArticoliPerReparto] = useState(false);
   const [showUncorrelatedCosts, setShowUncorrelatedCosts] = useState(false);
+  const [showCostoTomaia, setShowCostoTomaia] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -82,6 +83,7 @@ export default function AnaliticheReportsPage() {
         groupBy,
         includeArticoliPerReparto,
         showUncorrelatedCosts,
+        showCostoTomaia,
       });
       showSuccess(`Report PDF in coda (Job ID: ${result.jobId}). Controlla lo spool per il download.`);
     } catch (error: any) {
@@ -102,6 +104,7 @@ export default function AnaliticheReportsPage() {
         linea: selectedLinea || undefined,
         includeDetails,
         showUncorrelatedCosts,
+        showCostoTomaia,
       });
       showSuccess(`Report Excel in coda (Job ID: ${result.jobId}). Controlla lo spool per il download.`);
     } catch (error: any) {
@@ -121,6 +124,7 @@ export default function AnaliticheReportsPage() {
     setIncludeDetails(false);
     setIncludeArticoliPerReparto(false);
     setShowUncorrelatedCosts(false);
+    setShowCostoTomaia(false);
   };
 
   if (loading) {
@@ -280,6 +284,18 @@ export default function AnaliticheReportsPage() {
                 <span className="text-sm text-gray-700 dark:text-gray-300">
                   <i className="fas fa-exclamation-triangle text-amber-500 mr-1"></i>
                   Mostra anche costi non correlati ai reparti
+                </span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showCostoTomaia}
+                  onChange={(e) => setShowCostoTomaia(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  <i className="fas fa-layer-group text-purple-500 mr-1"></i>
+                  Mostra Costo Tomaia (per prodotti esteri)
                 </span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
