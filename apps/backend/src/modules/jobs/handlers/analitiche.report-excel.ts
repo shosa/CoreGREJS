@@ -307,8 +307,10 @@ const handler: JobHandler = async (payload, helpers) => {
     g.fatturato += fatturato;
   });
 
-  // Headers senza % Totale, con Fatturato
-  const repartoHeaders = ['Reparto', 'Record', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tot. Costi', 'Fatturato'];
+  // Headers con Tomaia condizionale
+  const repartoHeaders = showCostoTomaia
+    ? ['Reparto', 'Record', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tomaia', 'Tot. Costi', 'Fatturato']
+    : ['Reparto', 'Record', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tot. Costi', 'Fatturato'];
   repartoHeaders.forEach((h, idx) => {
     repartoSheet.getCell(1, idx + 1).value = h;
     repartoSheet.getCell(1, idx + 1).font = { bold: true };
@@ -327,15 +329,27 @@ const handler: JobHandler = async (payload, helpers) => {
     repartoSheet.getCell(repartoRow, 6).value = g.costoStrobel;
     repartoSheet.getCell(repartoRow, 7).value = g.altriCosti;
     repartoSheet.getCell(repartoRow, 8).value = g.costoMontaggio;
-    repartoSheet.getCell(repartoRow, 9).value = g.totalCosto;
-    repartoSheet.getCell(repartoRow, 10).value = g.fatturato;
+
+    let colOff = 9;
+    if (showCostoTomaia) {
+      repartoSheet.getCell(repartoRow, colOff).value = g.costoTomaia;
+      repartoSheet.getCell(repartoRow, colOff).numFmt = '€ #,##0.00';
+      if (g.costoTomaia > 0) {
+        repartoSheet.getCell(repartoRow, colOff).font = { color: { argb: 'FF7B1FA2' } };
+      }
+      colOff++;
+    }
+    repartoSheet.getCell(repartoRow, colOff).value = g.totalCosto;
+    repartoSheet.getCell(repartoRow, colOff + 1).value = g.fatturato;
 
     // Format cost columns
-    for (let col = 4; col <= 10; col++) {
+    for (let col = 4; col <= 8; col++) {
       repartoSheet.getCell(repartoRow, col).numFmt = '€ #,##0.00';
     }
+    repartoSheet.getCell(repartoRow, colOff).numFmt = '€ #,##0.00';
+    repartoSheet.getCell(repartoRow, colOff + 1).numFmt = '€ #,##0.00';
     // Fatturato in verde
-    repartoSheet.getCell(repartoRow, 10).font = { color: { argb: 'FF2E7D32' } };
+    repartoSheet.getCell(repartoRow, colOff + 1).font = { color: { argb: 'FF2E7D32' } };
 
     repartoRow++;
   });
@@ -372,7 +386,9 @@ const handler: JobHandler = async (payload, helpers) => {
     g.fatturato += fatturato;
   });
 
-  const meseHeaders = ['Mese', 'Record', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tot. Costi', 'Fatturato'];
+  const meseHeaders = showCostoTomaia
+    ? ['Mese', 'Record', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tomaia', 'Tot. Costi', 'Fatturato']
+    : ['Mese', 'Record', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tot. Costi', 'Fatturato'];
   meseHeaders.forEach((h, idx) => {
     meseSheet.getCell(1, idx + 1).value = h;
     meseSheet.getCell(1, idx + 1).font = { bold: true };
@@ -391,13 +407,25 @@ const handler: JobHandler = async (payload, helpers) => {
     meseSheet.getCell(meseRow, 6).value = g.costoStrobel;
     meseSheet.getCell(meseRow, 7).value = g.altriCosti;
     meseSheet.getCell(meseRow, 8).value = g.costoMontaggio;
-    meseSheet.getCell(meseRow, 9).value = g.totalCosto;
-    meseSheet.getCell(meseRow, 10).value = g.fatturato;
 
-    for (let col = 4; col <= 10; col++) {
+    let mColOff = 9;
+    if (showCostoTomaia) {
+      meseSheet.getCell(meseRow, mColOff).value = g.costoTomaia;
+      meseSheet.getCell(meseRow, mColOff).numFmt = '€ #,##0.00';
+      if (g.costoTomaia > 0) {
+        meseSheet.getCell(meseRow, mColOff).font = { color: { argb: 'FF7B1FA2' } };
+      }
+      mColOff++;
+    }
+    meseSheet.getCell(meseRow, mColOff).value = g.totalCosto;
+    meseSheet.getCell(meseRow, mColOff + 1).value = g.fatturato;
+
+    for (let col = 4; col <= 8; col++) {
       meseSheet.getCell(meseRow, col).numFmt = '€ #,##0.00';
     }
-    meseSheet.getCell(meseRow, 10).font = { color: { argb: 'FF2E7D32' } };
+    meseSheet.getCell(meseRow, mColOff).numFmt = '€ #,##0.00';
+    meseSheet.getCell(meseRow, mColOff + 1).numFmt = '€ #,##0.00';
+    meseSheet.getCell(meseRow, mColOff + 1).font = { color: { argb: 'FF2E7D32' } };
 
     meseRow++;
   });

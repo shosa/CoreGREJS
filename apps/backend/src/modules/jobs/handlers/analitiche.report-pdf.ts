@@ -200,6 +200,7 @@ async function generateReportPdf(
         margin: 40,
         size: 'A4',
         layout: 'landscape',
+        autoFirstPage: true,
         info: {
           Title: 'Report Analisi Costi',
           Author: 'CoreGRE Sistema Analitico',
@@ -213,9 +214,33 @@ async function generateReportPdf(
       doc.on('error', reject);
 
       const pageWidth = doc.page.width - 80;
+      const pageHeight = doc.page.height;
+      const bottomMargin = 40;
+      const usableBottom = pageHeight - bottomMargin;
       const primaryColor = '#1565C0';
       const secondaryColor = '#424242';
       const accentColor = '#E3F2FD';
+
+      // Helper: scrivi testo con posizione fissa SENZA auto-paging
+      const safeText = (text: string, x: number, y: number, opts?: any) => {
+        doc.text(text, x, y, { lineBreak: false, ...opts });
+      };
+
+      // Helper: controlla se serve nuova pagina e la crea
+      const needsNewPage = (y: number, neededHeight: number): boolean => {
+        return (y + neededHeight) > usableBottom;
+      };
+
+      // Helper: disegna header tabella analisi
+      const drawAnalysisHeader = (headers: string[], colWidths: number[], totalW: number, startY: number) => {
+        doc.rect(40, startY, totalW, 22).fill(primaryColor);
+        doc.fillColor('#FFFFFF').fontSize(8).font('Helvetica-Bold');
+        let hx = 45;
+        headers.forEach((h, i) => {
+          safeText(h, hx, startY + 7, { width: colWidths[i] - 5 });
+          hx += colWidths[i];
+        });
+      };
 
       // ==================== PAGINA 1: COPERTINA E RIEPILOGO ====================
 
@@ -223,53 +248,55 @@ async function generateReportPdf(
       doc.rect(0, 0, doc.page.width, 80).fill(primaryColor);
       doc.fillColor('#FFFFFF')
          .fontSize(28)
-         .font('Helvetica-Bold')
-         .text('REPORT ANALISI COSTI', 40, 25, { width: pageWidth });
+         .font('Helvetica-Bold');
+      safeText('REPORT ANALISI COSTI', 40, 25);
       doc.fontSize(12)
-         .font('Helvetica')
-         .text('Sistema Analitico CoreGRE', 40, 55);
+         .font('Helvetica');
+      safeText('Sistema Analitico CoreGRE', 40, 55);
 
       doc.fillColor(secondaryColor)
-         .fontSize(10)
-         .text(`Generato: ${new Date().toLocaleString('it-IT')}`, 40, 100);
+         .fontSize(10);
+      safeText(`Generato: ${new Date().toLocaleString('it-IT')}`, 40, 100);
 
       // Box filtri
       const filterBoxY = 130;
       doc.rect(40, filterBoxY, 300, 100).stroke(primaryColor);
       doc.fillColor(primaryColor)
          .fontSize(11)
-         .font('Helvetica-Bold')
-         .text('FILTRI APPLICATI', 50, filterBoxY + 10);
+         .font('Helvetica-Bold');
+      safeText('FILTRI APPLICATI', 50, filterBoxY + 10);
 
       doc.fillColor(secondaryColor).fontSize(9).font('Helvetica');
       let filterY = filterBoxY + 30;
 
       if (filters.dataFrom || filters.dataTo) {
-        doc.text(`Periodo: ${filters.dataFrom || 'inizio'} → ${filters.dataTo || 'oggi'}`, 50, filterY);
+        safeText(`Periodo: ${filters.dataFrom || 'inizio'} → ${filters.dataTo || 'oggi'}`, 50, filterY);
         filterY += 15;
       }
       if (filters.repartoId) {
         const rep = repartoMap.get(filters.repartoId);
-        doc.text(`Reparto Finale: ${rep?.nome || filters.repartoId}`, 50, filterY);
+        safeText(`Reparto Finale: ${rep?.nome || filters.repartoId}`, 50, filterY);
         filterY += 15;
       }
       if (filters.tipoDocumento) {
-        doc.text(`Tipo Documento: ${filters.tipoDocumento}`, 50, filterY);
+        safeText(`Tipo Documento: ${filters.tipoDocumento}`, 50, filterY);
         filterY += 15;
       }
       if (filters.linea) {
-        doc.text(`Linea: ${filters.linea}`, 50, filterY);
+        safeText(`Linea: ${filters.linea}`, 50, filterY);
         filterY += 15;
       }
-      doc.text(`Raggruppamento: ${filters.groupBy.toUpperCase()}`, 50, filterY);
+      safeText(`Raggruppamento: ${filters.groupBy.toUpperCase()}`, 50, filterY);
       if (filters.showUncorrelatedCosts) {
         filterY += 15;
-        doc.fillColor('#FF6F00').text('* Inclusi costi non correlati ai reparti', 50, filterY);
+        doc.fillColor('#FF6F00');
+        safeText('* Inclusi costi non correlati ai reparti', 50, filterY);
         doc.fillColor(secondaryColor);
       }
       if (filters.showCostoTomaia) {
         filterY += 15;
-        doc.fillColor('#7B1FA2').text('* Costo Tomaia attivo (Taglio+Orlatura per esteri)', 50, filterY);
+        doc.fillColor('#7B1FA2');
+        safeText('* Costo Tomaia attivo (Taglio+Orlatura per esteri)', 50, filterY);
         doc.fillColor(secondaryColor);
       }
 
@@ -298,8 +325,8 @@ async function generateReportPdf(
       doc.rect(kpiBoxX, kpiBoxY, kpiBoxW, 100).fill(accentColor).stroke(primaryColor);
       doc.fillColor(primaryColor)
          .fontSize(11)
-         .font('Helvetica-Bold')
-         .text('INDICATORI CHIAVE', kpiBoxX + 10, kpiBoxY + 10);
+         .font('Helvetica-Bold');
+      safeText('INDICATORI CHIAVE', kpiBoxX + 10, kpiBoxY + 10);
 
       const kpiData = [
         { label: 'Record Analizzati', value: records.length.toLocaleString('it-IT'), x: kpiBoxX + 15, y: kpiBoxY + 35 },
@@ -309,36 +336,41 @@ async function generateReportPdf(
       ];
 
       kpiData.forEach(kpi => {
-        doc.fillColor('#666').fontSize(8).font('Helvetica').text(kpi.label, kpi.x, kpi.y);
-        doc.fillColor(secondaryColor).fontSize(14).font('Helvetica-Bold').text(kpi.value, kpi.x, kpi.y + 12);
+        doc.fillColor('#666').fontSize(8).font('Helvetica');
+        safeText(kpi.label, kpi.x, kpi.y);
+        doc.fillColor(secondaryColor).fontSize(14).font('Helvetica-Bold');
+        safeText(kpi.value, kpi.x, kpi.y + 12);
       });
 
       // Nota record esclusi
       if (filters.excludedCount > 0) {
         doc.fillColor('#D32F2F')
            .fontSize(9)
-           .font('Helvetica-Oblique')
-           .text(`** ${filters.excludedCount} record esclusi dall'analisi per informazioni incomplete (reparto finale non assegnato).`,
-                 40, kpiBoxY + 115, { width: pageWidth });
+           .font('Helvetica-Oblique');
+        safeText(
+          `** ${filters.excludedCount} record esclusi dall'analisi per informazioni incomplete (reparto finale non assegnato).`,
+          40, kpiBoxY + 115, { width: pageWidth }
+        );
       }
 
       // ==================== TABELLA DETTAGLIO COSTI ====================
       const costTableY = 260;
       doc.fillColor(primaryColor)
          .fontSize(12)
-         .font('Helvetica-Bold')
-         .text('DETTAGLIO COMPOSIZIONE COSTI', 40, costTableY);
+         .font('Helvetica-Bold');
+      safeText('DETTAGLIO COMPOSIZIONE COSTI', 40, costTableY);
 
       const costHeaders = ['Voce di Costo', 'Importo (€)', 'Incidenza'];
       const costColWidths = [200, 150, 350];
+      const costTotalW = costColWidths.reduce((a, b) => a + b, 0);
 
       // Header tabella
       let tableY = costTableY + 20;
-      doc.rect(40, tableY, costColWidths.reduce((a, b) => a + b, 0), 22).fill(primaryColor);
+      doc.rect(40, tableY, costTotalW, 22).fill(primaryColor);
       doc.fillColor('#FFFFFF').fontSize(9).font('Helvetica-Bold');
       let tableX = 45;
       costHeaders.forEach((h, i) => {
-        doc.text(h, tableX, tableY + 7, { width: costColWidths[i] - 10 });
+        safeText(h, tableX, tableY + 7, { width: costColWidths[i] - 10 });
         tableX += costColWidths[i];
       });
 
@@ -352,20 +384,21 @@ async function generateReportPdf(
         const perc = grandTotalCosti > 0 ? (value / grandTotalCosti) * 100 : 0;
 
         if (rowCounter % 2 === 0) {
-          doc.rect(40, tableY, costColWidths.reduce((a, b) => a + b, 0), 20).fill('#F5F5F5');
+          doc.rect(40, tableY, costTotalW, 20).fill('#F5F5F5');
         }
         doc.fillColor(secondaryColor);
 
         tableX = 45;
-        doc.text(COST_LABELS[field], tableX, tableY + 6);
+        safeText(COST_LABELS[field], tableX, tableY + 6);
         tableX += costColWidths[0];
-        doc.text(`€ ${value.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, tableX, tableY + 6);
+        safeText(`€ ${value.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, tableX, tableY + 6);
         tableX += costColWidths[1];
 
         // Barra grafica incidenza
         const barWidth = (perc / 100) * 320;
         doc.rect(tableX, tableY + 5, barWidth, 10).fill(primaryColor);
-        doc.fillColor(secondaryColor).text(`${perc.toFixed(1)}%`, tableX + barWidth + 5, tableY + 6);
+        doc.fillColor(secondaryColor);
+        safeText(`${perc.toFixed(1)}%`, tableX + barWidth + 5, tableY + 6);
 
         tableY += 20;
         rowCounter++;
@@ -376,39 +409,40 @@ async function generateReportPdf(
         const percTomaia = grandTotalCosti > 0 ? (totalCostoTomaia / grandTotalCosti) * 100 : 0;
 
         if (rowCounter % 2 === 0) {
-          doc.rect(40, tableY, costColWidths.reduce((a, b) => a + b, 0), 20).fill('#F3E5F5');
+          doc.rect(40, tableY, costTotalW, 20).fill('#F3E5F5');
         } else {
-          doc.rect(40, tableY, costColWidths.reduce((a, b) => a + b, 0), 20).fill('#EDE7F6');
+          doc.rect(40, tableY, costTotalW, 20).fill('#EDE7F6');
         }
         doc.fillColor('#7B1FA2').font('Helvetica-Bold');
 
         tableX = 45;
-        doc.text('Costo Tomaia', tableX, tableY + 6);
+        safeText('Costo Tomaia', tableX, tableY + 6);
         tableX += costColWidths[0];
-        doc.text(`€ ${totalCostoTomaia.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, tableX, tableY + 6);
+        safeText(`€ ${totalCostoTomaia.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, tableX, tableY + 6);
         tableX += costColWidths[1];
 
         // Barra grafica incidenza viola
         const barWidth = (percTomaia / 100) * 320;
         doc.rect(tableX, tableY + 5, barWidth, 10).fill('#7B1FA2');
-        doc.fillColor('#7B1FA2').text(`${percTomaia.toFixed(1)}%`, tableX + barWidth + 5, tableY + 6);
+        doc.fillColor('#7B1FA2');
+        safeText(`${percTomaia.toFixed(1)}%`, tableX + barWidth + 5, tableY + 6);
 
         tableY += 20;
         doc.font('Helvetica').fillColor(secondaryColor);
       }
 
       // Riga totale costi
-      doc.rect(40, tableY, costColWidths.reduce((a, b) => a + b, 0), 22).fill(primaryColor);
+      doc.rect(40, tableY, costTotalW, 22).fill(primaryColor);
       doc.fillColor('#FFFFFF').fontSize(10).font('Helvetica-Bold');
-      doc.text('TOTALE COSTI', 45, tableY + 6);
-      doc.text(`€ ${grandTotalCosti.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 45 + costColWidths[0], tableY + 6);
+      safeText('TOTALE COSTI', 45, tableY + 6);
+      safeText(`€ ${grandTotalCosti.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 45 + costColWidths[0], tableY + 6);
 
       // Riga fatturato
       tableY += 22;
-      doc.rect(40, tableY, costColWidths.reduce((a, b) => a + b, 0), 22).fill('#E8F5E9');
+      doc.rect(40, tableY, costTotalW, 22).fill('#E8F5E9');
       doc.fillColor('#2E7D32').fontSize(10).font('Helvetica-Bold');
-      doc.text('FATTURATO', 45, tableY + 6);
-      doc.text(`€ ${totalFatturato.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 45 + costColWidths[0], tableY + 6);
+      safeText('FATTURATO', 45, tableY + 6);
+      safeText(`€ ${totalFatturato.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 45 + costColWidths[0], tableY + 6);
 
       // ==================== PAGINA 2: ANALISI PER GRUPPO ====================
       doc.addPage();
@@ -416,25 +450,24 @@ async function generateReportPdf(
       doc.rect(0, 0, doc.page.width, 50).fill(primaryColor);
       doc.fillColor('#FFFFFF')
          .fontSize(18)
-         .font('Helvetica-Bold')
-         .text(`ANALISI PER ${filters.groupBy.toUpperCase()}`, 40, 15);
+         .font('Helvetica-Bold');
+      safeText(`ANALISI PER ${filters.groupBy.toUpperCase()}`, 40, 15);
 
       // Raggruppa i dati
       const grouped = groupRecordsByKey(records, filters.groupBy, repartoMap, filters.showUncorrelatedCosts, filters.showCostoTomaia);
 
-      // Headers senza % totale
-      const analysisHeaders = [filters.groupBy.charAt(0).toUpperCase() + filters.groupBy.slice(1), 'N° Doc', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tot. Costi', 'Fatturato'];
-      const analysisColWidths = [110, 45, 65, 65, 65, 65, 65, 70, 85, 85];
+      // Headers - con Tomaia condizionale
+      const analysisHeaders = filters.showCostoTomaia
+        ? [filters.groupBy.charAt(0).toUpperCase() + filters.groupBy.slice(1), 'N° Doc', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tomaia', 'Tot. Costi', 'Fatturato']
+        : [filters.groupBy.charAt(0).toUpperCase() + filters.groupBy.slice(1), 'N° Doc', 'Quantità', 'Taglio', 'Orlatura', 'Strobel', 'Altri', 'Montaggio', 'Tot. Costi', 'Fatturato'];
+      const analysisColWidths = filters.showCostoTomaia
+        ? [100, 40, 58, 58, 58, 58, 58, 62, 62, 78, 78]
+        : [110, 45, 65, 65, 65, 65, 65, 70, 85, 85];
 
       let analysisY = 70;
-      doc.rect(40, analysisY, analysisColWidths.reduce((a, b) => a + b, 0), 22).fill(primaryColor);
-      doc.fillColor('#FFFFFF').fontSize(8).font('Helvetica-Bold');
-      let analysisX = 45;
-      analysisHeaders.forEach((h, i) => {
-        doc.text(h, analysisX, analysisY + 7, { width: analysisColWidths[i] - 5 });
-        analysisX += analysisColWidths[i];
-      });
+      const totalTableWidth = analysisColWidths.reduce((a, b) => a + b, 0);
 
+      drawAnalysisHeader(analysisHeaders, analysisColWidths, totalTableWidth, analysisY);
       analysisY += 22;
       doc.font('Helvetica').fontSize(8);
 
@@ -442,16 +475,11 @@ async function generateReportPdf(
       let rowIdx = 0;
 
       sortedKeys.forEach((key) => {
-        if (analysisY > 520) {
+        // Controlla PRIMA se serve nuova pagina (riga = 18px)
+        if (needsNewPage(analysisY, 18)) {
           doc.addPage();
           analysisY = 50;
-          doc.rect(40, analysisY, analysisColWidths.reduce((a, b) => a + b, 0), 22).fill(primaryColor);
-          doc.fillColor('#FFFFFF').fontSize(8).font('Helvetica-Bold');
-          analysisX = 45;
-          analysisHeaders.forEach((h, i) => {
-            doc.text(h, analysisX, analysisY + 7, { width: analysisColWidths[i] - 5 });
-            analysisX += analysisColWidths[i];
-          });
+          drawAnalysisHeader(analysisHeaders, analysisColWidths, totalTableWidth, analysisY);
           analysisY += 22;
           doc.font('Helvetica').fontSize(8);
         }
@@ -459,30 +487,45 @@ async function generateReportPdf(
         const g = grouped.get(key);
 
         if (rowIdx % 2 === 0) {
-          doc.rect(40, analysisY, analysisColWidths.reduce((a, b) => a + b, 0), 18).fill('#F8F9FA');
+          doc.rect(40, analysisY, totalTableWidth, 18).fill('#F8F9FA');
         }
         doc.fillColor(secondaryColor);
 
-        analysisX = 45;
-        doc.text(key.substring(0, 16), analysisX, analysisY + 5, { width: analysisColWidths[0] - 5 });
-        analysisX += analysisColWidths[0];
-        doc.text(g.count.toString(), analysisX, analysisY + 5);
-        analysisX += analysisColWidths[1];
-        doc.text(g.quantita.toLocaleString('it-IT', { maximumFractionDigits: 0 }), analysisX, analysisY + 5);
-        analysisX += analysisColWidths[2];
-        doc.text(formatCurrency(g.costoTaglio), analysisX, analysisY + 5);
-        analysisX += analysisColWidths[3];
-        doc.text(formatCurrency(g.costoOrlatura), analysisX, analysisY + 5);
-        analysisX += analysisColWidths[4];
-        doc.text(formatCurrency(g.costoStrobel), analysisX, analysisY + 5);
-        analysisX += analysisColWidths[5];
-        doc.text(formatCurrency(g.altriCosti), analysisX, analysisY + 5);
-        analysisX += analysisColWidths[6];
-        doc.text(formatCurrency(g.costoMontaggio), analysisX, analysisY + 5);
-        analysisX += analysisColWidths[7];
-        doc.font('Helvetica-Bold').text(formatCurrency(g.totalCosto), analysisX, analysisY + 5);
-        analysisX += analysisColWidths[8];
-        doc.fillColor('#2E7D32').text(formatCurrency(g.fatturato), analysisX, analysisY + 5);
+        let ax = 45;
+        safeText(key.substring(0, 16), ax, analysisY + 5, { width: analysisColWidths[0] - 5 });
+        ax += analysisColWidths[0];
+        safeText(g.count.toString(), ax, analysisY + 5);
+        ax += analysisColWidths[1];
+        safeText(g.quantita.toLocaleString('it-IT', { maximumFractionDigits: 0 }), ax, analysisY + 5);
+        ax += analysisColWidths[2];
+        safeText(formatCurrency(g.costoTaglio), ax, analysisY + 5);
+        ax += analysisColWidths[3];
+        safeText(formatCurrency(g.costoOrlatura), ax, analysisY + 5);
+        ax += analysisColWidths[4];
+        safeText(formatCurrency(g.costoStrobel), ax, analysisY + 5);
+        ax += analysisColWidths[5];
+        safeText(formatCurrency(g.altriCosti), ax, analysisY + 5);
+        ax += analysisColWidths[6];
+        safeText(formatCurrency(g.costoMontaggio), ax, analysisY + 5);
+        ax += analysisColWidths[7];
+
+        if (filters.showCostoTomaia) {
+          doc.fillColor('#7B1FA2');
+          safeText(formatCurrency(g.costoTomaia), ax, analysisY + 5);
+          doc.fillColor(secondaryColor);
+          ax += analysisColWidths[8];
+          doc.font('Helvetica-Bold');
+          safeText(formatCurrency(g.totalCosto), ax, analysisY + 5);
+          ax += analysisColWidths[9];
+          doc.fillColor('#2E7D32');
+          safeText(formatCurrency(g.fatturato), ax, analysisY + 5);
+        } else {
+          doc.font('Helvetica-Bold');
+          safeText(formatCurrency(g.totalCosto), ax, analysisY + 5);
+          ax += analysisColWidths[8];
+          doc.fillColor('#2E7D32');
+          safeText(formatCurrency(g.fatturato), ax, analysisY + 5);
+        }
 
         analysisY += 18;
         rowIdx++;
@@ -496,8 +539,8 @@ async function generateReportPdf(
         doc.rect(0, 0, doc.page.width, 50).fill(primaryColor);
         doc.fillColor('#FFFFFF')
            .fontSize(18)
-           .font('Helvetica-Bold')
-           .text('DETTAGLIO ARTICOLI PER REPARTO E LINEA', 40, 15);
+           .font('Helvetica-Bold');
+        safeText('DETTAGLIO ARTICOLI PER REPARTO E LINEA', 40, 15);
 
         const byRepartoLinea = new Map<string, Map<string, Map<string, any>>>();
 
@@ -517,7 +560,6 @@ async function generateReportPdf(
           }
           const articoloMap = lineaMap.get(lineaNome)!;
 
-          // Chiave = articolo + descrizione per unicità
           const artKey = articoloNome;
           if (!articoloMap.has(artKey)) {
             articoloMap.set(artKey, { quantita: 0, costo: 0, fatturato: 0, descrizione: descrizioneArt });
@@ -527,7 +569,6 @@ async function generateReportPdf(
           art.quantita += Number(r.quantita) || 0;
           art.costo += totalCosto;
           art.fatturato += fatturato;
-          // Usa la prima descrizione trovata
           if (!art.descrizione && descrizioneArt) {
             art.descrizione = descrizioneArt;
           }
@@ -537,37 +578,39 @@ async function generateReportPdf(
         const repartiSorted = Array.from(byRepartoLinea.keys()).sort();
 
         repartiSorted.forEach((repartoNome) => {
-          if (detailY > 480) {
+          // Serve spazio per header reparto (20) + header linea (16) + header colonne (12) + almeno 1 riga (10) = 58
+          if (needsNewPage(detailY, 58)) {
             doc.addPage();
             detailY = 50;
           }
 
           doc.rect(40, detailY, pageWidth, 20).fill(primaryColor);
-          doc.fillColor('#FFFFFF').fontSize(10).font('Helvetica-Bold')
-             .text(`REPARTO: ${repartoNome}`, 45, detailY + 5);
+          doc.fillColor('#FFFFFF').fontSize(10).font('Helvetica-Bold');
+          safeText(`REPARTO: ${repartoNome}`, 45, detailY + 5);
           detailY += 25;
 
           const lineaMap = byRepartoLinea.get(repartoNome)!;
           const lineeSorted = Array.from(lineaMap.keys()).sort();
 
           lineeSorted.forEach((lineaNome) => {
-            if (detailY > 500) {
+            // Serve spazio per header linea (16) + header colonne (12) + almeno 1 riga (10) = 38
+            if (needsNewPage(detailY, 38)) {
               doc.addPage();
               detailY = 50;
             }
 
             doc.rect(50, detailY, pageWidth - 20, 16).fill(accentColor);
-            doc.fillColor(primaryColor).fontSize(9).font('Helvetica-Bold')
-               .text(`Linea: ${lineaNome}`, 55, detailY + 4);
+            doc.fillColor(primaryColor).fontSize(9).font('Helvetica-Bold');
+            safeText(`Linea: ${lineaNome}`, 55, detailY + 4);
             detailY += 20;
 
-            // Header articoli - RIMOSSO N°, AGGIUNTO Descrizione
+            // Header articoli
             doc.fillColor('#666').fontSize(7).font('Helvetica-Bold');
-            doc.text('Articolo', 60, detailY);
-            doc.text('Descrizione', 180, detailY);
-            doc.text('Quantità', 380, detailY);
-            doc.text('Costo Tot.', 450, detailY);
-            doc.text('Fatturato', 530, detailY);
+            safeText('Articolo', 60, detailY);
+            safeText('Descrizione', 180, detailY);
+            safeText('Quantità', 380, detailY);
+            safeText('Costo Tot.', 450, detailY);
+            safeText('Fatturato', 530, detailY);
             detailY += 12;
 
             const articoloMap = lineaMap.get(lineaNome)!;
@@ -575,19 +618,35 @@ async function generateReportPdf(
 
             doc.font('Helvetica').fontSize(7).fillColor(secondaryColor);
             articoliSorted.slice(0, 15).forEach((artNome) => {
+              // Controlla se serve nuova pagina PRIMA di scrivere la riga
+              if (needsNewPage(detailY, 10)) {
+                doc.addPage();
+                detailY = 50;
+                // Re-draw colonne header sulla nuova pagina
+                doc.fillColor('#666').fontSize(7).font('Helvetica-Bold');
+                safeText('Articolo', 60, detailY);
+                safeText('Descrizione', 180, detailY);
+                safeText('Quantità', 380, detailY);
+                safeText('Costo Tot.', 450, detailY);
+                safeText('Fatturato', 530, detailY);
+                detailY += 12;
+                doc.font('Helvetica').fontSize(7).fillColor(secondaryColor);
+              }
+
               const art = articoloMap.get(artNome)!;
-              doc.text(artNome.substring(0, 20), 60, detailY);
-              doc.text((art.descrizione || '').substring(0, 30), 180, detailY);
-              doc.text(art.quantita.toLocaleString('it-IT', { maximumFractionDigits: 0 }), 380, detailY);
-              doc.text(`€ ${art.costo.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 450, detailY);
-              doc.fillColor('#2E7D32').text(`€ ${art.fatturato.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 530, detailY);
+              safeText(artNome.substring(0, 20), 60, detailY);
+              safeText((art.descrizione || '').substring(0, 30), 180, detailY);
+              safeText(art.quantita.toLocaleString('it-IT', { maximumFractionDigits: 0 }), 380, detailY);
+              safeText(`€ ${art.costo.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 450, detailY);
+              doc.fillColor('#2E7D32');
+              safeText(`€ ${art.fatturato.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 530, detailY);
               doc.fillColor(secondaryColor);
               detailY += 10;
             });
 
             if (articoliSorted.length > 15) {
-              doc.fillColor('#999').fontSize(7).font('Helvetica-Oblique')
-                 .text(`... e altri ${articoliSorted.length - 15} articoli`, 60, detailY);
+              doc.fillColor('#999').fontSize(7).font('Helvetica-Oblique');
+              safeText(`... e altri ${articoliSorted.length - 15} articoli`, 60, detailY);
               detailY += 10;
             }
 
