@@ -27,6 +27,16 @@ module.exports = {
       zIndex: {
         '99999': '99999',
         '9999': '9999'
+      },
+      boxShadow: {
+        'sidebar': '0 1px 3px rgba(0,0,0,0.05), 0 20px 60px -15px rgba(0,0,0,0.1)',
+        'header': '0 1px 3px rgba(0,0,0,0.05), 0 1px 0 rgba(0,0,0,0.03)',
+        'popup': '0 4px 24px -4px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)',
+        'item-active': '0 1px 3px rgba(0,0,0,0.06)',
+        'inset-subtle': 'inset 0 1px 2px rgba(0,0,0,0.04)',
+      },
+      transitionTimingFunction: {
+        'smooth-out': 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
       }
     }
   },

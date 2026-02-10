@@ -60,7 +60,7 @@ export default function DashboardLayout({
 
       {/* Content Area */}
       <div
-        className="relative flex flex-col h-full overflow-x-hidden overflow-y-auto transition-all duration-300"
+        className="relative flex flex-col h-full overflow-x-hidden overflow-y-auto transition-[margin] duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
         style={{ marginLeft: sidebarCollapsed ? '72px' : '260px' }}
       >
         {/* Header */}

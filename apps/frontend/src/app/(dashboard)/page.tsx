@@ -199,7 +199,7 @@ export default function DashboardPage() {
         <div className="sm:flex sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold dark:from-blue-400 dark:to-indigo-400">
-              Dashboard CoreGRE
+              Dashboard
             </h1>
             <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
               <i className="fas fa-user-circle mr-2"></i>

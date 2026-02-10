@@ -16,16 +16,18 @@ export class TrackingService {
         WHERE tli.doc IS NULL OR tli.doc = ''
       `.then(r => Number(r[0]?.count || 0)),
       this.prisma.$queryRaw<[{count: bigint}]>`
-        SELECT COUNT(DISTINCT tl.lot) as count
+        SELECT COUNT(DISTINCT cd.Ordine) as count
         FROM track_links tl
-        LEFT JOIN track_order_info toi ON tl.lot = toi.ordine
-        WHERE toi.date IS NULL
+        JOIN core_dati cd ON tl.cartel = cd.Cartel
+        LEFT JOIN track_order_info toi ON CAST(cd.Ordine AS CHAR) COLLATE utf8mb4_unicode_ci = toi.ordine COLLATE utf8mb4_unicode_ci
+        WHERE cd.Ordine IS NOT NULL AND toi.date IS NULL
       `.then(r => Number(r[0]?.count || 0)),
       this.prisma.$queryRaw<[{count: bigint}]>`
-        SELECT COUNT(DISTINCT tl.lot) as count
+        SELECT COUNT(DISTINCT cd.Articolo) as count
         FROM track_links tl
-        LEFT JOIN track_sku ts ON tl.lot = ts.art
-        WHERE ts.sku IS NULL OR ts.sku = ''
+        JOIN core_dati cd ON tl.cartel = cd.Cartel
+        LEFT JOIN track_sku ts ON cd.Articolo COLLATE utf8mb4_unicode_ci = ts.art COLLATE utf8mb4_unicode_ci
+        WHERE cd.Articolo IS NOT NULL AND (ts.sku IS NULL OR ts.sku = '')
       `.then(r => Number(r[0]?.count || 0)),
     ]);
 

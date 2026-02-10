@@ -30,6 +30,22 @@ body.loading * { pointer-events: none; }
 .alert-warning { color: rgb(133 77 14); background-color: rgb(254 249 195); border-color: rgb(254 240 138); }
 .alert-info { color: rgb(30 58 138); background-color: rgb(219 234 254); border-color: rgb(191 219 254); }
 
+/* Sidebar scroll fade edges */
+.sidebar-scroll-fade {
+  mask-image: linear-gradient(to bottom, transparent 0px, black 16px, black calc(100% - 16px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0px, black 16px, black calc(100% - 16px), transparent 100%);
+}
+
+/* Refined thin scrollbar for sidebar */
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(209, 213, 219, 0.3) transparent;
+}
+.sidebar-scrollbar::-webkit-scrollbar { width: 3px; }
+.sidebar-scrollbar::-webkit-scrollbar-thumb { background: rgba(209, 213, 219, 0.3); border-radius: 9999px; }
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(209, 213, 219, 0.6); }
+.sidebar-scrollbar::-webkit-scrollbar-track { background: transparent; }
+
 /* React Grid Layout - Force widgets to respect grid dimensions */
 .react-grid-item {
   box-sizing: border-box;

@@ -148,17 +148,6 @@ const toolItems: MenuItem[] = [
   { name: 'Impostazioni', href: '/settings', icon: 'fa-cog', gradient: 'from-gray-500 to-gray-600', hoverGradient: 'hover:from-gray-50 hover:to-gray-100 dark:hover:from-gray-800/50 dark:hover:to-gray-700/50', permission: 'settings' },
 ];
 
-// Helper: get submenu icon badge gradient from parent gradient
-const getSubIconGradient = (gradient: string) => {
-  if (gradient.includes('green') || gradient.includes('emerald') || gradient.includes('teal')) return 'from-emerald-400 to-emerald-600';
-  if (gradient.includes('yellow') || gradient.includes('orange')) return 'from-orange-400 to-orange-500';
-  if (gradient.includes('indigo') || gradient.includes('purple')) return 'from-indigo-400 to-purple-500';
-  if (gradient.includes('red') || gradient.includes('rose')) return 'from-red-400 to-red-500';
-  if (gradient.includes('cyan')) return 'from-cyan-400 to-cyan-600';
-  if (gradient.includes('pink')) return 'from-pink-400 to-rose-500';
-  return 'from-blue-400 to-blue-600';
-};
-
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, sidebarCollapsed, toggleSidebar, hasPermission } = useAuthStore();
@@ -169,13 +158,13 @@ export default function Sidebar() {
   const sidebarRef = useRef<HTMLElement>(null);
   const popupRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
     fetchModules();
   }, [fetchModules]);
 
+  // Ricarica quando lastFetched cambia (cache invalidata)
   useEffect(() => {
     if (lastFetched === null && mounted) {
       fetchModules();
@@ -183,11 +172,6 @@ export default function Sidebar() {
   }, [lastFetched, mounted, fetchModules]);
 
   const isActive = (href: string) => pathname === href;
-  const isParentActive = (item: MenuItem) => {
-    if (isActive(item.href)) return true;
-    return item.children?.some(child => isActive(child.href)) || false;
-  };
-
   const toggleMenu = (name: string, event?: React.MouseEvent) => {
     if (sidebarCollapsed) {
       if (popupMenu === name) {
@@ -231,9 +215,14 @@ export default function Sidebar() {
     };
   }, [popupMenu]);
 
+  // Helper function to check if an item should be visible
   const isItemVisible = (item: MenuItem) => {
+    // Filter by permissions
     if (item.permission && !hasPermission(item.permission)) return false;
+
+    // Filter by active modules
     if (item.permission) {
+      // Map permission to module name (handle special cases)
       const moduleMap: Record<string, string> = {
         'quality': 'qualita',
         'scm_admin': 'scm_admin',
@@ -241,75 +230,59 @@ export default function Sidebar() {
       const moduleName = moduleMap[item.permission] || item.permission;
       if (!isModuleActive(moduleName)) return false;
     }
+
     return true;
-  };
-
-  // Active state classes
-  const getActiveClasses = (item: MenuItem, category?: 'FUNZIONI' | 'FRAMEWORK' | 'STRUMENTI') => {
-    if (!isActive(item.href) && !isParentActive(item)) return 'text-gray-600 dark:text-gray-300';
-
-    if (category === 'STRUMENTI') {
-      return 'bg-gradient-to-r from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-700/50 shadow-sm ring-1 ring-gray-200/60 dark:ring-gray-700/30';
-    } else if (category === 'FRAMEWORK') {
-      return 'bg-gradient-to-r from-cyan-50/80 to-white dark:from-cyan-900/30 dark:to-gray-800 shadow-sm ring-1 ring-cyan-100/60 dark:ring-cyan-900/30';
-    }
-    return 'bg-gradient-to-r from-blue-50/80 to-white dark:from-blue-900/30 dark:to-gray-800 shadow-sm ring-1 ring-blue-100/60 dark:ring-blue-900/30';
   };
 
   const renderMenuItem = (item: MenuItem, index: number, category?: 'FUNZIONI' | 'FRAMEWORK' | 'STRUMENTI') => {
     const hasChildren = item.children && item.children.length > 0;
     const isOpen = activeMenu === item.name;
     const isPopupOpen = popupMenu === item.name;
-    const subIconGradient = getSubIconGradient(item.gradient);
 
+    // Use the helper function to check visibility
     if (!isItemVisible(item)) return null;
+
+    // Determine active styles based on category
+    const getActiveClasses = () => {
+      if (!isActive(item.href)) return 'text-gray-700';
+
+      if (category === 'STRUMENTI') {
+        return 'bg-gradient-to-r from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-700/50 shadow-md ring-1 ring-gray-100/60 dark:ring-gray-700/30';
+      } else if (category === 'FRAMEWORK') {
+        return 'bg-gradient-to-r from-cyan-50 to-white dark:from-cyan-900/30 dark:to-gray-800 shadow-md ring-1 ring-cyan-100/60 dark:ring-cyan-900/30';
+      }
+      return 'bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/30 dark:to-gray-800 shadow-md ring-1 ring-blue-100/60 dark:ring-blue-900/30';
+    };
 
     return (
       <motion.li
         key={item.name}
-        initial={{ opacity: 0, x: -12 }}
+        initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: index * 0.04, duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+        transition={{ delay: index * 0.05 }}
         className="relative"
-        onMouseEnter={() => setHoveredItem(item.name)}
-        onMouseLeave={() => setHoveredItem(null)}
       >
         {hasChildren ? (
           <div>
             <motion.button
               onClick={(e) => toggleMenu(item.name, e)}
-              whileHover={{ scale: 1.01, y: -1, transition: { type: 'spring', stiffness: 400, damping: 20 } }}
-              whileTap={{ scale: 0.97, transition: { duration: 0.1 } }}
-              className={`sidebar-item flex w-full items-center rounded-xl px-3 py-2 text-[13px] font-medium transition-all duration-150 hover:bg-gradient-to-r ${item.hoverGradient} group ${isOpen || isPopupOpen ? 'bg-gradient-to-r from-gray-50 to-gray-100/80 dark:from-gray-800/50 dark:to-gray-700/50 shadow-sm' : 'hover:shadow-sm'} ${getActiveClasses(item, category)} ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}
+              whileHover={{ scale: 1.02, y: -1 }}
+              whileTap={{ scale: 0.98 }}
+              className={`sidebar-item flex w-full items-center rounded-lg px-2.5 py-2.5 text-sm font-medium text-gray-700 transition-all duration-200 hover:bg-gradient-to-r ${item.hoverGradient} dark:text-gray-300 shadow-sm hover:shadow-md group ${isOpen || isPopupOpen ? 'bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/50 shadow-md' : ''} ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}
             >
-              <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`}>
+              <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2.5'}`}>
                 <motion.div
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${item.gradient} shadow-sm ring-1 ring-white/30 flex-shrink-0`}
-                  whileHover={{ scale: 1.08, rotate: 2 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                  className={`flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-r ${item.gradient} shadow-sm flex-shrink-0`}
+                  whileHover={{ scale: 1.1 }}
                 >
                   <i className={`fas ${item.icon} text-sm text-white`}></i>
                 </motion.div>
                 {!sidebarCollapsed && <span className="sidebar-text whitespace-nowrap">{item.name}</span>}
               </div>
               {!sidebarCollapsed && (
-                <motion.i
-                  className="sidebar-text fas fa-chevron-down text-[10px] text-gray-400"
-                  animate={{ rotate: isOpen ? 180 : 0 }}
-                  transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-                />
+                <motion.i className="sidebar-text fas fa-chevron-down text-xs" animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.3 }} />
               )}
             </motion.button>
-
-            {/* Collapsed tooltip */}
-            {sidebarCollapsed && !hasChildren && hoveredItem === item.name && mounted && createPortal(
-              <div className="fixed z-[9999] pointer-events-none" style={{ top: popupPosition.top, left: popupPosition.left }}>
-                <div className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg whitespace-nowrap">
-                  {item.name}
-                </div>
-              </div>,
-              document.body
-            )}
 
             {/* Expanded Submenu */}
             <AnimatePresence>
@@ -318,28 +291,31 @@ export default function Sidebar() {
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  className="overflow-hidden mt-1.5 pl-4 pr-1"
+                  transition={{ duration: 0.3 }}
+                  className="overflow-hidden mt-2 pl-5 pr-1"
                 >
-                  <div className="rounded-xl bg-gray-50/60 dark:bg-gray-800/40 border border-gray-100/80 dark:border-gray-700/40 p-2 shadow-inset-subtle backdrop-blur-sm">
-                    {item.children?.map((child, i) => (
-                      <motion.div
-                        key={child.name}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.03, duration: 0.2 }}
-                      >
-                        <Link
-                          href={child.href}
-                          className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-all duration-150 hover:bg-white hover:text-gray-800 dark:hover:bg-gray-700 dark:hover:text-gray-200 hover:shadow-sm hover:-translate-y-px ${isActive(child.href) ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
-                        >
-                          <div className={`flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br ${subIconGradient} shadow-sm flex-shrink-0`}>
-                            <i className={`fas ${child.icon} text-[10px] text-white`}></i>
-                          </div>
-                          <span>{child.name}</span>
-                        </Link>
-                      </motion.div>
-                    ))}
+                  <div className="rounded-md bg-gray-50/80 dark:bg-gray-800/40 p-1.5 shadow-inner backdrop-blur-sm">
+                    {item.children?.map((child, i) => {
+                      const iconColorClass = item.gradient.includes('blue') ? 'text-blue-500' :
+                        item.gradient.includes('green') || item.gradient.includes('emerald') ? 'text-green-500' :
+                        item.gradient.includes('yellow') || item.gradient.includes('orange') ? 'text-orange-500' :
+                        item.gradient.includes('indigo') || item.gradient.includes('purple') ? 'text-purple-500' :
+                        item.gradient.includes('red') ? 'text-red-500' :
+                        item.gradient.includes('cyan') ? 'text-cyan-500' :
+                        item.gradient.includes('pink') ? 'text-pink-500' : 'text-blue-500';
+
+                      return (
+                        <motion.div key={child.name} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
+                          <Link
+                            href={child.href}
+                            className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium transition-all duration-200 hover:bg-white hover:text-gray-800 dark:hover:bg-gray-700 dark:hover:text-gray-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 ${isActive(child.href) ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-md' : 'text-gray-600 dark:text-gray-400'}`}
+                          >
+                            <i className={`fas ${child.icon} text-xs ${iconColorClass}`}></i>
+                            <span>{child.name}</span>
+                          </Link>
+                        </motion.div>
+                      );
+                    })}
                   </div>
                 </motion.div>
               )}
@@ -349,32 +325,39 @@ export default function Sidebar() {
             {mounted && sidebarCollapsed && isPopupOpen && hasChildren && createPortal(
               <AnimatePresence>
                 <motion.div
-                  initial={{ opacity: 0, x: -8, scale: 0.96 }}
+                  initial={{ opacity: 0, x: -10, scale: 0.95 }}
                   animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: -6, scale: 0.97 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 30, mass: 0.8 }}
+                  exit={{ opacity: 0, x: -10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
                   className="fixed z-[9999]"
                   style={{ top: popupPosition.top, left: popupPosition.left }}
                   ref={(el) => (popupRef.current = el)}
                 >
-                  <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-[0_8px_30px_-4px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.4)] p-2.5 min-w-[200px]">
-                    <div className="px-3 py-2 mb-1.5 border-b border-gray-100/80 dark:border-gray-700">
-                      <span className="text-[13px] font-semibold text-gray-900 dark:text-white">{item.name}</span>
+                  <div className="rounded-lg bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 p-2 min-w-[180px]">
+                    <div className="px-2.5 py-1.5 mb-1 border-b border-gray-100 dark:border-gray-700">
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">{item.name}</span>
                     </div>
-                    {item.children?.map((child) => (
-                      <motion.div key={child.name} whileHover={{ x: 2 }} transition={{ duration: 0.15 }}>
+                    {item.children?.map((child) => {
+                      const iconColorClass = item.gradient.includes('blue') ? 'text-blue-500' :
+                        item.gradient.includes('green') || item.gradient.includes('emerald') ? 'text-green-500' :
+                        item.gradient.includes('yellow') || item.gradient.includes('orange') ? 'text-orange-500' :
+                        item.gradient.includes('indigo') || item.gradient.includes('purple') ? 'text-purple-500' :
+                        item.gradient.includes('red') ? 'text-red-500' :
+                        item.gradient.includes('cyan') ? 'text-cyan-500' :
+                        item.gradient.includes('pink') ? 'text-pink-500' : 'text-blue-500';
+
+                      return (
                         <Link
+                          key={child.name}
                           href={child.href}
                           onClick={() => setPopupMenu(null)}
-                          className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-700 ${isActive(child.href) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}
+                          className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 ${isActive(child.href) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'}`}
                         >
-                          <div className={`flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br ${subIconGradient} shadow-sm flex-shrink-0`}>
-                            <i className={`fas ${child.icon} text-[10px] text-white`}></i>
-                          </div>
+                          <i className={`fas ${child.icon} text-xs ${iconColorClass}`}></i>
                           <span>{child.name}</span>
                         </Link>
-                      </motion.div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </motion.div>
               </AnimatePresence>,
@@ -384,14 +367,13 @@ export default function Sidebar() {
         ) : (
           <Link href={item.href}>
             <motion.div
-              whileHover={{ scale: 1.01, y: -1, transition: { type: 'spring', stiffness: 400, damping: 20 } }}
-              whileTap={{ scale: 0.97, transition: { duration: 0.1 } }}
-              className={`sidebar-item flex items-center rounded-xl px-3 py-2 text-[13px] font-medium transition-all duration-150 hover:bg-gray-50/80 hover:shadow-sm ${item.hoverGradient} group ${getActiveClasses(item, category)} ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`}
+              whileHover={{ scale: 1.02, y: -1 }}
+              whileTap={{ scale: 0.98 }}
+              className={`sidebar-item flex items-center rounded-lg px-2.5 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-white/70 hover:shadow-lg ${item.hoverGradient} dark:text-gray-300 shadow-sm group ${isActive(item.href) ? 'bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/30 dark:to-gray-800 shadow-md ring-1 ring-blue-100/60 dark:ring-blue-900/30' : 'text-gray-700'} ${sidebarCollapsed ? 'justify-center' : 'gap-2.5'}`}
             >
               <motion.div
-                className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${item.gradient} shadow-sm ring-1 ring-white/30 flex-shrink-0`}
-                whileHover={{ scale: 1.08, rotate: 2 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                className={`flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-r ${item.gradient} shadow-sm flex-shrink-0 ring-1 ring-white/40 dark:ring-black/20`}
+                whileHover={{ scale: 1.08 }}
               >
                 <i className={`fas ${item.icon} text-sm text-white`}></i>
               </motion.div>
@@ -399,47 +381,9 @@ export default function Sidebar() {
             </motion.div>
           </Link>
         )}
-
-        {/* Collapsed tooltip for items without children */}
-        {sidebarCollapsed && !hasChildren && hoveredItem === item.name && mounted && createPortal(
-          <motion.div
-            initial={{ opacity: 0, x: -4 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.15, delay: 0.3 }}
-            className="fixed z-[9999] pointer-events-none"
-            style={{ top: 0, left: 80 }}
-          >
-            <div className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg whitespace-nowrap">
-              {item.name}
-            </div>
-          </motion.div>,
-          document.body
-        )}
       </motion.li>
     );
   };
-
-  const renderCategoryHeader = (label: string) => (
-    <>
-      <AnimatePresence>
-        {!sidebarCollapsed && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="sidebar-text mb-3.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-gray-100/70 to-gray-50/50 dark:from-gray-800 dark:to-gray-700 border border-gray-100/60 dark:border-gray-700/40"
-          >
-            <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400 dark:text-gray-400">{label}</h3>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {sidebarCollapsed && (
-        <div className="mb-2 flex justify-center">
-          <div className="h-px w-5 bg-gradient-to-r from-transparent via-gray-300 to-transparent dark:via-gray-600"></div>
-        </div>
-      )}
-    </>
-  );
 
   return (
     <>
@@ -453,35 +397,31 @@ export default function Sidebar() {
         ref={sidebarRef}
         initial={false}
         animate={{ width: sidebarCollapsed ? 72 : 260 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-visible border-r border-gray-200/80 bg-gradient-to-b from-white via-gray-50/80 to-white shadow-[2px_0_8px_-2px_rgba(0,0,0,0.06),3px_0_16px_-4px_rgba(0,0,0,0.04)] dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.2)]"
+        transition={{ duration: 0.3, ease: 'easeInOut' }}
+        className="fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-visible border-r border-gray-200 bg-gradient-to-b from-white via-gray-50 to-white shadow-xl dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
       >
         {/* Header */}
-        <div className={`flex items-center border-b border-gray-100/80 dark:border-gray-700/60 bg-gradient-to-r from-gray-50/80 via-white to-white dark:from-gray-800 dark:via-gray-800 dark:to-gray-900 py-5 px-4 ${sidebarCollapsed ? 'justify-center px-3' : 'justify-between'}`}>
+        <div className={`flex items-center border-b border-gray-200/60 dark:border-gray-700/60 bg-gradient-to-r from-gray-50 via-white to-white dark:from-gray-800 dark:via-gray-800 dark:to-gray-900 py-4 px-3 shadow-sm ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
           {sidebarCollapsed ? (
             <motion.button
               onClick={toggleSidebar}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-lg shadow-orange-500/20 text-white ring-1 ring-orange-500/10"
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 shadow-md text-white"
             >
               <motion.i
                 className="fas fa-chevron-right text-xs"
-                animate={{ x: [0, 3, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                animate={{ x: [0, 2, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
               />
             </motion.button>
           ) : (
             <>
               <Link href="/" className="flex items-center group">
-                <motion.div
-                  className="p-2 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-md ring-1 ring-orange-500/20"
-                  whileHover={{ y: -2, scale: 1.05 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                >
+                <motion.div className="p-1.5 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 shadow-md" whileHover={{ y: -1 }}>
                   <img className="h-5 w-5" src="/assets/logo-white.png" alt="COREGRE" />
                 </motion.div>
-                <span className="ml-3 text-[15px] font-extrabold tracking-tight bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-gray-300 bg-clip-text text-transparent whitespace-nowrap">
+                <span className="ml-2.5 text-base font-bold bg-gradient-to-r from-gray-800 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent whitespace-nowrap">
                   COREGRE
                 </span>
               </Link>
@@ -490,7 +430,7 @@ export default function Sidebar() {
                 onClick={toggleSidebar}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                className="hidden lg:flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white transition-all duration-200"
+                className="hidden lg:flex h-7 w-7 items-center justify-center rounded-md text-gray-500 hover:bg-white hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white shadow-sm transition-all"
               >
                 <i className="fas fa-chevron-left text-xs" />
               </motion.button>
@@ -499,7 +439,7 @@ export default function Sidebar() {
                 onClick={toggleSidebar}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white transition-all duration-200 lg:hidden"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-gray-500 hover:bg-white hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white shadow-sm transition-all lg:hidden"
               >
                 <i className="fas fa-times text-xs"></i>
               </motion.button>
@@ -508,7 +448,7 @@ export default function Sidebar() {
         </div>
 
         {/* Menu */}
-        <div className={`flex flex-1 flex-col overflow-y-auto overflow-x-visible scrollbar-hidden py-4 ${sidebarCollapsed ? 'px-2' : 'px-3'}`}>
+        <div className={`flex flex-1 flex-col overflow-y-auto overflow-x-visible scrollbar-hidden py-3 ${sidebarCollapsed ? 'px-2' : 'px-3'}`}>
           <nav>
             {/* Dashboard */}
             <div className="mb-6">
@@ -518,27 +458,59 @@ export default function Sidebar() {
             {/* Funzioni */}
             {menuItems.slice(1).filter(isItemVisible).length > 0 && (
               <div className="mb-6">
-                {renderCategoryHeader('Funzioni')}
-                <ul className="space-y-1.5">{menuItems.slice(1).map((item, i) => renderMenuItem(item, i + 1, 'FUNZIONI'))}</ul>
+                <AnimatePresence>
+                  {!sidebarCollapsed && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="sidebar-text mb-3 px-2.5 py-1.5 rounded-md bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-700">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Funzioni</h3>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {sidebarCollapsed && (
+                  <div className="mb-1.5 flex justify-center">
+                    <div className="h-px w-6 bg-gray-300 dark:bg-gray-600"></div>
+                  </div>
+                )}
+                <ul className="space-y-1.5">{menuItems.slice(1).map((item, i) => renderMenuItem(item, i + 1))}</ul>
               </div>
             )}
 
             {adminItems.filter(isItemVisible).length > 0 && (
               <div className="mb-6">
-                {renderCategoryHeader('Frameworks')}
-                <ul className="space-y-1.5">{adminItems.map((item, i) => renderMenuItem(item, i + menuItems.length, 'FRAMEWORK'))}</ul>
+                <AnimatePresence>
+                  {!sidebarCollapsed && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="sidebar-text mb-3 px-2.5 py-1.5 rounded-md bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-700">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Frameworks</h3>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {sidebarCollapsed && (
+                  <div className="mb-1.5 flex justify-center">
+                    <div className="h-px w-6 bg-gray-300 dark:bg-gray-600"></div>
+                  </div>
+                )}
+                <ul className="space-y-1.5">{adminItems.map((item, i) => renderMenuItem(item, i + menuItems.length))}</ul>
               </div>
             )}
 
             {toolItems.filter(isItemVisible).length > 0 && (
               <div>
-                {renderCategoryHeader('Strumenti')}
-                <ul className="space-y-1.5">{toolItems.map((item, i) => renderMenuItem(item, i + menuItems.length + adminItems.length, 'STRUMENTI'))}</ul>
+                <AnimatePresence>
+                  {!sidebarCollapsed && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="sidebar-text mb-3 px-2.5 py-1.5 rounded-md bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-700">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Strumenti</h3>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {sidebarCollapsed && (
+                  <div className="mb-1.5 flex justify-center">
+                    <div className="h-px w-6 bg-gray-300 dark:bg-gray-600"></div>
+                  </div>
+                )}
+                <ul className="space-y-1.5">{toolItems.map((item, i) => renderMenuItem(item, i + menuItems.length + adminItems.length))}</ul>
               </div>
             )}
           </nav>
         </div>
-
       </motion.aside>
     </>
   );
