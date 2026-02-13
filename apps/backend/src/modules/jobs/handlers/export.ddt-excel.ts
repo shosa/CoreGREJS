@@ -45,7 +45,7 @@ const handler: JobHandler = async (payload, helpers) => {
     const um = riga.article?.um || riga.umLibera || '';
     const qta = Number(riga.qtaReale || riga.qtaOriginale || 0);
     const prezzo = Number(riga.article?.prezzoUnitario ?? riga.prezzoLibero ?? 0);
-    const totale = qta * prezzo;
+    const totale = Math.round(qta * prezzo * 100) / 100;
     materialsSheet.addRow([codice, descrizione, voce, um, qta, prezzo, totale]);
   });
 

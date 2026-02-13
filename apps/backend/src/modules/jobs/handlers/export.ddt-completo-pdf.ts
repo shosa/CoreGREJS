@@ -578,7 +578,7 @@ const handler: JobHandler = async (payload, helpers) => {
     const um = riga.article?.um || riga.umLibera || '';
     const qta = riga.qtaReale || riga.qtaOriginale;
     const prezzo = riga.article?.prezzoUnitario || riga.prezzoLibero || 0;
-    const subtotal = qta * Number(prezzo);
+    const subtotal = Math.round(qta * Number(prezzo) * 100) / 100;
     totalValue += subtotal;
 
     // Check spazio per nuova pagina con chiusura tabella
@@ -732,7 +732,7 @@ const handler: JobHandler = async (payload, helpers) => {
     const um = riga.article?.um || riga.umLibera || '';
     const qta = riga.qtaReale || riga.qtaOriginale;
     const prezzo = riga.article?.prezzoUnitario || riga.prezzoLibero || 0;
-    const subtotal = qta * Number(prezzo);
+    const subtotal = Math.round(qta * Number(prezzo) * 100) / 100;
     totalValue += subtotal;
 
     if (currentY + rowHeight > pageHeight - 120) {
@@ -921,7 +921,7 @@ const handler: JobHandler = async (payload, helpers) => {
       const um = riga.article?.um || riga.umLibera || '';
       const qta = riga.qtaReale || riga.qtaOriginale;
       const prezzo = riga.article?.prezzoUnitario || riga.prezzoLibero || 0;
-      const subtotal = qta * Number(prezzo);
+      const subtotal = Math.round(qta * Number(prezzo) * 100) / 100;
       totalValue += subtotal;
 
       if (currentY + rowHeight > pageHeight - 120) {
