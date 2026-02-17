@@ -28,6 +28,7 @@ import { StorageModule } from './modules/storage/storage.module';
 import { FileManagerModule } from './modules/file-manager/file-manager.module';
 import { MinioModule } from './services/minio.module';
 import { AnaliticheModule } from './modules/analitiche/analitiche.module';
+import { CacheModule } from './common/services/cache.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AnaliticheModule } from './modules/analitiche/analitiche.module';
       envFilePath: '.env',
     }),
     ScheduleModule.forRoot(),
+    CacheModule,
     PrismaModule,
     MinioModule,
     StorageModule,

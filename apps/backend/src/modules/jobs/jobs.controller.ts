@@ -14,6 +14,7 @@ import {
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { Response, Request } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { LogActivity } from '../../common/decorators/log-activity.decorator';
 import { JobsService, JobStatus } from './jobs.service';
 import { JobsQueueService } from './jobs.queue';
 import { StorageService } from '../storage/storage.service';
@@ -32,6 +33,7 @@ export class JobsController {
   ) {}
 
   @Post()
+  @LogActivity({ module: 'jobs', action: 'enqueue', entity: 'Job', description: 'Accodamento nuovo job' })
   async enqueue(
     @Body() body: { type: string; payload: any },
     @Req() req: Request,
@@ -87,6 +89,7 @@ export class JobsController {
   }
 
   @Delete(':id')
+  @LogActivity({ module: 'jobs', action: 'delete', entity: 'Job', description: 'Eliminazione job' })
   async delete(@Param('id') id: string, @Req() req: Request) {
     const userId = (req as any).user?.userId;
     const job = await this.jobsService.getJob(id, userId);
@@ -105,6 +108,7 @@ export class JobsController {
   }
 
   @Post('merge-pdf')
+  @LogActivity({ module: 'jobs', action: 'merge_pdf', entity: 'Job', description: 'Merge PDF da job multipli' })
   async mergePdf(@Body() body: { ids: string[] }, @Req() req: Request, @Res() res: Response) {
     const userId = (req as any).user?.userId;
     const ids = body.ids || [];
@@ -132,6 +136,7 @@ export class JobsController {
   }
 
   @Post('zip')
+  @LogActivity({ module: 'jobs', action: 'zip', entity: 'Job', description: 'Creazione ZIP da job multipli' })
   async zipFiles(@Body() body: { ids: string[] }, @Req() req: Request, @Res() res: Response) {
     const userId = (req as any).user?.userId;
     const ids = body.ids || [];

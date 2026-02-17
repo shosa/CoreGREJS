@@ -3,6 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery, 
 import { FileManagerService } from './file-manager.service';
 import { FileFilterDto, DeleteFilesDto } from './dto/file-filter.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { LogActivity } from '../../common/decorators/log-activity.decorator';
 
 @ApiTags('File Manager')
 @ApiBearerAuth()
@@ -42,12 +43,14 @@ export class FileManagerController {
   }
 
   @Delete(':id')
+  @LogActivity({ module: 'files', action: 'delete', entity: 'File', description: 'Eliminazione file' })
   async deleteFile(@Param('id', ParseIntPipe) id: number) {
     await this.fileManager.deleteFile(id);
     return { success: true };
   }
 
   @Delete()
+  @LogActivity({ module: 'files', action: 'delete_bulk', entity: 'File', description: 'Eliminazione multipla file' })
   async deleteFiles(@Query() filter: DeleteFilesDto) {
     const result = await this.fileManager.deleteFiles({
       userId: filter.userId,
@@ -60,6 +63,7 @@ export class FileManagerController {
   }
 
   @Get('sync/minio')
+  @LogActivity({ module: 'files', action: 'sync', entity: 'MinIO', description: 'Sincronizzazione file da MinIO' })
   async syncFromMinio() {
     return this.fileManager.syncFromMinio();
   }

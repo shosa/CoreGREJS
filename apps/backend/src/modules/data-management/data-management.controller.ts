@@ -4,6 +4,7 @@ import { DataManagementService } from './data-management.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { LogActivity } from '../../common/decorators/log-activity.decorator';
 
 @ApiTags('Data Management')
 @ApiBearerAuth()
@@ -50,6 +51,7 @@ export class DataManagementController {
   }
 
   @Put('tables/:tableName/record/:id')
+  @LogActivity({ module: 'data-management', action: 'update', entity: 'Record', description: 'Modifica record tramite data management' })
   updateRecord(
     @Param('tableName') tableName: string,
     @Param('id') id: string,
@@ -60,6 +62,7 @@ export class DataManagementController {
   }
 
   @Delete('tables/:tableName/record/:id')
+  @LogActivity({ module: 'data-management', action: 'delete', entity: 'Record', description: 'Eliminazione record tramite data management' })
   deleteRecord(
     @Param('tableName') tableName: string,
     @Param('id') id: string,

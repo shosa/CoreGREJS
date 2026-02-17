@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CacheService } from '../../common/services/cache.service';
 import * as XLSX from 'xlsx';
 
 // Colonne attese nell'ordine esatto del Legacy
@@ -37,7 +38,10 @@ export class SettingsService {
   private pendingImportData: any[] | null = null;
   private pendingAnalysis: ImportAnalysis | null = null;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cache: CacheService,
+  ) {}
 
   getImportProgress(): ImportProgress {
     return this.importProgress;
@@ -283,22 +287,24 @@ export class SettingsService {
   // ==================== MODULE MANAGEMENT ====================
 
   async getActiveModules(): Promise<Record<string, boolean>> {
-    const settings = await this.prisma.setting.findMany({
-      where: {
-        key: {
-          startsWith: 'module.',
+    return this.cache.getOrSet('settings:modules', 300, async () => {
+      const settings = await this.prisma.setting.findMany({
+        where: {
+          key: {
+            startsWith: 'module.',
+          },
         },
-      },
+      });
+
+      const modules: Record<string, boolean> = {};
+
+      for (const setting of settings) {
+        const moduleName = setting.key.replace('module.', '').replace('.enabled', '');
+        modules[moduleName] = setting.value === 'true';
+      }
+
+      return modules;
     });
-
-    const modules: Record<string, boolean> = {};
-
-    for (const setting of settings) {
-      const moduleName = setting.key.replace('module.', '').replace('.enabled', '');
-      modules[moduleName] = setting.value === 'true';
-    }
-
-    return modules;
   }
 
   async updateModuleStatus(moduleName: string, enabled: boolean): Promise<{ success: boolean }> {
@@ -318,6 +324,7 @@ export class SettingsService {
       },
     });
 
+    await this.cache.invalidate('settings:modules');
     return { success: true };
   }
 
@@ -332,32 +339,34 @@ export class SettingsService {
   // ==================== SMTP CONFIGURATION ====================
 
   async getSmtpConfig(): Promise<any> {
-    const settings = await this.prisma.setting.findMany({
-      where: {
-        key: {
-          startsWith: 'smtp.',
+    return this.cache.getOrSet('settings:smtp', 600, async () => {
+      const settings = await this.prisma.setting.findMany({
+        where: {
+          key: {
+            startsWith: 'smtp.',
+          },
         },
-      },
+      });
+
+      const config: any = {
+        host: '',
+        port: 587,
+        secure: false,
+      };
+
+      settings.forEach(setting => {
+        const key = setting.key.replace('smtp.', '');
+        if (key === 'port') {
+          config[key] = parseInt(setting.value || '587', 10);
+        } else if (key === 'secure') {
+          config[key] = setting.value === 'true';
+        } else {
+          config[key] = setting.value || '';
+        }
+      });
+
+      return config;
     });
-
-    const config: any = {
-      host: '',
-      port: 587,
-      secure: false,
-    };
-
-    settings.forEach(setting => {
-      const key = setting.key.replace('smtp.', '');
-      if (key === 'port') {
-        config[key] = parseInt(setting.value || '587', 10);
-      } else if (key === 'secure') {
-        config[key] = setting.value === 'true';
-      } else {
-        config[key] = setting.value || '';
-      }
-    });
-
-    return config;
   }
 
   async updateSmtpConfig(config: any): Promise<{ success: boolean }> {
@@ -383,6 +392,7 @@ export class SettingsService {
       });
     }
 
+    await this.cache.invalidate('settings:smtp');
     return { success: true };
   }
 

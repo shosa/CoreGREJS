@@ -1,26 +1,32 @@
 import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { CacheService } from '../../common/services/cache.service';
 import * as PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
 export class ProduzioneService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cache: CacheService,
+  ) {}
 
   // ==================== PHASES ====================
 
   async getAllPhases() {
-    return this.prisma.productionPhase.findMany({
-      where: { attivo: true },
-      include: {
-        reparti: {
-          where: { attivo: true },
-          orderBy: { ordine: 'asc' },
+    return this.cache.getOrSet('produzione:phases', 300, () =>
+      this.prisma.productionPhase.findMany({
+        where: { attivo: true },
+        include: {
+          reparti: {
+            where: { attivo: true },
+            orderBy: { ordine: 'asc' },
+          },
         },
-      },
-      orderBy: { ordine: 'asc' },
-    });
+        orderBy: { ordine: 'asc' },
+      }),
+    );
   }
 
   async getPhaseById(id: number) {
@@ -35,7 +41,7 @@ export class ProduzioneService {
   }
 
   async createPhase(data: any) {
-    return this.prisma.productionPhase.create({
+    const result = await this.prisma.productionPhase.create({
       data: {
         nome: data.nome,
         codice: data.codice,
@@ -45,10 +51,12 @@ export class ProduzioneService {
         ordine: data.ordine || 0,
       },
     });
+    await this.cache.invalidate('produzione:phases');
+    return result;
   }
 
   async updatePhase(id: number, data: any) {
-    return this.prisma.productionPhase.update({
+    const result = await this.prisma.productionPhase.update({
       where: { id },
       data: {
         nome: data.nome,
@@ -60,24 +68,30 @@ export class ProduzioneService {
         ordine: data.ordine,
       },
     });
+    await this.cache.invalidate('produzione:phases');
+    return result;
   }
 
   async deletePhase(id: number) {
-    return this.prisma.productionPhase.delete({
+    const result = await this.prisma.productionPhase.delete({
       where: { id },
     });
+    await this.cache.invalidate('produzione:phases');
+    return result;
   }
 
   // ==================== DEPARTMENTS ====================
 
   async getAllDepartments() {
-    return this.prisma.productionDepartment.findMany({
-      where: { attivo: true },
-      include: {
-        phase: true,
-      },
-      orderBy: [{ phase: { ordine: 'asc' } }, { ordine: 'asc' }],
-    });
+    return this.cache.getOrSet('produzione:departments', 300, () =>
+      this.prisma.productionDepartment.findMany({
+        where: { attivo: true },
+        include: {
+          phase: true,
+        },
+        orderBy: [{ phase: { ordine: 'asc' } }, { ordine: 'asc' }],
+      }),
+    );
   }
 
   async getDepartmentById(id: number) {

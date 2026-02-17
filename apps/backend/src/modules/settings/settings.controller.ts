@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SettingsService, ImportProgress, ImportAnalysis } from './settings.service';
+import { LogActivity } from '../../common/decorators/log-activity.decorator';
 
 @ApiTags('Settings')
 @ApiBearerAuth()
@@ -29,6 +30,7 @@ export class SettingsController {
   @Post('analyze-excel')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('settings')
+  @LogActivity({ module: 'settings', action: 'analyze_excel', entity: 'Import', description: 'Analisi file Excel per import' })
   @UseInterceptors(FileInterceptor('file'))
   async analyzeExcel(@UploadedFile() file: Express.Multer.File): Promise<ImportAnalysis> {
     if (!file) {
@@ -51,6 +53,7 @@ export class SettingsController {
   @Post('execute-import')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('settings')
+  @LogActivity({ module: 'settings', action: 'execute_import', entity: 'Import', description: 'Esecuzione import dati da Excel' })
   async executeImport() {
     return this.settingsService.executeImport();
   }
@@ -59,6 +62,7 @@ export class SettingsController {
   @Delete('cancel-import')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('settings')
+  @LogActivity({ module: 'settings', action: 'cancel_import', entity: 'Import', description: 'Annullamento import' })
   cancelImport() {
     this.settingsService.cancelImport();
     return { success: true, message: 'Import annullato' };
@@ -84,6 +88,7 @@ export class SettingsController {
   @Put('modules/:moduleName')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('settings')
+  @LogActivity({ module: 'settings', action: 'update_module', entity: 'Module', description: 'Modifica stato modulo' })
   async updateModuleStatus(
     @Param('moduleName') moduleName: string,
     @Body('enabled') enabled: boolean,
@@ -95,6 +100,7 @@ export class SettingsController {
   @Put('modules')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('settings')
+  @LogActivity({ module: 'settings', action: 'update_modules_bulk', entity: 'Module', description: 'Modifica multipla stato moduli' })
   async updateMultipleModules(@Body() modules: Record<string, boolean>) {
     return this.settingsService.updateMultipleModules(modules);
   }
@@ -111,6 +117,7 @@ export class SettingsController {
   @Put('smtp')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('settings')
+  @LogActivity({ module: 'settings', action: 'update_smtp', entity: 'SmtpConfig', description: 'Modifica configurazione SMTP' })
   async updateSmtpConfig(@Body() config: any) {
     return this.settingsService.updateSmtpConfig(config);
   }
@@ -125,6 +132,7 @@ export class SettingsController {
   @Put('produzione/emails')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('settings')
+  @LogActivity({ module: 'settings', action: 'update_produzione_emails', entity: 'EmailConfig', description: 'Modifica email produzione' })
   async updateProduzioneEmailConfig(@Body('emails') emails: string[]) {
     return this.settingsService.updateProduzioneEmailConfig(emails);
   }
