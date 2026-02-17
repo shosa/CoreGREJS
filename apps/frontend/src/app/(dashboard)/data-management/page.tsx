@@ -146,6 +146,18 @@ const modulesData: ModuleInfo[] = [
     ],
   },
   {
+    name: 'analitiche',
+    displayName: 'Analitiche',
+    icon: 'fa-chart-pie',
+    color: 'cyan',
+    description: 'Analisi costi e importazioni ERP',
+    tables: [
+      { name: 'analitica-records', displayName: 'Record Analitiche', model: 'analiticaRecord', tableName: 'ana_records', icon: 'fa-file-invoice-dollar', description: 'Dati costi da ERP', relations: ['reparto', 'repartoFinale', 'import'] },
+      { name: 'analitica-reparti', displayName: 'Reparti Analitiche', model: 'analiticaReparto', tableName: 'ana_reparti', icon: 'fa-building', description: 'Centri di costo' },
+      { name: 'analitica-imports', displayName: 'Import Analitiche', model: 'analiticaImport', tableName: 'ana_imports', icon: 'fa-file-excel', description: 'Storico importazioni Excel', relations: ['records'] },
+    ],
+  },
+  {
     name: 'cron',
     displayName: 'Cron Jobs',
     icon: 'fa-clock',

@@ -293,6 +293,23 @@ export class DataManagementService {
       displayName: 'Moduli Disponibili InWork',
       searchFields: ['moduleId', 'moduleName', 'descrizione'],
     },
+
+    // Analitiche Module (ana_)
+    analiticaRecord: {
+      model: 'analiticaRecord',
+      displayName: 'Record Analitiche',
+      searchFields: ['tipoDocumento', 'numeroDocumento', 'linea', 'articolo', 'descrizioneArt', 'tipologiaOrdine'],
+    },
+    analiticaReparto: {
+      model: 'analiticaReparto',
+      displayName: 'Reparti Analitiche',
+      searchFields: ['nome', 'codice', 'descrizione'],
+    },
+    analiticaImport: {
+      model: 'analiticaImport',
+      displayName: 'Import Analitiche',
+      searchFields: ['fileName', 'stato'],
+    },
   };
 
   getAvailableTables() {
