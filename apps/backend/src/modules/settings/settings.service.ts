@@ -1,4 +1,5 @@
-import { Injectable, BadRequestException, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, OnModuleInit, Inject } from '@nestjs/common';
+import { HttpAdapterHost } from '@nestjs/core';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -53,6 +54,7 @@ export class SettingsService implements OnModuleInit {
     private minioService: MinioService,
     private configService: ConfigService,
     private schedulerRegistry: SchedulerRegistry,
+    private httpAdapterHost: HttpAdapterHost,
   ) {}
 
   async onModuleInit() {
@@ -1018,19 +1020,49 @@ export class SettingsService implements OnModuleInit {
     };
   }
 
-  async getAvailableEndpoints(): Promise<Array<{ method: string; path: string; label: string }>> {
-    return [
-      { method: 'GET', path: '/api/settings/system', label: 'Info Sistema' },
-      { method: 'GET', path: '/api/settings/health-check', label: 'Health Check' },
-      { method: 'POST', path: '/api/settings/cache/flush', label: 'Svuota Cache' },
-      { method: 'DELETE', path: '/api/settings/jobs/old', label: 'Pulisci Job Vecchi' },
-      { method: 'GET', path: '/api/widgets/dashboard/stats', label: 'Aggiorna Stats Dashboard' },
-      { method: 'GET', path: '/api/tracking/stats', label: 'Aggiorna Stats Tracking' },
-      { method: 'GET', path: '/api/quality/dashboard/stats', label: 'Aggiorna Stats Qualità' },
-      { method: 'GET', path: '/api/analitiche/stats', label: 'Aggiorna Stats Analitiche' },
-      { method: 'GET', path: '/api/riparazioni/stats', label: 'Aggiorna Stats Riparazioni' },
-      { method: 'GET', path: '/api/export/documents', label: 'Refresh Documenti Export' },
-    ];
+  async getAvailableEndpoints(): Promise<Array<{ method: string; path: string; params: string[] }>> {
+    const server = this.httpAdapterHost.httpAdapter.getInstance();
+    const routes: Array<{ method: string; path: string; params: string[] }> = [];
+
+    // Express internals: app._router.stack contiene le route registrate
+    const stack = server._router?.stack || [];
+    for (const layer of stack) {
+      if (layer.route) {
+        // Route diretta
+        const path = layer.route.path;
+        const methods = Object.keys(layer.route.methods).filter(m => layer.route.methods[m]);
+        for (const method of methods) {
+          const params = (path.match(/:([^/]+)/g) || []).map((p: string) => p.substring(1));
+          routes.push({ method: method.toUpperCase(), path, params });
+        }
+      } else if (layer.name === 'router' && layer.handle?.stack) {
+        // Sub-router (NestJS monta i controller come sub-router)
+        const prefix = layer.regexp?.source
+          ?.replace('\\/?(?=\\/|$)', '')
+          ?.replace(/\\\//g, '/')
+          ?.replace(/^\^/, '')
+          ?.replace(/\$.*$/, '')
+          || '';
+        for (const subLayer of layer.handle.stack) {
+          if (subLayer.route) {
+            const fullPath = prefix + subLayer.route.path;
+            const methods = Object.keys(subLayer.route.methods).filter(m => subLayer.route.methods[m]);
+            for (const method of methods) {
+              const params = (fullPath.match(/:([^/]+)/g) || []).map((p: string) => p.substring(1));
+              routes.push({ method: method.toUpperCase(), path: fullPath, params });
+            }
+          }
+        }
+      }
+    }
+
+    // Filtra rotte interne/auth e ordina
+    const excluded = ['/api/auth', '/api/health', '/api/settings/cron'];
+    return routes
+      .filter(r => r.path.startsWith('/api/'))
+      .filter(r => !excluded.some(ex => r.path.startsWith(ex)))
+      .filter(r => !['HEAD', 'OPTIONS'].includes(r.method))
+      .sort((a, b) => a.path.localeCompare(b.path));
   }
 
   private registerCronJob(cron: any) {
@@ -1048,11 +1080,20 @@ export class SettingsService implements OnModuleInit {
         this.logger.log(`Cron eseguito: ${cron.label || cron.endpoint}`);
         try {
           const baseUrl = `http://127.0.0.1:${this.configService.get('PORT') || 3011}`;
-          const url = `${baseUrl}${cron.endpoint}`;
+          // Sostituisci parametri nel path (es. :id -> valore salvato)
+          let endpoint = cron.endpoint;
+          if (cron.paramValues) {
+            for (const [param, value] of Object.entries(cron.paramValues)) {
+              endpoint = endpoint.replace(`:${param}`, String(value));
+            }
+          }
+          const url = `${baseUrl}${endpoint}`;
           const method = (cron.method || 'GET').toUpperCase();
 
           const response = method === 'POST'
-            ? await axios.post(url, {}, { timeout: 30000 })
+            ? await axios.post(url, cron.body || {}, { timeout: 30000 })
+            : method === 'PUT'
+            ? await axios.put(url, cron.body || {}, { timeout: 30000 })
             : method === 'DELETE'
             ? await axios.delete(url, { timeout: 30000 })
             : await axios.get(url, { timeout: 30000 });

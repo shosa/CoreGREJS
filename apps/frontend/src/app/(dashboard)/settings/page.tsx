@@ -293,6 +293,7 @@ export default function SettingsPage() {
   const [newCronMethod, setNewCronMethod] = useState('GET');
   const [newCronExpression, setNewCronExpression] = useState('');
   const [newCronPreset, setNewCronPreset] = useState('');
+  const [newCronParamValues, setNewCronParamValues] = useState<Record<string, string>>({});
   const [editingCronIdx, setEditingCronIdx] = useState<number | null>(null);
 
   // Cleanup interval on unmount
@@ -800,13 +801,25 @@ export default function SettingsPage() {
       showError('Inserisci un\'espressione cron');
       return;
     }
-    const newJob = {
+    // Verifica parametri richiesti
+    const selectedEp = cronEndpoints.find((ep: any) => ep.path === newCronEndpoint);
+    const requiredParams = selectedEp?.params || [];
+    for (const param of requiredParams) {
+      if (!newCronParamValues[param]?.trim()) {
+        showError(`Inserisci il valore per il parametro "${param}"`);
+        return;
+      }
+    }
+    const newJob: any = {
       label: newCronLabel.trim(),
       endpoint: newCronEndpoint,
       method: newCronMethod,
       expression: newCronExpression.trim(),
       enabled: true,
     };
+    if (requiredParams.length > 0) {
+      newJob.paramValues = { ...newCronParamValues };
+    }
     if (editingCronIdx !== null) {
       const updated = [...cronJobs];
       updated[editingCronIdx] = newJob;
@@ -820,6 +833,7 @@ export default function SettingsPage() {
     setNewCronMethod('GET');
     setNewCronExpression('');
     setNewCronPreset('');
+    setNewCronParamValues({});
   };
 
   const handleEditCron = (idx: number) => {
@@ -829,6 +843,7 @@ export default function SettingsPage() {
     setNewCronMethod(job.method || 'GET');
     setNewCronExpression(job.expression);
     setNewCronPreset('');
+    setNewCronParamValues(job.paramValues || {});
     setEditingCronIdx(idx);
   };
 
@@ -839,6 +854,7 @@ export default function SettingsPage() {
     setNewCronMethod('GET');
     setNewCronExpression('');
     setNewCronPreset('');
+    setNewCronParamValues({});
   };
 
   const handleRemoveCron = (idx: number) => {
@@ -2452,13 +2468,14 @@ export default function SettingsPage() {
                                 const ep = cronEndpoints.find((ep: any) => ep.path === e.target.value);
                                 setNewCronEndpoint(e.target.value);
                                 if (ep) setNewCronMethod(ep.method);
+                                setNewCronParamValues({});
                               }}
-                              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
                             >
                               <option value="">Seleziona endpoint...</option>
                               {cronEndpoints.map((ep: any) => (
                                 <option key={`${ep.method}-${ep.path}`} value={ep.path}>
-                                  {ep.method} {ep.path} {ep.description ? `- ${ep.description}` : ''}
+                                  {ep.method} {ep.path}{ep.params?.length > 0 ? ` [${ep.params.join(', ')}]` : ''}
                                 </option>
                               ))}
                             </select>
@@ -2514,6 +2531,35 @@ export default function SettingsPage() {
                             )}
                           </div>
                         </div>
+                        {/* Parametri endpoint */}
+                        {(() => {
+                          const selectedEp = cronEndpoints.find((ep: any) => ep.path === newCronEndpoint);
+                          if (!selectedEp?.params?.length) return null;
+                          return (
+                            <div className="mt-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                              <h5 className="text-xs font-semibold text-amber-700 dark:text-amber-300 mb-2">
+                                <i className="fas fa-puzzle-piece mr-1"></i>
+                                Parametri richiesti dall&apos;endpoint
+                              </h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {selectedEp.params.map((param: string) => (
+                                  <div key={param}>
+                                    <label className="block text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">
+                                      :{param}
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={newCronParamValues[param] || ''}
+                                      onChange={e => setNewCronParamValues({ ...newCronParamValues, [param]: e.target.value })}
+                                      placeholder={`Valore per ${param}`}
+                                      className="w-full px-3 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
                         <p className="text-xs text-gray-400 mt-3">
                           <i className="fas fa-info-circle mr-1"></i>
                           Formato cron: minuto ora giorno mese giorno_settimana (es. <code className="bg-gray-200 dark:bg-gray-600 px-1 rounded">0 8 * * 1-5</code> = ogni giorno feriale alle 08:00)
@@ -2538,12 +2584,19 @@ export default function SettingsPage() {
                                         {job.method || 'GET'}
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-3 mt-1.5">
+                                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                                       <span className="font-mono text-xs text-gray-500 dark:text-gray-400 truncate">{job.endpoint}</span>
                                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 text-xs font-mono">
                                         <i className="fas fa-clock text-[10px]"></i>
                                         {job.expression}
                                       </span>
+                                      {job.paramValues && Object.keys(job.paramValues).length > 0 && (
+                                        Object.entries(job.paramValues).map(([k, v]) => (
+                                          <span key={k} className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs">
+                                            :{k}={String(v)}
+                                          </span>
+                                        ))
+                                      )}
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2 ml-4 flex-shrink-0">
