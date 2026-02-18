@@ -8,7 +8,7 @@ import { useModulesStore } from '@/store/modules';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
-type Section = 'import' | 'modules' | 'smtp' | 'produzione' | 'general' | 'security' | 'export-defaults' | 'quality' | 'system' | 'changelog' | 'health' | 'jobs' | 'webhooks';
+type Section = 'import' | 'modules' | 'smtp' | 'produzione' | 'general' | 'security' | 'system' | 'changelog' | 'jobs' | 'webhooks';
 type ImportStep = 'select' | 'analyzing' | 'confirm' | 'importing' | 'completed';
 
 interface ImportAnalysis {
@@ -246,16 +246,6 @@ export default function SettingsPage() {
   const [securityLoading, setSecurityLoading] = useState(false);
   const [securitySaving, setSecuritySaving] = useState(false);
 
-  // Export defaults state
-  const [exportDefaults, setExportDefaults] = useState<Record<string, string>>({});
-  const [exportLoading, setExportLoading] = useState(false);
-  const [exportSaving, setExportSaving] = useState(false);
-
-  // Quality state
-  const [qualityConfig, setQualityConfig] = useState<Record<string, number>>({});
-  const [qualityLoading, setQualityLoading] = useState(false);
-  const [qualitySaving, setQualitySaving] = useState(false);
-
   // System state
   const [systemInfo, setSystemInfo] = useState<any>(null);
   const [systemLoading, setSystemLoading] = useState(false);
@@ -311,16 +301,11 @@ export default function SettingsPage() {
       loadGeneralConfig();
     } else if (activeSection === 'security') {
       loadSecurityConfig();
-    } else if (activeSection === 'export-defaults') {
-      loadExportDefaults();
-    } else if (activeSection === 'quality') {
-      loadQualityConfig();
     } else if (activeSection === 'system') {
       loadSystemInfo();
+      loadHealthCheck();
     } else if (activeSection === 'changelog') {
       loadChangelog(1);
-    } else if (activeSection === 'health') {
-      loadHealthCheck();
     } else if (activeSection === 'jobs') {
       loadJobsOverview();
     } else if (activeSection === 'webhooks') {
@@ -518,56 +503,6 @@ export default function SettingsPage() {
       showError(error.response?.data?.message || 'Errore salvataggio');
     } finally {
       setSecuritySaving(false);
-    }
-  };
-
-  // ==================== EXPORT DEFAULTS ====================
-  const loadExportDefaults = async () => {
-    setExportLoading(true);
-    try {
-      const data = await settingsApi.getExportDefaults();
-      setExportDefaults(data);
-    } catch (error: any) {
-      showError(error.response?.data?.message || 'Errore caricamento valori export');
-    } finally {
-      setExportLoading(false);
-    }
-  };
-
-  const handleSaveExportDefaults = async () => {
-    setExportSaving(true);
-    try {
-      await settingsApi.updateExportDefaults(exportDefaults);
-      showSuccess('Valori default export salvati');
-    } catch (error: any) {
-      showError(error.response?.data?.message || 'Errore salvataggio');
-    } finally {
-      setExportSaving(false);
-    }
-  };
-
-  // ==================== QUALITA ====================
-  const loadQualityConfig = async () => {
-    setQualityLoading(true);
-    try {
-      const data = await settingsApi.getQualityThresholds();
-      setQualityConfig(data);
-    } catch (error: any) {
-      showError(error.response?.data?.message || 'Errore caricamento soglie qualità');
-    } finally {
-      setQualityLoading(false);
-    }
-  };
-
-  const handleSaveQuality = async () => {
-    setQualitySaving(true);
-    try {
-      await settingsApi.updateQualityThresholds(qualityConfig);
-      showSuccess('Soglie qualità salvate');
-    } catch (error: any) {
-      showError(error.response?.data?.message || 'Errore salvataggio');
-    } finally {
-      setQualitySaving(false);
     }
   };
 
@@ -888,12 +823,9 @@ export default function SettingsPage() {
     { id: 'smtp' as Section, label: 'Server Email (SMTP)', icon: 'fa-server', color: 'green' },
     { id: 'produzione' as Section, label: 'Email Produzione', icon: 'fa-envelope', color: 'orange' },
     { id: 'security' as Section, label: 'Sicurezza', icon: 'fa-shield-alt', color: 'red' },
-    { id: 'export-defaults' as Section, label: 'Default Export', icon: 'fa-globe-europe', color: 'indigo' },
-    { id: 'quality' as Section, label: 'Soglie Qualità', icon: 'fa-check-circle', color: 'green' },
-    { id: 'health' as Section, label: 'Health Check', icon: 'fa-heartbeat', color: 'emerald' },
     { id: 'jobs' as Section, label: 'Coda Lavori', icon: 'fa-tasks', color: 'violet' },
     { id: 'webhooks' as Section, label: 'Webhooks', icon: 'fa-link', color: 'pink' },
-    { id: 'system' as Section, label: 'Sistema', icon: 'fa-microchip', color: 'cyan' },
+    { id: 'system' as Section, label: 'Sistema', icon: 'fa-heartbeat', color: 'cyan' },
     { id: 'changelog' as Section, label: 'Cronologia', icon: 'fa-history', color: 'yellow' },
   ];
 
@@ -1841,284 +1773,20 @@ export default function SettingsPage() {
           )}
 
           {/* ==================== EXPORT DEFAULTS ==================== */}
-          {activeSection === 'export-defaults' && (
-            <div className="space-y-6">
-              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
-                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 shadow-lg">
-                      <i className="fas fa-globe-europe text-white text-2xl"></i>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Valori Default Export/DDT</h3>
-                      <p className="text-gray-600 dark:text-gray-400">Precompila automaticamente i campi dei nuovi documenti</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-6">
-                  {exportLoading ? (
-                    <div className="text-center py-12">
-                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-indigo-500 border-t-transparent mb-4" />
-                      <p className="text-lg font-medium text-indigo-600">Caricamento...</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Trasporto Default</label>
-                          <input type="text" value={exportDefaults.trasportoDefault || ''} onChange={(e) => setExportDefaults({ ...exportDefaults, trasportoDefault: e.target.value })} placeholder="Es: Mittente, Destinatario, Vettore" className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Causale Default</label>
-                          <input type="text" value={exportDefaults.causaleDefault || ''} onChange={(e) => setExportDefaults({ ...exportDefaults, causaleDefault: e.target.value })} placeholder="Es: Conto lavorazione, Vendita" className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Aspetto Esteriore</label>
-                          <input type="text" value={exportDefaults.aspettoEsteriore || ''} onChange={(e) => setExportDefaults({ ...exportDefaults, aspettoEsteriore: e.target.value })} placeholder="Es: Scatole, Sacchi" className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Porto</label>
-                          <input type="text" value={exportDefaults.porto || ''} onChange={(e) => setExportDefaults({ ...exportDefaults, porto: e.target.value })} placeholder="Es: Franco, Assegnato" className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Valuta Default</label>
-                          <select value={exportDefaults.valuta || 'EUR'} onChange={(e) => setExportDefaults({ ...exportDefaults, valuta: e.target.value })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                            <option value="EUR">EUR (€)</option>
-                            <option value="USD">USD ($)</option>
-                            <option value="GBP">GBP (£)</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Terzista Predefinito</label>
-                          <input type="text" value={exportDefaults.terzistaPredefinito || ''} onChange={(e) => setExportDefaults({ ...exportDefaults, terzistaPredefinito: e.target.value })} placeholder="Nome terzista" className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Note Default</label>
-                        <textarea value={exportDefaults.noteDefault || ''} onChange={(e) => setExportDefaults({ ...exportDefaults, noteDefault: e.target.value })} rows={3} placeholder="Note che verranno inserite automaticamente nei nuovi documenti" className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                      </div>
-                      <button onClick={handleSaveExportDefaults} disabled={exportSaving} className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:from-indigo-600 hover:to-violet-700 transition font-medium shadow-lg disabled:opacity-50">
-                        {exportSaving ? <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</> : <><i className="fas fa-save mr-2"></i>Salva Valori Default</>}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ==================== SOGLIE QUALITA ==================== */}
-          {activeSection === 'quality' && (
-            <div className="space-y-6">
-              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
-                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 shadow-lg">
-                      <i className="fas fa-check-circle text-white text-2xl"></i>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Soglie Qualità</h3>
-                      <p className="text-gray-600 dark:text-gray-400">Parametri e limiti per il controllo qualità</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-6">
-                  {qualityLoading ? (
-                    <div className="text-center py-12">
-                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-green-500 border-t-transparent mb-4" />
-                      <p className="text-lg font-medium text-green-600">Caricamento...</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                          <label className="block text-sm font-medium text-green-800 dark:text-green-300 mb-2">
-                            <i className="fas fa-percentage mr-2"></i>Soglia Difetti Accettabile (%)
-                          </label>
-                          <input type="number" min={0} max={100} step={0.5} value={qualityConfig.sogliaDifettiPercentuale || 5} onChange={(e) => setQualityConfig({ ...qualityConfig, sogliaDifettiPercentuale: parseFloat(e.target.value) || 5 })} className="w-full px-4 py-2 rounded-lg border border-green-300 dark:border-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500" />
-                          <p className="mt-1 text-xs text-green-600 dark:text-green-400">Sotto questa soglia il controllo è considerato conforme</p>
-                        </div>
-                        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                          <label className="block text-sm font-medium text-red-800 dark:text-red-300 mb-2">
-                            <i className="fas fa-exclamation-triangle mr-2"></i>Soglia Allarme (%)
-                          </label>
-                          <input type="number" min={0} max={100} step={0.5} value={qualityConfig.sogliaAllarme || 10} onChange={(e) => setQualityConfig({ ...qualityConfig, sogliaAllarme: parseFloat(e.target.value) || 10 })} className="w-full px-4 py-2 rounded-lg border border-red-300 dark:border-red-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500" />
-                          <p className="mt-1 text-xs text-red-600 dark:text-red-400">Sopra questa soglia scatta l'allarme qualità</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-6">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Controlli Minimi al Giorno</label>
-                          <input type="number" min={0} max={1000} value={qualityConfig.controlliMinimiGiorno || 0} onChange={(e) => setQualityConfig({ ...qualityConfig, controlliMinimiGiorno: parseInt(e.target.value) || 0 })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500" />
-                          <p className="mt-1 text-xs text-gray-500">0 = nessun limite minimo</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Auto-chiusura dopo (giorni)</label>
-                          <input type="number" min={0} max={365} value={qualityConfig.autoChiusuraGiorni || 30} onChange={(e) => setQualityConfig({ ...qualityConfig, autoChiusuraGiorni: parseInt(e.target.value) || 30 })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500" />
-                          <p className="mt-1 text-xs text-gray-500">0 = mai chiusura automatica</p>
-                        </div>
-                      </div>
-                      <button onClick={handleSaveQuality} disabled={qualitySaving} className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 transition font-medium shadow-lg disabled:opacity-50">
-                        {qualitySaving ? <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</> : <><i className="fas fa-save mr-2"></i>Salva Soglie Qualità</>}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ==================== SISTEMA ==================== */}
+          {/* ==================== SISTEMA (Health + Info) ==================== */}
           {activeSection === 'system' && (
             <div className="space-y-6">
+              {/* Health Check */}
               <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
-                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-cyan-50 to-sky-50 dark:from-cyan-900/20 dark:to-sky-900/20">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-sky-600 shadow-lg">
-                      <i className="fas fa-microchip text-white text-2xl"></i>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Informazioni Sistema</h3>
-                      <p className="text-gray-600 dark:text-gray-400">Server, database, cache e diagnostica</p>
-                    </div>
-                    <button onClick={loadSystemInfo} className="ml-auto px-4 py-2 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-200 transition">
-                      <i className="fas fa-sync-alt mr-2"></i>Aggiorna
-                    </button>
-                  </div>
-                </div>
-                <div className="p-6">
-                  {systemLoading ? (
-                    <div className="text-center py-12">
-                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-cyan-500 border-t-transparent mb-4" />
-                      <p className="text-lg font-medium text-cyan-600">Caricamento info sistema...</p>
-                    </div>
-                  ) : systemInfo ? (
-                    <div className="space-y-6">
-                      {/* Server */}
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-                          <i className="fas fa-server text-cyan-500"></i> Server
-                        </h4>
-                        <div className="grid grid-cols-4 gap-3">
-                          <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Platform</p>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{systemInfo.server.platform} ({systemInfo.server.arch})</p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Node.js</p>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{systemInfo.server.nodeVersion}</p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Uptime</p>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatUptime(systemInfo.server.uptime)}</p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
-                            <p className="text-xs text-gray-500 dark:text-gray-400">CPU</p>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{systemInfo.server.cpuCount} core</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Memoria */}
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-                          <i className="fas fa-memory text-blue-500"></i> Memoria
-                        </h4>
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                            <p className="text-xs text-blue-600 dark:text-blue-400">Heap Usato</p>
-                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{systemInfo.server.memoryUsage.heapUsed} MB</p>
-                            <p className="text-xs text-gray-500">di {systemInfo.server.memoryUsage.heapTotal} MB allocati</p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                            <p className="text-xs text-blue-600 dark:text-blue-400">RSS</p>
-                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{systemInfo.server.memoryUsage.rss} MB</p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                            <p className="text-xs text-blue-600 dark:text-blue-400">Sistema</p>
-                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{systemInfo.server.freeMemory} GB liberi</p>
-                            <p className="text-xs text-gray-500">di {systemInfo.server.totalMemory} GB totali</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Database */}
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-                          <i className="fas fa-database text-green-500"></i> Database
-                        </h4>
-                        <div className="grid grid-cols-4 gap-3">
-                          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
-                            <p className="text-xs text-green-600 dark:text-green-400">Dimensione</p>
-                            <p className="text-lg font-bold text-green-700 dark:text-green-300">{systemInfo.database.sizeMb} MB</p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
-                            <p className="text-xs text-green-600 dark:text-green-400">Utenti</p>
-                            <p className="text-lg font-bold text-green-700 dark:text-green-300">{systemInfo.database.totalUsers}</p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
-                            <p className="text-xs text-green-600 dark:text-green-400">Impostazioni</p>
-                            <p className="text-lg font-bold text-green-700 dark:text-green-300">{systemInfo.database.totalSettings}</p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
-                            <p className="text-xs text-green-600 dark:text-green-400">Log Attività</p>
-                            <p className="text-lg font-bold text-green-700 dark:text-green-300">{systemInfo.database.totalLogs.toLocaleString()}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Cache Redis */}
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-                          <i className="fas fa-bolt text-orange-500"></i> Cache Redis
-                        </h4>
-                        <div className="flex items-center gap-4">
-                          <div className="grid grid-cols-3 gap-3 flex-1">
-                            <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
-                              <p className="text-xs text-orange-600 dark:text-orange-400">Stato</p>
-                              <p className={`text-lg font-bold ${systemInfo.cache?.connected ? 'text-green-600' : 'text-red-600'}`}>
-                                {systemInfo.cache?.connected ? 'Connesso' : 'Disconnesso'}
-                              </p>
-                            </div>
-                            <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
-                              <p className="text-xs text-orange-600 dark:text-orange-400">Chiavi</p>
-                              <p className="text-lg font-bold text-orange-700 dark:text-orange-300">{systemInfo.cache?.keys || 0}</p>
-                            </div>
-                            <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
-                              <p className="text-xs text-orange-600 dark:text-orange-400">Memoria</p>
-                              <p className="text-lg font-bold text-orange-700 dark:text-orange-300">{systemInfo.cache?.memoryUsed || '0'}</p>
-                            </div>
-                          </div>
-                          <button onClick={handleFlushCache} disabled={cacheFlushing || !systemInfo.cache?.connected} className="px-4 py-3 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 transition font-medium disabled:opacity-50">
-                            {cacheFlushing ? <i className="fas fa-spinner fa-spin"></i> : <><i className="fas fa-broom mr-2"></i>Svuota</>}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ==================== CRONOLOGIA ==================== */}
-          {/* ==================== HEALTH CHECK ==================== */}
-          {activeSection === 'health' && (
-            <div className="space-y-6">
-              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
-                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-emerald-50 to-cyan-50 dark:from-emerald-900/20 dark:to-cyan-900/20">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 shadow-lg">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 shadow-lg">
                         <i className="fas fa-heartbeat text-white text-2xl"></i>
                       </div>
                       <div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Health Check</h3>
-                        <p className="text-gray-600 dark:text-gray-400">Stato dei servizi e connessioni</p>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Sistema e Diagnostica</h3>
+                        <p className="text-gray-600 dark:text-gray-400">Stato servizi, server, database e cache</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -2132,83 +1800,184 @@ export default function SettingsPage() {
                           {healthData.status === 'healthy' ? 'Tutti i servizi OK' : 'Servizi degradati'}
                         </span>
                       )}
-                      <button onClick={loadHealthCheck} disabled={healthLoading} className="px-4 py-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition disabled:opacity-50">
-                        <i className={`fas fa-sync-alt ${healthLoading ? 'fa-spin' : ''}`}></i>
+                      <button onClick={() => { loadHealthCheck(); loadSystemInfo(); }} disabled={healthLoading || systemLoading} className="px-4 py-2 rounded-lg bg-cyan-500 text-white hover:bg-cyan-600 transition disabled:opacity-50">
+                        <i className={`fas fa-sync-alt ${healthLoading || systemLoading ? 'fa-spin' : ''}`}></i>
                       </button>
                     </div>
                   </div>
                 </div>
                 <div className="p-6">
-                  {healthLoading && !healthData ? (
+                  {(healthLoading && !healthData) || (systemLoading && !systemInfo) ? (
                     <div className="text-center py-12">
-                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-emerald-500 border-t-transparent mb-4" />
-                      <p className="text-lg font-medium text-emerald-600">Controllo servizi...</p>
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-cyan-500 border-t-transparent mb-4" />
+                      <p className="text-lg font-medium text-cyan-600">Caricamento diagnostica...</p>
                     </div>
-                  ) : healthData ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {Object.entries(healthData.checks).map(([name, check]: [string, any]) => (
-                          <div key={name} className={`p-5 rounded-xl border-2 ${
-                            check.status === 'ok'
-                              ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10'
-                              : 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10'
-                          }`}>
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                                  check.status === 'ok' ? 'bg-green-500' : 'bg-red-500'
-                                }`}>
-                                  <i className={`fas ${
-                                    name === 'database' ? 'fa-database' :
-                                    name === 'redis' ? 'fa-bolt' :
-                                    name === 'minio' ? 'fa-hdd' : 'fa-server'
-                                  } text-white`}></i>
+                  ) : (
+                    <div className="space-y-6">
+                      {/* Health Check Cards */}
+                      {healthData && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <i className="fas fa-heartbeat text-emerald-500"></i> Stato Connessioni
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {Object.entries(healthData.checks).map(([name, check]: [string, any]) => (
+                              <div key={name} className={`p-4 rounded-xl border-2 ${
+                                check.status === 'ok'
+                                  ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10'
+                                  : 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10'
+                              }`}>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                                      check.status === 'ok' ? 'bg-green-500' : 'bg-red-500'
+                                    }`}>
+                                      <i className={`fas ${
+                                        name === 'database' ? 'fa-database' :
+                                        name === 'redis' ? 'fa-bolt' :
+                                        name === 'minio' ? 'fa-hdd' : 'fa-server'
+                                      } text-white text-sm`}></i>
+                                    </div>
+                                    <h4 className="font-bold text-gray-900 dark:text-white">
+                                      {name === 'database' ? 'MySQL' : name === 'redis' ? 'Redis' : name === 'minio' ? 'MinIO Storage' : name}
+                                    </h4>
+                                  </div>
+                                  <i className={`fas ${check.status === 'ok' ? 'fa-check-circle text-green-500' : 'fa-times-circle text-red-500'} text-lg`}></i>
                                 </div>
-                                <div>
-                                  <h4 className="font-bold text-gray-900 dark:text-white capitalize">
-                                    {name === 'database' ? 'MySQL' : name === 'redis' ? 'Redis' : name === 'minio' ? 'MinIO Storage' : name}
-                                  </h4>
+                                <div className="space-y-1 text-sm">
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-500">Stato</span>
+                                    <span className={`font-medium ${check.status === 'ok' ? 'text-green-600' : 'text-red-600'}`}>{check.message}</span>
+                                  </div>
+                                  {check.latency !== undefined && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-500">Latenza</span>
+                                      <span className="font-medium text-gray-900 dark:text-white">{check.latency}ms</span>
+                                    </div>
+                                  )}
+                                  {check.details?.memoryUsed && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-500">Memoria</span>
+                                      <span className="font-medium text-gray-900 dark:text-white">{check.details.memoryUsed}</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                              <i className={`fas ${check.status === 'ok' ? 'fa-check-circle text-green-500' : 'fa-times-circle text-red-500'} text-xl`}></i>
-                            </div>
-                            <div className="space-y-1 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">Stato</span>
-                                <span className={`font-medium ${check.status === 'ok' ? 'text-green-600' : 'text-red-600'}`}>{check.message}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {systemInfo && (
+                        <>
+                          {/* Server */}
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                              <i className="fas fa-server text-cyan-500"></i> Server
+                            </h4>
+                            <div className="grid grid-cols-4 gap-3">
+                              <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Platform</p>
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{systemInfo.server.platform} ({systemInfo.server.arch})</p>
                               </div>
-                              {check.latency !== undefined && (
-                                <div className="flex justify-between">
-                                  <span className="text-gray-500">Latenza</span>
-                                  <span className="font-medium text-gray-900 dark:text-white">{check.latency}ms</span>
-                                </div>
-                              )}
-                              {check.details?.memoryUsed && (
-                                <div className="flex justify-between">
-                                  <span className="text-gray-500">Memoria</span>
-                                  <span className="font-medium text-gray-900 dark:text-white">{check.details.memoryUsed}</span>
-                                </div>
-                              )}
-                              {check.details?.keys !== undefined && (
-                                <div className="flex justify-between">
-                                  <span className="text-gray-500">Chiavi</span>
-                                  <span className="font-medium text-gray-900 dark:text-white">{check.details.keys}</span>
-                                </div>
-                              )}
+                              <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Node.js</p>
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{systemInfo.server.nodeVersion}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Uptime</p>
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatUptime(systemInfo.server.uptime)}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">CPU</p>
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{systemInfo.server.cpuCount} core</p>
+                              </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                      {healthData.uptime !== undefined && (
-                        <div className="text-center text-sm text-gray-500 dark:text-gray-400 pt-2">
+
+                          {/* Memoria */}
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                              <i className="fas fa-memory text-blue-500"></i> Memoria
+                            </h4>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                                <p className="text-xs text-blue-600 dark:text-blue-400">Heap Usato</p>
+                                <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{systemInfo.server.memoryUsage.heapUsed} MB</p>
+                                <p className="text-xs text-gray-500">di {systemInfo.server.memoryUsage.heapTotal} MB allocati</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                                <p className="text-xs text-blue-600 dark:text-blue-400">RSS</p>
+                                <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{systemInfo.server.memoryUsage.rss} MB</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                                <p className="text-xs text-blue-600 dark:text-blue-400">Sistema</p>
+                                <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{systemInfo.server.freeMemory} GB liberi</p>
+                                <p className="text-xs text-gray-500">di {systemInfo.server.totalMemory} GB totali</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Database */}
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                              <i className="fas fa-database text-green-500"></i> Database
+                            </h4>
+                            <div className="grid grid-cols-4 gap-3">
+                              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+                                <p className="text-xs text-green-600 dark:text-green-400">Dimensione</p>
+                                <p className="text-lg font-bold text-green-700 dark:text-green-300">{systemInfo.database.sizeMb} MB</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+                                <p className="text-xs text-green-600 dark:text-green-400">Utenti</p>
+                                <p className="text-lg font-bold text-green-700 dark:text-green-300">{systemInfo.database.totalUsers}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+                                <p className="text-xs text-green-600 dark:text-green-400">Impostazioni</p>
+                                <p className="text-lg font-bold text-green-700 dark:text-green-300">{systemInfo.database.totalSettings}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+                                <p className="text-xs text-green-600 dark:text-green-400">Log Attività</p>
+                                <p className="text-lg font-bold text-green-700 dark:text-green-300">{systemInfo.database.totalLogs.toLocaleString()}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Cache Redis */}
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                              <i className="fas fa-bolt text-orange-500"></i> Cache Redis
+                            </h4>
+                            <div className="flex items-center gap-4">
+                              <div className="grid grid-cols-3 gap-3 flex-1">
+                                <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                                  <p className="text-xs text-orange-600 dark:text-orange-400">Stato</p>
+                                  <p className={`text-lg font-bold ${systemInfo.cache?.connected ? 'text-green-600' : 'text-red-600'}`}>
+                                    {systemInfo.cache?.connected ? 'Connesso' : 'Disconnesso'}
+                                  </p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                                  <p className="text-xs text-orange-600 dark:text-orange-400">Chiavi</p>
+                                  <p className="text-lg font-bold text-orange-700 dark:text-orange-300">{systemInfo.cache?.keys || 0}</p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                                  <p className="text-xs text-orange-600 dark:text-orange-400">Memoria</p>
+                                  <p className="text-lg font-bold text-orange-700 dark:text-orange-300">{systemInfo.cache?.memoryUsed || '0'}</p>
+                                </div>
+                              </div>
+                              <button onClick={handleFlushCache} disabled={cacheFlushing || !systemInfo.cache?.connected} className="px-4 py-3 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 transition font-medium disabled:opacity-50">
+                                {cacheFlushing ? <i className="fas fa-spinner fa-spin"></i> : <><i className="fas fa-broom mr-2"></i>Svuota</>}
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {healthData?.uptime !== undefined && (
+                        <div className="text-center text-sm text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
                           Uptime server: {formatUptime(healthData.uptime)} &middot; Ultimo controllo: {new Date(healthData.timestamp).toLocaleString('it-IT')}
                         </div>
                       )}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <i className="fas fa-heartbeat text-5xl text-gray-400 mb-4"></i>
-                      <p className="text-gray-500">Clicca il pulsante per verificare lo stato dei servizi</p>
                     </div>
                   )}
                 </div>
