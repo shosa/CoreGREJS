@@ -635,6 +635,23 @@ export const settingsApi = {
     const response = await api.post('/settings/webhooks/test', { url });
     return response.data;
   },
+  // Cron Jobs
+  getCronJobs: async () => {
+    const response = await api.get('/settings/cron');
+    return response.data;
+  },
+  saveCronJobs: async (jobs: any[]) => {
+    const response = await api.put('/settings/cron', jobs);
+    return response.data;
+  },
+  getCronEndpoints: async () => {
+    const response = await api.get('/settings/cron/endpoints');
+    return response.data;
+  },
+  getCronLog: async (page = 1, limit = 20) => {
+    const response = await api.get('/settings/cron/log', { params: { page, limit } });
+    return response.data;
+  },
 };
 
 // Jobs / Spool API

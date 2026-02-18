@@ -1,4 +1,6 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, OnModuleInit } from '@nestjs/common';
+import { SchedulerRegistry } from '@nestjs/schedule';
+import { CronJob } from 'cron';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../../common/services/cache.service';
 import { MinioService } from '../../services/minio.service';
@@ -33,7 +35,7 @@ export interface ImportAnalysis {
 }
 
 @Injectable()
-export class SettingsService {
+export class SettingsService implements OnModuleInit {
   private readonly logger = new Logger(SettingsService.name);
 
   private importProgress: ImportProgress = {
@@ -50,7 +52,25 @@ export class SettingsService {
     private cache: CacheService,
     private minioService: MinioService,
     private configService: ConfigService,
+    private schedulerRegistry: SchedulerRegistry,
   ) {}
+
+  async onModuleInit() {
+    // Carica e registra i cron salvati al boot
+    try {
+      const cronJobs = await this.getCronJobs();
+      for (const cron of cronJobs) {
+        if (cron.enabled) {
+          this.registerCronJob(cron);
+        }
+      }
+      if (cronJobs.filter(c => c.enabled).length > 0) {
+        this.logger.log(`${cronJobs.filter(c => c.enabled).length} cron job caricati`);
+      }
+    } catch {
+      this.logger.warn('Errore caricamento cron jobs al boot');
+    }
+  }
 
   getImportProgress(): ImportProgress {
     return this.importProgress;
@@ -946,6 +966,144 @@ export class SettingsService {
         success: false,
         message: `Errore connessione: ${err.message}`,
       };
+    }
+  }
+
+  // ==================== CRON JOBS ====================
+
+  async getCronJobs(): Promise<any[]> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: 'cron.jobs' },
+    });
+    if (!setting?.value) return [];
+    try {
+      return JSON.parse(setting.value);
+    } catch {
+      return [];
+    }
+  }
+
+  async saveCronJobs(jobs: any[]): Promise<{ success: boolean }> {
+    await this.prisma.setting.upsert({
+      where: { key: 'cron.jobs' },
+      update: { value: JSON.stringify(jobs), updatedAt: new Date() },
+      create: { key: 'cron.jobs', value: JSON.stringify(jobs), type: 'json', group: 'cron' },
+    });
+    await this.cache.invalidate('settings:cron');
+
+    // Ricarica tutti i cron registrati
+    this.reloadAllCronJobs(jobs);
+
+    return { success: true };
+  }
+
+  async getCronLog(page = 1, limit = 20): Promise<any> {
+    const offset = (page - 1) * limit;
+    const [logs, total] = await Promise.all([
+      this.prisma.activityLog.findMany({
+        where: { module: 'cron' },
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        take: limit,
+      }),
+      this.prisma.activityLog.count({ where: { module: 'cron' } }),
+    ]);
+
+    return {
+      data: logs,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getAvailableEndpoints(): Promise<Array<{ method: string; path: string; label: string }>> {
+    return [
+      { method: 'GET', path: '/api/settings/system', label: 'Info Sistema' },
+      { method: 'GET', path: '/api/settings/health-check', label: 'Health Check' },
+      { method: 'POST', path: '/api/settings/cache/flush', label: 'Svuota Cache' },
+      { method: 'DELETE', path: '/api/settings/jobs/old', label: 'Pulisci Job Vecchi' },
+      { method: 'GET', path: '/api/widgets/dashboard/stats', label: 'Aggiorna Stats Dashboard' },
+      { method: 'GET', path: '/api/tracking/stats', label: 'Aggiorna Stats Tracking' },
+      { method: 'GET', path: '/api/quality/dashboard/stats', label: 'Aggiorna Stats Qualità' },
+      { method: 'GET', path: '/api/analitiche/stats', label: 'Aggiorna Stats Analitiche' },
+      { method: 'GET', path: '/api/riparazioni/stats', label: 'Aggiorna Stats Riparazioni' },
+      { method: 'GET', path: '/api/export/documents', label: 'Refresh Documenti Export' },
+    ];
+  }
+
+  private registerCronJob(cron: any) {
+    const cronName = `cron_${cron.id}`;
+
+    // Rimuovi se esiste già
+    try {
+      this.schedulerRegistry.deleteCronJob(cronName);
+    } catch {
+      // Non esiste, ok
+    }
+
+    try {
+      const job = new CronJob(cron.expression, async () => {
+        this.logger.log(`Cron eseguito: ${cron.label || cron.endpoint}`);
+        try {
+          const baseUrl = `http://127.0.0.1:${this.configService.get('PORT') || 3011}`;
+          const url = `${baseUrl}${cron.endpoint}`;
+          const method = (cron.method || 'GET').toUpperCase();
+
+          const response = method === 'POST'
+            ? await axios.post(url, {}, { timeout: 30000 })
+            : method === 'DELETE'
+            ? await axios.delete(url, { timeout: 30000 })
+            : await axios.get(url, { timeout: 30000 });
+
+          // Log successo
+          await this.prisma.activityLog.create({
+            data: {
+              module: 'cron',
+              action: 'execute',
+              entity: cron.label || cron.endpoint,
+              description: `Cron "${cron.label}" eseguito con successo (${response.status})`,
+            },
+          });
+        } catch (err: any) {
+          // Log errore
+          await this.prisma.activityLog.create({
+            data: {
+              module: 'cron',
+              action: 'execute_error',
+              entity: cron.label || cron.endpoint,
+              description: `Errore cron "${cron.label}": ${err.message}`,
+            },
+          });
+        }
+      });
+
+      this.schedulerRegistry.addCronJob(cronName, job);
+      job.start();
+    } catch (err: any) {
+      this.logger.error(`Errore registrazione cron ${cronName}: ${err.message}`);
+    }
+  }
+
+  private reloadAllCronJobs(jobs: any[]) {
+    // Rimuovi tutti i cron esistenti con prefisso cron_
+    const existing = this.schedulerRegistry.getCronJobs();
+    existing.forEach((_, name) => {
+      if (name.startsWith('cron_')) {
+        try {
+          this.schedulerRegistry.deleteCronJob(name);
+        } catch {
+          // Ignora
+        }
+      }
+    });
+
+    // Registra quelli abilitati
+    for (const cron of jobs) {
+      if (cron.enabled) {
+        this.registerCronJob(cron);
+      }
     }
   }
 

@@ -331,6 +331,47 @@ export class SettingsController {
     return this.settingsService.testWebhook(url);
   }
 
+  // ==================== CRON JOBS ====================
+
+  @Get('cron')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  @ApiOperation({ summary: 'Lista cron jobs configurati' })
+  async getCronJobs() {
+    return this.settingsService.getCronJobs();
+  }
+
+  @Put('cron')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  @LogActivity({ module: 'settings', action: 'update_cron', entity: 'CronJob', description: 'Modifica configurazione cron jobs' })
+  @ApiOperation({ summary: 'Salva configurazione cron jobs' })
+  async saveCronJobs(@Body() jobs: any[]) {
+    return this.settingsService.saveCronJobs(jobs);
+  }
+
+  @Get('cron/endpoints')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  @ApiOperation({ summary: 'Lista endpoint disponibili per cron' })
+  async getAvailableEndpoints() {
+    return this.settingsService.getAvailableEndpoints();
+  }
+
+  @Get('cron/log')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  @ApiOperation({ summary: 'Registro attività cron' })
+  async getCronLog(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.settingsService.getCronLog(
+      parseInt(page || '1'),
+      parseInt(limit || '20'),
+    );
+  }
+
   // ==================== CRONOLOGIA ====================
 
   @Get('changelog')

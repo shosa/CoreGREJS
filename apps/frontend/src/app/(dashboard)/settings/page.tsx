@@ -8,7 +8,7 @@ import { useModulesStore } from '@/store/modules';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
-type Section = 'import' | 'modules' | 'smtp' | 'produzione' | 'general' | 'security' | 'system' | 'changelog' | 'jobs' | 'webhooks';
+type Section = 'import' | 'modules' | 'smtp' | 'produzione' | 'general' | 'security' | 'system' | 'changelog' | 'jobs' | 'webhooks' | 'cron';
 type ImportStep = 'select' | 'analyzing' | 'confirm' | 'importing' | 'completed';
 
 interface ImportAnalysis {
@@ -280,6 +280,21 @@ export default function SettingsPage() {
   const [newWebhookUrl, setNewWebhookUrl] = useState('');
   const [newWebhookEvents, setNewWebhookEvents] = useState<string[]>([]);
 
+  // Cron state
+  const [cronJobs, setCronJobs] = useState<any[]>([]);
+  const [cronEndpoints, setCronEndpoints] = useState<any[]>([]);
+  const [cronLoading, setCronLoading] = useState(false);
+  const [cronSaving, setCronSaving] = useState(false);
+  const [cronLog, setCronLog] = useState<any>(null);
+  const [cronLogLoading, setCronLogLoading] = useState(false);
+  const [cronLogPage, setCronLogPage] = useState(1);
+  const [newCronLabel, setNewCronLabel] = useState('');
+  const [newCronEndpoint, setNewCronEndpoint] = useState('');
+  const [newCronMethod, setNewCronMethod] = useState('GET');
+  const [newCronExpression, setNewCronExpression] = useState('');
+  const [newCronPreset, setNewCronPreset] = useState('');
+  const [editingCronIdx, setEditingCronIdx] = useState<number | null>(null);
+
   // Cleanup interval on unmount
   useEffect(() => {
     return () => {
@@ -310,6 +325,10 @@ export default function SettingsPage() {
       loadJobsOverview();
     } else if (activeSection === 'webhooks') {
       loadWebhooks();
+    } else if (activeSection === 'cron') {
+      loadCronJobs();
+      loadCronEndpoints();
+      loadCronLog(1);
     }
   }, [activeSection]);
 
@@ -720,6 +739,129 @@ export default function SettingsPage() {
     }
   };
 
+  // Cron functions
+  const cronPresets = [
+    { label: 'Ogni minuto', value: '* * * * *' },
+    { label: 'Ogni 5 minuti', value: '*/5 * * * *' },
+    { label: 'Ogni 15 minuti', value: '*/15 * * * *' },
+    { label: 'Ogni 30 minuti', value: '*/30 * * * *' },
+    { label: 'Ogni ora', value: '0 * * * *' },
+    { label: 'Ogni 6 ore', value: '0 */6 * * *' },
+    { label: 'Ogni giorno (00:00)', value: '0 0 * * *' },
+    { label: 'Ogni giorno (08:00)', value: '0 8 * * *' },
+    { label: 'Ogni lunedi (08:00)', value: '0 8 * * 1' },
+    { label: 'Ogni primo del mese', value: '0 0 1 * *' },
+  ];
+
+  const loadCronJobs = async () => {
+    setCronLoading(true);
+    try {
+      const data = await settingsApi.getCronJobs();
+      setCronJobs(data);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento cron jobs');
+    } finally {
+      setCronLoading(false);
+    }
+  };
+
+  const loadCronEndpoints = async () => {
+    try {
+      const data = await settingsApi.getCronEndpoints();
+      setCronEndpoints(data);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento endpoints');
+    }
+  };
+
+  const loadCronLog = async (page: number) => {
+    setCronLogLoading(true);
+    setCronLogPage(page);
+    try {
+      const data = await settingsApi.getCronLog(page, 15);
+      setCronLog(data);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento log cron');
+    } finally {
+      setCronLogLoading(false);
+    }
+  };
+
+  const handleAddCron = () => {
+    if (!newCronLabel.trim()) {
+      showError('Inserisci un nome per il cron job');
+      return;
+    }
+    if (!newCronEndpoint) {
+      showError('Seleziona un endpoint');
+      return;
+    }
+    if (!newCronExpression.trim()) {
+      showError('Inserisci un\'espressione cron');
+      return;
+    }
+    const newJob = {
+      label: newCronLabel.trim(),
+      endpoint: newCronEndpoint,
+      method: newCronMethod,
+      expression: newCronExpression.trim(),
+      enabled: true,
+    };
+    if (editingCronIdx !== null) {
+      const updated = [...cronJobs];
+      updated[editingCronIdx] = newJob;
+      setCronJobs(updated);
+      setEditingCronIdx(null);
+    } else {
+      setCronJobs([...cronJobs, newJob]);
+    }
+    setNewCronLabel('');
+    setNewCronEndpoint('');
+    setNewCronMethod('GET');
+    setNewCronExpression('');
+    setNewCronPreset('');
+  };
+
+  const handleEditCron = (idx: number) => {
+    const job = cronJobs[idx];
+    setNewCronLabel(job.label);
+    setNewCronEndpoint(job.endpoint);
+    setNewCronMethod(job.method || 'GET');
+    setNewCronExpression(job.expression);
+    setNewCronPreset('');
+    setEditingCronIdx(idx);
+  };
+
+  const handleCancelEditCron = () => {
+    setEditingCronIdx(null);
+    setNewCronLabel('');
+    setNewCronEndpoint('');
+    setNewCronMethod('GET');
+    setNewCronExpression('');
+    setNewCronPreset('');
+  };
+
+  const handleRemoveCron = (idx: number) => {
+    setCronJobs(cronJobs.filter((_, i) => i !== idx));
+    if (editingCronIdx === idx) handleCancelEditCron();
+  };
+
+  const handleToggleCron = (idx: number) => {
+    setCronJobs(cronJobs.map((j, i) => i === idx ? { ...j, enabled: !j.enabled } : j));
+  };
+
+  const handleSaveCronJobs = async () => {
+    setCronSaving(true);
+    try {
+      await settingsApi.saveCronJobs(cronJobs);
+      showSuccess('Cron jobs salvati e ricaricati');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore salvataggio cron');
+    } finally {
+      setCronSaving(false);
+    }
+  };
+
   const formatUptime = (seconds: number) => {
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
@@ -825,6 +967,7 @@ export default function SettingsPage() {
     { id: 'security' as Section, label: 'Sicurezza', icon: 'fa-shield-alt', color: 'red' },
     { id: 'jobs' as Section, label: 'Coda Lavori', icon: 'fa-tasks', color: 'violet' },
     { id: 'webhooks' as Section, label: 'Webhooks', icon: 'fa-link', color: 'pink' },
+    { id: 'cron' as Section, label: 'Cron Jobs', icon: 'fa-clock', color: 'teal' },
     { id: 'system' as Section, label: 'Sistema', icon: 'fa-heartbeat', color: 'cyan' },
     { id: 'changelog' as Section, label: 'Cronologia', icon: 'fa-history', color: 'yellow' },
   ];
@@ -2249,6 +2392,266 @@ export default function SettingsPage() {
                           <p className="text-sm text-gray-400 mt-1">Aggiungi un URL per ricevere notifiche sugli eventi del sistema</p>
                         </div>
                       )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeSection === 'cron' && (
+            <div className="space-y-6">
+              {/* Cron Builder */}
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-900/20 dark:to-emerald-900/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 shadow-lg">
+                        <i className="fas fa-clock text-white text-2xl"></i>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Cron Jobs</h3>
+                        <p className="text-gray-600 dark:text-gray-400">Pianifica esecuzioni automatiche di endpoint API</p>
+                      </div>
+                    </div>
+                    <button onClick={handleSaveCronJobs} disabled={cronSaving} className="px-4 py-2 rounded-lg bg-teal-500 text-white hover:bg-teal-600 transition disabled:opacity-50 font-medium">
+                      {cronSaving ? <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</> : <><i className="fas fa-save mr-2"></i>Salva</>}
+                    </button>
+                  </div>
+                </div>
+                <div className="p-6">
+                  {cronLoading ? (
+                    <div className="text-center py-12">
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-teal-500 border-t-transparent mb-4" />
+                      <p className="text-lg font-medium text-teal-600">Caricamento cron jobs...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {/* Builder form */}
+                      <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700">
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                          <i className={`fas ${editingCronIdx !== null ? 'fa-edit' : 'fa-plus-circle'} mr-2`}></i>
+                          {editingCronIdx !== null ? 'Modifica Cron Job' : 'Nuovo Cron Job'}
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Nome</label>
+                            <input
+                              type="text"
+                              value={newCronLabel}
+                              onChange={e => setNewCronLabel(e.target.value)}
+                              placeholder="es. Pulizia log giornaliera"
+                              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Endpoint API</label>
+                            <select
+                              value={newCronEndpoint}
+                              onChange={e => {
+                                const ep = cronEndpoints.find((ep: any) => ep.path === e.target.value);
+                                setNewCronEndpoint(e.target.value);
+                                if (ep) setNewCronMethod(ep.method);
+                              }}
+                              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                            >
+                              <option value="">Seleziona endpoint...</option>
+                              {cronEndpoints.map((ep: any) => (
+                                <option key={`${ep.method}-${ep.path}`} value={ep.path}>
+                                  {ep.method} {ep.path} {ep.description ? `- ${ep.description}` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Metodo HTTP</label>
+                            <select
+                              value={newCronMethod}
+                              onChange={e => setNewCronMethod(e.target.value)}
+                              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                            >
+                              <option value="GET">GET</option>
+                              <option value="POST">POST</option>
+                              <option value="PUT">PUT</option>
+                              <option value="DELETE">DELETE</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Frequenza</label>
+                            <select
+                              value={newCronPreset}
+                              onChange={e => {
+                                setNewCronPreset(e.target.value);
+                                if (e.target.value) setNewCronExpression(e.target.value);
+                              }}
+                              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                            >
+                              <option value="">Preset frequenze...</option>
+                              {cronPresets.map(p => (
+                                <option key={p.value} value={p.value}>{p.label} ({p.value})</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Espressione Cron (personalizzata)</label>
+                            <input
+                              type="text"
+                              value={newCronExpression}
+                              onChange={e => { setNewCronExpression(e.target.value); setNewCronPreset(''); }}
+                              placeholder="*/5 * * * *"
+                              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                            />
+                          </div>
+                          <div className="flex items-end gap-2">
+                            <button onClick={handleAddCron} className="px-4 py-2 rounded-lg bg-teal-500 text-white hover:bg-teal-600 transition font-medium">
+                              <i className={`fas ${editingCronIdx !== null ? 'fa-check' : 'fa-plus'} mr-2`}></i>
+                              {editingCronIdx !== null ? 'Aggiorna' : 'Aggiungi'}
+                            </button>
+                            {editingCronIdx !== null && (
+                              <button onClick={handleCancelEditCron} className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 transition font-medium">
+                                Annulla
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-3">
+                          <i className="fas fa-info-circle mr-1"></i>
+                          Formato cron: minuto ora giorno mese giorno_settimana (es. <code className="bg-gray-200 dark:bg-gray-600 px-1 rounded">0 8 * * 1-5</code> = ogni giorno feriale alle 08:00)
+                        </p>
+                      </div>
+
+                      {/* Active cron jobs list */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                          <i className="fas fa-list mr-2"></i>Cron Jobs Configurati ({cronJobs.length})
+                        </h4>
+                        {cronJobs.length > 0 ? (
+                          <div className="space-y-3">
+                            {cronJobs.map((job, idx) => (
+                              <div key={idx} className={`p-4 rounded-xl border-2 transition ${job.enabled ? 'border-teal-200 dark:border-teal-800 bg-white dark:bg-gray-800' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 opacity-60'}`}>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <i className={`fas fa-circle text-[8px] ${job.enabled ? 'text-green-500' : 'text-gray-400'}`}></i>
+                                      <span className="font-semibold text-sm text-gray-900 dark:text-white">{job.label}</span>
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-mono">
+                                        {job.method || 'GET'}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-3 mt-1.5">
+                                      <span className="font-mono text-xs text-gray-500 dark:text-gray-400 truncate">{job.endpoint}</span>
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 text-xs font-mono">
+                                        <i className="fas fa-clock text-[10px]"></i>
+                                        {job.expression}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                                    <button onClick={() => handleEditCron(idx)} className="px-3 py-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 transition text-xs font-medium">
+                                      <i className="fas fa-edit mr-1"></i>Modifica
+                                    </button>
+                                    <button onClick={() => handleToggleCron(idx)} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${job.enabled ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-200' : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200'} transition`}>
+                                      {job.enabled ? <><i className="fas fa-pause mr-1"></i>Pausa</> : <><i className="fas fa-play mr-1"></i>Attiva</>}
+                                    </button>
+                                    <button onClick={() => handleRemoveCron(idx)} className="px-3 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 transition text-xs font-medium">
+                                      <i className="fas fa-trash"></i>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 rounded-xl bg-gray-50 dark:bg-gray-700/30 border border-dashed border-gray-300 dark:border-gray-600">
+                            <i className="fas fa-clock text-4xl text-gray-400 mb-4"></i>
+                            <p className="text-gray-500">Nessun cron job configurato</p>
+                            <p className="text-sm text-gray-400 mt-1">Usa il builder sopra per aggiungere job pianificati</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Cron Activity Log */}
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-800 dark:to-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-500 shadow">
+                        <i className="fas fa-scroll text-white"></i>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Registro Attivita Cron</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Ultime esecuzioni automatiche</p>
+                      </div>
+                    </div>
+                    <button onClick={() => loadCronLog(1)} className="px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 transition text-sm">
+                      <i className="fas fa-sync-alt mr-1"></i>Aggiorna
+                    </button>
+                  </div>
+                </div>
+                <div className="p-6">
+                  {cronLogLoading ? (
+                    <div className="text-center py-8">
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-12 w-12 rounded-full border-4 border-gray-400 border-t-transparent mb-3" />
+                      <p className="text-gray-500">Caricamento log...</p>
+                    </div>
+                  ) : cronLog?.data?.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        {cronLog.data.map((entry: any) => (
+                          <div key={entry.id} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700">
+                            <div className={`flex h-8 w-8 items-center justify-center rounded-full flex-shrink-0 ${
+                              entry.description?.includes('Errore') || entry.description?.includes('fallito')
+                                ? 'bg-red-100 dark:bg-red-900/30'
+                                : 'bg-green-100 dark:bg-green-900/30'
+                            }`}>
+                              <i className={`fas ${
+                                entry.description?.includes('Errore') || entry.description?.includes('fallito')
+                                  ? 'fa-times text-red-600 dark:text-red-400'
+                                  : 'fa-check text-green-600 dark:text-green-400'
+                              } text-sm`}></i>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                  {entry.entity || 'Cron Job'}
+                                </p>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 ml-2">
+                                  {new Date(entry.createdAt).toLocaleString('it-IT')}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                                {entry.description}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {cronLog.totalPages > 1 && (
+                        <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                          <p className="text-sm text-gray-500">
+                            Pagina {cronLog.page} di {cronLog.totalPages} ({cronLog.total} totali)
+                          </p>
+                          <div className="flex gap-2">
+                            <button onClick={() => loadCronLog(cronLogPage - 1)} disabled={cronLogPage <= 1} className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 transition disabled:opacity-50">
+                              <i className="fas fa-chevron-left"></i>
+                            </button>
+                            <button onClick={() => loadCronLog(cronLogPage + 1)} disabled={cronLogPage >= cronLog.totalPages} className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 transition disabled:opacity-50">
+                              <i className="fas fa-chevron-right"></i>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <i className="fas fa-inbox text-4xl text-gray-400 mb-3"></i>
+                      <p className="text-gray-500">Nessuna attivita cron registrata</p>
+                      <p className="text-sm text-gray-400 mt-1">Le esecuzioni dei cron job verranno mostrate qui</p>
                     </div>
                   )}
                 </div>
