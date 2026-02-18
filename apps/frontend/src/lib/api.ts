@@ -600,6 +600,41 @@ export const settingsApi = {
     const response = await api.get('/settings/changelog', { params: { page, limit } });
     return response.data;
   },
+  // Health Check
+  getHealthCheck: async () => {
+    const response = await api.get('/settings/health-check');
+    return response.data;
+  },
+  // Jobs / Coda
+  getJobsOverview: async () => {
+    const response = await api.get('/settings/jobs');
+    return response.data;
+  },
+  retryJob: async (jobId: string) => {
+    const response = await api.post(`/settings/jobs/${jobId}/retry`);
+    return response.data;
+  },
+  clearFailedJobs: async () => {
+    const response = await api.delete('/settings/jobs/failed');
+    return response.data;
+  },
+  clearOldJobs: async (days = 30) => {
+    const response = await api.delete('/settings/jobs/old', { params: { days } });
+    return response.data;
+  },
+  // Webhooks
+  getWebhooks: async () => {
+    const response = await api.get('/settings/webhooks');
+    return response.data;
+  },
+  saveWebhooks: async (webhooks: any[]) => {
+    const response = await api.put('/settings/webhooks', webhooks);
+    return response.data;
+  },
+  testWebhook: async (url: string) => {
+    const response = await api.post('/settings/webhooks/test', { url });
+    return response.data;
+  },
 };
 
 // Jobs / Spool API

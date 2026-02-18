@@ -150,4 +150,16 @@ export class MinioService implements OnModuleInit {
   getDefaultBucket(): string {
     return this.defaultBucket;
   }
+
+  /**
+   * Verifica se MinIO è raggiungibile
+   */
+  async ping(): Promise<boolean> {
+    try {
+      await this.client.bucketExists(this.defaultBucket);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }

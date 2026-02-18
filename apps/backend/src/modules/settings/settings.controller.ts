@@ -256,6 +256,81 @@ export class SettingsController {
     return this.settingsService.flushCache();
   }
 
+  // ==================== HEALTH CHECK ====================
+
+  @Get('health-check')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  @ApiOperation({ summary: 'Stato di salute servizi' })
+  async getHealthCheck() {
+    return this.settingsService.getHealthCheck();
+  }
+
+  // ==================== JOBS / CODA ====================
+
+  @Get('jobs')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  @ApiOperation({ summary: 'Panoramica coda lavori' })
+  async getJobsOverview() {
+    return this.settingsService.getJobsOverview();
+  }
+
+  @Post('jobs/:jobId/retry')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  @LogActivity({ module: 'settings', action: 'retry_job', entity: 'Job', description: 'Ritentativo job fallito' })
+  @ApiOperation({ summary: 'Ritenta job fallito' })
+  async retryJob(@Param('jobId') jobId: string) {
+    return this.settingsService.retryFailedJob(jobId);
+  }
+
+  @Delete('jobs/failed')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  @LogActivity({ module: 'settings', action: 'clear_failed_jobs', entity: 'Job', description: 'Pulizia job falliti' })
+  @ApiOperation({ summary: 'Elimina tutti i job falliti' })
+  async clearFailedJobs() {
+    return this.settingsService.clearFailedJobs();
+  }
+
+  @Delete('jobs/old')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  @LogActivity({ module: 'settings', action: 'clear_old_jobs', entity: 'Job', description: 'Pulizia job vecchi' })
+  @ApiOperation({ summary: 'Elimina job vecchi (>30gg)' })
+  async clearOldJobs(@Query('days') days?: string) {
+    return this.settingsService.clearOldJobs(parseInt(days || '30'));
+  }
+
+  // ==================== WEBHOOKS ====================
+
+  @Get('webhooks')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  @ApiOperation({ summary: 'Lista webhooks configurati' })
+  async getWebhooks() {
+    return this.settingsService.getWebhooks();
+  }
+
+  @Put('webhooks')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  @LogActivity({ module: 'settings', action: 'update_webhooks', entity: 'Webhook', description: 'Modifica configurazione webhooks' })
+  @ApiOperation({ summary: 'Salva configurazione webhooks' })
+  async saveWebhooks(@Body() webhooks: any[]) {
+    return this.settingsService.saveWebhooks(webhooks);
+  }
+
+  @Post('webhooks/test')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  @LogActivity({ module: 'settings', action: 'test_webhook', entity: 'Webhook', description: 'Test webhook' })
+  @ApiOperation({ summary: 'Testa un webhook' })
+  async testWebhook(@Body('url') url: string) {
+    return this.settingsService.testWebhook(url);
+  }
+
   // ==================== CRONOLOGIA ====================
 
   @Get('changelog')

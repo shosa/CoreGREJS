@@ -8,7 +8,7 @@ import { useModulesStore } from '@/store/modules';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
-type Section = 'import' | 'modules' | 'smtp' | 'produzione' | 'general' | 'security' | 'export-defaults' | 'quality' | 'system' | 'changelog';
+type Section = 'import' | 'modules' | 'smtp' | 'produzione' | 'general' | 'security' | 'export-defaults' | 'quality' | 'system' | 'changelog' | 'health' | 'jobs' | 'webhooks';
 type ImportStep = 'select' | 'analyzing' | 'confirm' | 'importing' | 'completed';
 
 interface ImportAnalysis {
@@ -273,6 +273,23 @@ export default function SettingsPage() {
   const [backupImporting, setBackupImporting] = useState(false);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
+  // Health check state
+  const [healthData, setHealthData] = useState<any>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+
+  // Jobs state
+  const [jobsData, setJobsData] = useState<any>(null);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobsClearing, setJobsClearing] = useState(false);
+
+  // Webhooks state
+  const [webhooks, setWebhooks] = useState<any[]>([]);
+  const [webhooksLoading, setWebhooksLoading] = useState(false);
+  const [webhooksSaving, setWebhooksSaving] = useState(false);
+  const [webhookTesting, setWebhookTesting] = useState<string | null>(null);
+  const [newWebhookUrl, setNewWebhookUrl] = useState('');
+  const [newWebhookEvents, setNewWebhookEvents] = useState<string[]>([]);
+
   // Cleanup interval on unmount
   useEffect(() => {
     return () => {
@@ -302,6 +319,12 @@ export default function SettingsPage() {
       loadSystemInfo();
     } else if (activeSection === 'changelog') {
       loadChangelog(1);
+    } else if (activeSection === 'health') {
+      loadHealthCheck();
+    } else if (activeSection === 'jobs') {
+      loadJobsOverview();
+    } else if (activeSection === 'webhooks') {
+      loadWebhooks();
     }
   }, [activeSection]);
 
@@ -637,6 +660,131 @@ export default function SettingsPage() {
     }
   };
 
+  // ==================== HEALTH CHECK ====================
+  const loadHealthCheck = async () => {
+    setHealthLoading(true);
+    try {
+      const data = await settingsApi.getHealthCheck();
+      setHealthData(data);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento health check');
+    } finally {
+      setHealthLoading(false);
+    }
+  };
+
+  // ==================== JOBS ====================
+  const loadJobsOverview = async () => {
+    setJobsLoading(true);
+    try {
+      const data = await settingsApi.getJobsOverview();
+      setJobsData(data);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento coda lavori');
+    } finally {
+      setJobsLoading(false);
+    }
+  };
+
+  const handleRetryJob = async (jobId: string) => {
+    try {
+      await settingsApi.retryJob(jobId);
+      showSuccess('Job rimesso in coda');
+      loadJobsOverview();
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore ritentativo');
+    }
+  };
+
+  const handleClearFailedJobs = async () => {
+    setJobsClearing(true);
+    try {
+      const result = await settingsApi.clearFailedJobs();
+      showSuccess(`Eliminati ${result.deleted} job falliti`);
+      loadJobsOverview();
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore pulizia');
+    } finally {
+      setJobsClearing(false);
+    }
+  };
+
+  const handleClearOldJobs = async () => {
+    setJobsClearing(true);
+    try {
+      const result = await settingsApi.clearOldJobs(30);
+      showSuccess(`Eliminati ${result.deleted} job vecchi`);
+      loadJobsOverview();
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore pulizia');
+    } finally {
+      setJobsClearing(false);
+    }
+  };
+
+  // ==================== WEBHOOKS ====================
+  const loadWebhooks = async () => {
+    setWebhooksLoading(true);
+    try {
+      const data = await settingsApi.getWebhooks();
+      setWebhooks(data);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento webhooks');
+    } finally {
+      setWebhooksLoading(false);
+    }
+  };
+
+  const handleAddWebhook = () => {
+    if (!newWebhookUrl || !newWebhookUrl.startsWith('http')) {
+      showError('Inserisci un URL valido (http:// o https://)');
+      return;
+    }
+    if (webhooks.some(w => w.url === newWebhookUrl)) {
+      showError('URL già presente');
+      return;
+    }
+    setWebhooks([...webhooks, { url: newWebhookUrl, events: newWebhookEvents.length > 0 ? newWebhookEvents : ['*'], enabled: true }]);
+    setNewWebhookUrl('');
+    setNewWebhookEvents([]);
+  };
+
+  const handleRemoveWebhook = (url: string) => {
+    setWebhooks(webhooks.filter(w => w.url !== url));
+  };
+
+  const handleToggleWebhook = (url: string) => {
+    setWebhooks(webhooks.map(w => w.url === url ? { ...w, enabled: !w.enabled } : w));
+  };
+
+  const handleSaveWebhooks = async () => {
+    setWebhooksSaving(true);
+    try {
+      await settingsApi.saveWebhooks(webhooks);
+      showSuccess('Webhooks salvati');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore salvataggio');
+    } finally {
+      setWebhooksSaving(false);
+    }
+  };
+
+  const handleTestWebhook = async (url: string) => {
+    setWebhookTesting(url);
+    try {
+      const result = await settingsApi.testWebhook(url);
+      if (result.success) {
+        showSuccess(result.message);
+      } else {
+        showError(result.message);
+      }
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore test webhook');
+    } finally {
+      setWebhookTesting(null);
+    }
+  };
+
   const formatUptime = (seconds: number) => {
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
@@ -742,6 +890,9 @@ export default function SettingsPage() {
     { id: 'security' as Section, label: 'Sicurezza', icon: 'fa-shield-alt', color: 'red' },
     { id: 'export-defaults' as Section, label: 'Default Export', icon: 'fa-globe-europe', color: 'indigo' },
     { id: 'quality' as Section, label: 'Soglie Qualità', icon: 'fa-check-circle', color: 'green' },
+    { id: 'health' as Section, label: 'Health Check', icon: 'fa-heartbeat', color: 'emerald' },
+    { id: 'jobs' as Section, label: 'Coda Lavori', icon: 'fa-tasks', color: 'violet' },
+    { id: 'webhooks' as Section, label: 'Webhooks', icon: 'fa-link', color: 'pink' },
     { id: 'system' as Section, label: 'Sistema', icon: 'fa-microchip', color: 'cyan' },
     { id: 'changelog' as Section, label: 'Cronologia', icon: 'fa-history', color: 'yellow' },
   ];
@@ -1955,6 +2106,387 @@ export default function SettingsPage() {
           )}
 
           {/* ==================== CRONOLOGIA ==================== */}
+          {/* ==================== HEALTH CHECK ==================== */}
+          {activeSection === 'health' && (
+            <div className="space-y-6">
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 shadow-lg">
+                        <i className="fas fa-heartbeat text-white text-2xl"></i>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Health Check</h3>
+                        <p className="text-gray-600 dark:text-gray-400">Stato dei servizi e connessioni</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {healthData && (
+                        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold ${
+                          healthData.status === 'healthy'
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        }`}>
+                          <i className={`fas ${healthData.status === 'healthy' ? 'fa-check-circle' : 'fa-exclamation-triangle'}`}></i>
+                          {healthData.status === 'healthy' ? 'Tutti i servizi OK' : 'Servizi degradati'}
+                        </span>
+                      )}
+                      <button onClick={loadHealthCheck} disabled={healthLoading} className="px-4 py-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition disabled:opacity-50">
+                        <i className={`fas fa-sync-alt ${healthLoading ? 'fa-spin' : ''}`}></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  {healthLoading && !healthData ? (
+                    <div className="text-center py-12">
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-emerald-500 border-t-transparent mb-4" />
+                      <p className="text-lg font-medium text-emerald-600">Controllo servizi...</p>
+                    </div>
+                  ) : healthData ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {Object.entries(healthData.checks).map(([name, check]: [string, any]) => (
+                          <div key={name} className={`p-5 rounded-xl border-2 ${
+                            check.status === 'ok'
+                              ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10'
+                              : 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10'
+                          }`}>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                                  check.status === 'ok' ? 'bg-green-500' : 'bg-red-500'
+                                }`}>
+                                  <i className={`fas ${
+                                    name === 'database' ? 'fa-database' :
+                                    name === 'redis' ? 'fa-bolt' :
+                                    name === 'minio' ? 'fa-hdd' : 'fa-server'
+                                  } text-white`}></i>
+                                </div>
+                                <div>
+                                  <h4 className="font-bold text-gray-900 dark:text-white capitalize">
+                                    {name === 'database' ? 'MySQL' : name === 'redis' ? 'Redis' : name === 'minio' ? 'MinIO Storage' : name}
+                                  </h4>
+                                </div>
+                              </div>
+                              <i className={`fas ${check.status === 'ok' ? 'fa-check-circle text-green-500' : 'fa-times-circle text-red-500'} text-xl`}></i>
+                            </div>
+                            <div className="space-y-1 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Stato</span>
+                                <span className={`font-medium ${check.status === 'ok' ? 'text-green-600' : 'text-red-600'}`}>{check.message}</span>
+                              </div>
+                              {check.latency !== undefined && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Latenza</span>
+                                  <span className="font-medium text-gray-900 dark:text-white">{check.latency}ms</span>
+                                </div>
+                              )}
+                              {check.details?.memoryUsed && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Memoria</span>
+                                  <span className="font-medium text-gray-900 dark:text-white">{check.details.memoryUsed}</span>
+                                </div>
+                              )}
+                              {check.details?.keys !== undefined && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Chiavi</span>
+                                  <span className="font-medium text-gray-900 dark:text-white">{check.details.keys}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {healthData.uptime !== undefined && (
+                        <div className="text-center text-sm text-gray-500 dark:text-gray-400 pt-2">
+                          Uptime server: {formatUptime(healthData.uptime)} &middot; Ultimo controllo: {new Date(healthData.timestamp).toLocaleString('it-IT')}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <i className="fas fa-heartbeat text-5xl text-gray-400 mb-4"></i>
+                      <p className="text-gray-500">Clicca il pulsante per verificare lo stato dei servizi</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==================== JOBS / CODA ==================== */}
+          {activeSection === 'jobs' && (
+            <div className="space-y-6">
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 shadow-lg">
+                        <i className="fas fa-tasks text-white text-2xl"></i>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Coda Lavori</h3>
+                        <p className="text-gray-600 dark:text-gray-400">Gestione coda BullMQ e job di sistema</p>
+                      </div>
+                    </div>
+                    <button onClick={loadJobsOverview} disabled={jobsLoading} className="px-4 py-2 rounded-lg bg-violet-500 text-white hover:bg-violet-600 transition disabled:opacity-50">
+                      <i className={`fas fa-sync-alt ${jobsLoading ? 'fa-spin' : ''}`}></i>
+                    </button>
+                  </div>
+                </div>
+                <div className="p-6">
+                  {jobsLoading && !jobsData ? (
+                    <div className="text-center py-12">
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-violet-500 border-t-transparent mb-4" />
+                      <p className="text-lg font-medium text-violet-600">Caricamento coda...</p>
+                    </div>
+                  ) : jobsData ? (
+                    <div className="space-y-6">
+                      {/* Stats cards */}
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        {[
+                          { label: 'Totale', value: jobsData.stats.total, icon: 'fa-layer-group', color: 'gray' },
+                          { label: 'In Coda', value: jobsData.stats.queued, icon: 'fa-clock', color: 'yellow' },
+                          { label: 'In Esecuzione', value: jobsData.stats.running, icon: 'fa-spinner', color: 'blue' },
+                          { label: 'Completati', value: jobsData.stats.done, icon: 'fa-check', color: 'green' },
+                          { label: 'Falliti', value: jobsData.stats.failed, icon: 'fa-times', color: 'red' },
+                        ].map(stat => (
+                          <div key={stat.label} className={`p-4 rounded-xl bg-${stat.color}-50 dark:bg-${stat.color}-900/20 border border-${stat.color}-200 dark:border-${stat.color}-800 text-center`}>
+                            <i className={`fas ${stat.icon} text-${stat.color}-500 text-xl mb-2`}></i>
+                            <div className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</div>
+                            <div className="text-xs text-gray-500">{stat.label}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-3">
+                        <button onClick={handleClearFailedJobs} disabled={jobsClearing || !jobsData.stats.failed} className="px-4 py-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 transition disabled:opacity-50 text-sm font-medium">
+                          <i className="fas fa-trash mr-2"></i>Elimina Falliti ({jobsData.stats.failed})
+                        </button>
+                        <button onClick={handleClearOldJobs} disabled={jobsClearing} className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 transition disabled:opacity-50 text-sm font-medium">
+                          <i className="fas fa-broom mr-2"></i>Pulisci Vecchi (&gt;30gg)
+                        </button>
+                      </div>
+
+                      {/* By type breakdown */}
+                      {jobsData.byType?.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Distribuzione per Tipo</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                            {jobsData.byType.map((t: any) => (
+                              <div key={t.type} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700">
+                                <span className="text-sm text-gray-700 dark:text-gray-300 truncate font-mono">{t.type}</span>
+                                <span className="text-sm font-bold text-violet-600 dark:text-violet-400 ml-2">{t.count}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Recent failed jobs */}
+                      {jobsData.recentFailed?.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-red-700 dark:text-red-300 mb-3">
+                            <i className="fas fa-exclamation-triangle mr-2"></i>Job Falliti Recenti
+                          </h4>
+                          <div className="space-y-2">
+                            {jobsData.recentFailed.map((job: any) => (
+                              <div key={job.id} className="flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-mono font-medium text-gray-900 dark:text-white">{job.type}</span>
+                                    <span className="text-xs text-gray-500">{job.user?.nome || job.user?.userName}</span>
+                                  </div>
+                                  <p className="text-xs text-red-600 dark:text-red-400 truncate mt-0.5">{job.errorMessage}</p>
+                                  <span className="text-xs text-gray-400">{new Date(job.createdAt).toLocaleString('it-IT')}</span>
+                                </div>
+                                <button onClick={() => handleRetryJob(job.id)} className="ml-3 px-3 py-1.5 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 hover:bg-violet-200 transition text-xs font-medium flex-shrink-0">
+                                  <i className="fas fa-redo mr-1"></i>Riprova
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Recent jobs */}
+                      {jobsData.recentJobs?.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Ultimi 20 Job</h4>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="text-left text-xs text-gray-500 border-b border-gray-200 dark:border-gray-700">
+                                  <th className="pb-2 pr-4">Tipo</th>
+                                  <th className="pb-2 pr-4">Utente</th>
+                                  <th className="pb-2 pr-4">Stato</th>
+                                  <th className="pb-2 pr-4">Data</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {jobsData.recentJobs.map((job: any) => (
+                                  <tr key={job.id} className="border-b border-gray-100 dark:border-gray-800">
+                                    <td className="py-2 pr-4 font-mono text-xs">{job.type}</td>
+                                    <td className="py-2 pr-4">{job.user?.nome || job.user?.userName || '-'}</td>
+                                    <td className="py-2 pr-4">
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                        job.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                        job.status === 'running' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                        job.status === 'queued' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                                        'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                      }`}>
+                                        {job.status === 'done' ? 'Completato' : job.status === 'running' ? 'In corso' : job.status === 'queued' ? 'In coda' : 'Fallito'}
+                                      </span>
+                                    </td>
+                                    <td className="py-2 pr-4 text-xs text-gray-500">{new Date(job.createdAt).toLocaleString('it-IT')}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <i className="fas fa-tasks text-5xl text-gray-400 mb-4"></i>
+                      <p className="text-gray-500">Nessun dato sulla coda disponibile</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==================== WEBHOOKS ==================== */}
+          {activeSection === 'webhooks' && (
+            <div className="space-y-6">
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-900/20 dark:to-rose-900/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 shadow-lg">
+                        <i className="fas fa-link text-white text-2xl"></i>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Webhooks</h3>
+                        <p className="text-gray-600 dark:text-gray-400">Configura callback URL per eventi del sistema</p>
+                      </div>
+                    </div>
+                    <button onClick={handleSaveWebhooks} disabled={webhooksSaving} className="px-4 py-2 rounded-lg bg-pink-500 text-white hover:bg-pink-600 transition disabled:opacity-50 font-medium">
+                      {webhooksSaving ? <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</> : <><i className="fas fa-save mr-2"></i>Salva</>}
+                    </button>
+                  </div>
+                </div>
+                <div className="p-6">
+                  {webhooksLoading ? (
+                    <div className="text-center py-12">
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-pink-500 border-t-transparent mb-4" />
+                      <p className="text-lg font-medium text-pink-600">Caricamento webhooks...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {/* Add new webhook */}
+                      <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700">
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                          <i className="fas fa-plus-circle mr-2"></i>Aggiungi Webhook
+                        </h4>
+                        <div className="flex gap-3">
+                          <input
+                            type="url"
+                            value={newWebhookUrl}
+                            onChange={e => setNewWebhookUrl(e.target.value)}
+                            placeholder="https://example.com/webhook"
+                            className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                          />
+                          <select
+                            value=""
+                            onChange={e => {
+                              if (e.target.value && !newWebhookEvents.includes(e.target.value)) {
+                                setNewWebhookEvents([...newWebhookEvents, e.target.value]);
+                              }
+                            }}
+                            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                          >
+                            <option value="">Eventi...</option>
+                            <option value="*">Tutti</option>
+                            <option value="import.completed">Import completato</option>
+                            <option value="export.created">DDT creato</option>
+                            <option value="export.closed">DDT chiuso</option>
+                            <option value="job.completed">Job completato</option>
+                            <option value="job.failed">Job fallito</option>
+                            <option value="quality.exception">Eccezione qualita</option>
+                            <option value="tracking.created">Tracking creato</option>
+                          </select>
+                          <button onClick={handleAddWebhook} className="px-4 py-2 rounded-lg bg-pink-500 text-white hover:bg-pink-600 transition font-medium">
+                            <i className="fas fa-plus"></i>
+                          </button>
+                        </div>
+                        {newWebhookEvents.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {newWebhookEvents.map(ev => (
+                              <span key={ev} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 text-xs">
+                                {ev}
+                                <button onClick={() => setNewWebhookEvents(newWebhookEvents.filter(e => e !== ev))} className="hover:text-pink-900">
+                                  <i className="fas fa-times text-[10px]"></i>
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Webhook list */}
+                      {webhooks.length > 0 ? (
+                        <div className="space-y-3">
+                          {webhooks.map((webhook, idx) => (
+                            <div key={idx} className={`p-4 rounded-xl border-2 ${webhook.enabled ? 'border-pink-200 dark:border-pink-800 bg-white dark:bg-gray-800' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 opacity-60'}`}>
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <i className={`fas fa-circle text-[8px] ${webhook.enabled ? 'text-green-500' : 'text-gray-400'}`}></i>
+                                    <span className="font-mono text-sm text-gray-900 dark:text-white truncate">{webhook.url}</span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {(webhook.events || ['*']).map((ev: string) => (
+                                      <span key={ev} className="inline-flex items-center px-2 py-0.5 rounded-full bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 text-xs">
+                                        {ev === '*' ? 'Tutti gli eventi' : ev}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                                  <button onClick={() => handleTestWebhook(webhook.url)} disabled={webhookTesting === webhook.url} className="px-3 py-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 transition text-xs font-medium">
+                                    {webhookTesting === webhook.url ? <i className="fas fa-spinner fa-spin"></i> : <><i className="fas fa-play mr-1"></i>Test</>}
+                                  </button>
+                                  <button onClick={() => handleToggleWebhook(webhook.url)} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${webhook.enabled ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-200' : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200'} transition`}>
+                                    {webhook.enabled ? <><i className="fas fa-pause mr-1"></i>Pausa</> : <><i className="fas fa-play mr-1"></i>Attiva</>}
+                                  </button>
+                                  <button onClick={() => handleRemoveWebhook(webhook.url)} className="px-3 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 transition text-xs font-medium">
+                                    <i className="fas fa-trash"></i>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <i className="fas fa-link text-4xl text-gray-400 mb-4"></i>
+                          <p className="text-gray-500">Nessun webhook configurato</p>
+                          <p className="text-sm text-gray-400 mt-1">Aggiungi un URL per ricevere notifiche sugli eventi del sistema</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeSection === 'changelog' && (
             <div className="space-y-6">
               <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">

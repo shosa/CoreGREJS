@@ -1,9 +1,12 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../../common/services/cache.service';
+import { MinioService } from '../../services/minio.service';
+import { ConfigService } from '@nestjs/config';
 import * as XLSX from 'xlsx';
 import * as nodemailer from 'nodemailer';
 import * as os from 'os';
+import axios from 'axios';
 
 // Colonne attese nell'ordine esatto del Legacy
 const EXPECTED_COLUMNS = [
@@ -31,6 +34,8 @@ export interface ImportAnalysis {
 
 @Injectable()
 export class SettingsService {
+  private readonly logger = new Logger(SettingsService.name);
+
   private importProgress: ImportProgress = {
     total: 0,
     processed: 0,
@@ -43,6 +48,8 @@ export class SettingsService {
   constructor(
     private prisma: PrismaService,
     private cache: CacheService,
+    private minioService: MinioService,
+    private configService: ConfigService,
   ) {}
 
   getImportProgress(): ImportProgress {
@@ -744,6 +751,202 @@ export class SettingsService {
   async flushCache(): Promise<{ success: boolean; deleted: number }> {
     const deleted = await this.cache.flushAll();
     return { success: true, deleted };
+  }
+
+  // ==================== HEALTH CHECK ====================
+
+  async getHealthCheck(): Promise<any> {
+    const checks: Record<string, { status: 'ok' | 'error'; latency?: number; message?: string; details?: any }> = {};
+
+    // MySQL
+    const dbStart = Date.now();
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      checks.database = { status: 'ok', latency: Date.now() - dbStart, message: 'Connesso' };
+    } catch (err: any) {
+      checks.database = { status: 'error', latency: Date.now() - dbStart, message: err.message };
+    }
+
+    // Redis
+    const redisStart = Date.now();
+    try {
+      const info = await this.cache.getInfo();
+      checks.redis = {
+        status: info?.connected ? 'ok' : 'error',
+        latency: Date.now() - redisStart,
+        message: info?.connected ? 'Connesso' : 'Non connesso',
+        details: info,
+      };
+    } catch (err: any) {
+      checks.redis = { status: 'error', latency: Date.now() - redisStart, message: err.message };
+    }
+
+    // MinIO
+    const minioStart = Date.now();
+    try {
+      const ok = await this.minioService.ping();
+      checks.minio = {
+        status: ok ? 'ok' : 'error',
+        latency: Date.now() - minioStart,
+        message: ok ? 'Connesso' : 'Non raggiungibile',
+      };
+    } catch (err: any) {
+      checks.minio = { status: 'error', latency: Date.now() - minioStart, message: err.message };
+    }
+
+    // Overall status
+    const allOk = Object.values(checks).every(c => c.status === 'ok');
+
+    return {
+      status: allOk ? 'healthy' : 'degraded',
+      timestamp: new Date().toISOString(),
+      uptime: Math.floor(process.uptime()),
+      checks,
+    };
+  }
+
+  // ==================== JOBS / CODA ====================
+
+  async getJobsOverview(): Promise<any> {
+    const [
+      totalJobs,
+      queuedJobs,
+      runningJobs,
+      doneJobs,
+      failedJobs,
+      recentFailed,
+      recentJobs,
+    ] = await Promise.all([
+      this.prisma.job.count(),
+      this.prisma.job.count({ where: { status: 'queued' } }),
+      this.prisma.job.count({ where: { status: 'running' } }),
+      this.prisma.job.count({ where: { status: 'done' } }),
+      this.prisma.job.count({ where: { status: 'failed' } }),
+      this.prisma.job.findMany({
+        where: { status: 'failed' },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        include: { user: { select: { nome: true, userName: true } } },
+      }),
+      this.prisma.job.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        include: { user: { select: { nome: true, userName: true } } },
+      }),
+    ]);
+
+    // Conta per tipo
+    const byType = await this.prisma.job.groupBy({
+      by: ['type'],
+      _count: true,
+      orderBy: { _count: { type: 'desc' } },
+      take: 15,
+    });
+
+    return {
+      stats: {
+        total: totalJobs,
+        queued: queuedJobs,
+        running: runningJobs,
+        done: doneJobs,
+        failed: failedJobs,
+      },
+      byType: byType.map(t => ({ type: t.type, count: t._count })),
+      recentFailed,
+      recentJobs,
+    };
+  }
+
+  async retryFailedJob(jobId: string): Promise<any> {
+    const job = await this.prisma.job.findUnique({ where: { id: jobId } });
+    if (!job) throw new BadRequestException('Job non trovato');
+    if (job.status !== 'failed') throw new BadRequestException('Solo job falliti possono essere ritentati');
+
+    await this.prisma.job.update({
+      where: { id: jobId },
+      data: { status: 'queued', errorMessage: null, startedAt: null, finishedAt: null, progress: 0 },
+    });
+
+    return { success: true, message: 'Job rimesso in coda' };
+  }
+
+  async clearFailedJobs(): Promise<any> {
+    const result = await this.prisma.job.deleteMany({ where: { status: 'failed' } });
+    return { success: true, deleted: result.count };
+  }
+
+  async clearOldJobs(daysOld = 30): Promise<any> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - daysOld);
+
+    const result = await this.prisma.job.deleteMany({
+      where: {
+        status: { in: ['done', 'failed'] },
+        createdAt: { lt: cutoff },
+      },
+    });
+
+    return { success: true, deleted: result.count };
+  }
+
+  // ==================== WEBHOOKS ====================
+
+  async getWebhooks(): Promise<any[]> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: 'webhooks.config' },
+    });
+
+    if (!setting?.value) return [];
+
+    try {
+      return JSON.parse(setting.value);
+    } catch {
+      return [];
+    }
+  }
+
+  async saveWebhooks(webhooks: any[]): Promise<{ success: boolean }> {
+    await this.prisma.setting.upsert({
+      where: { key: 'webhooks.config' },
+      update: { value: JSON.stringify(webhooks), updatedAt: new Date() },
+      create: { key: 'webhooks.config', value: JSON.stringify(webhooks), type: 'json', group: 'webhooks' },
+    });
+
+    await this.cache.invalidate('settings:webhooks');
+    return { success: true };
+  }
+
+  async testWebhook(url: string): Promise<{ success: boolean; message: string; statusCode?: number }> {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'User-Agent': 'CoreGREJS-Webhook/1.0' },
+        body: JSON.stringify({
+          event: 'test',
+          timestamp: new Date().toISOString(),
+          data: { message: 'Test webhook da CoreGREJS' },
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      return {
+        success: response.ok,
+        message: response.ok
+          ? `Risposta ${response.status} ${response.statusText}`
+          : `Errore ${response.status}: ${response.statusText}`,
+        statusCode: response.status,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: `Errore connessione: ${err.message}`,
+      };
+    }
   }
 
   // ==================== CRONOLOGIA MODIFICHE ====================
