@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ProduzioneService } from '../produzione/produzione.service';
+import { CacheService } from '../../common/services/cache.service';
 
 @Injectable()
 export class WidgetsService {
   constructor(
     private prisma: PrismaService,
     private produzioneService: ProduzioneService,
+    private cache: CacheService,
   ) {}
 
   async getUserWidgets(userId: number) {
@@ -51,6 +53,10 @@ export class WidgetsService {
   }
 
   async getDashboardStats() {
+    return this.cache.getOrSet('widgets:dashboard-stats', 60, () => this._computeDashboardStats());
+  }
+
+  private async _computeDashboardStats() {
     const now = new Date();
     const startOfDay = new Date(now.setHours(0, 0, 0, 0));
     const startOfWeek = new Date(now);

@@ -102,7 +102,7 @@ export class ProduzioneService {
   }
 
   async createDepartment(data: any) {
-    return this.prisma.productionDepartment.create({
+    const result = await this.prisma.productionDepartment.create({
       data: {
         phaseId: data.phaseId,
         nome: data.nome,
@@ -111,10 +111,12 @@ export class ProduzioneService {
         ordine: data.ordine || 0,
       },
     });
+    await this.cache.invalidate('produzione:departments');
+    return result;
   }
 
   async updateDepartment(id: number, data: any) {
-    return this.prisma.productionDepartment.update({
+    const result = await this.prisma.productionDepartment.update({
       where: { id },
       data: {
         phaseId: data.phaseId,
@@ -125,12 +127,16 @@ export class ProduzioneService {
         ordine: data.ordine,
       },
     });
+    await this.cache.invalidate('produzione:departments');
+    return result;
   }
 
   async deleteDepartment(id: number) {
-    return this.prisma.productionDepartment.delete({
+    const result = await this.prisma.productionDepartment.delete({
       where: { id },
     });
+    await this.cache.invalidate('produzione:departments');
+    return result;
   }
 
   // ==================== PRODUCTION DATA ====================

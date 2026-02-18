@@ -9,6 +9,7 @@ interface EditableCellProps {
   readOnly?: boolean;
   align?: 'left' | 'right' | 'center';
   highlight?: boolean; // Evidenzia la cella in giallo
+  highlightDanger?: boolean; // Evidenzia la cella in rosso chiaro
   maxValue?: number; // Valore massimo consentito (per qtaReale)
   showBorder?: boolean; // Mostra bordo visibile (per campi form)
 }
@@ -20,6 +21,7 @@ export default function EditableCell({
   readOnly = false,
   align = 'left',
   highlight = false,
+  highlightDanger = false,
   maxValue,
   showBorder = false,
 }: EditableCellProps) {
@@ -64,6 +66,8 @@ export default function EditableCell({
   const cursorClass = readOnly ? 'cursor-not-allowed' : '';
   const bgClass = readOnly
     ? 'bg-gray-100 dark:bg-gray-700'
+    : highlightDanger
+    ? 'bg-red-100 dark:bg-red-900/30 hover:border-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-500/20'
     : highlight
     ? 'bg-yellow-100 dark:bg-yellow-900/30 hover:border-yellow-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/20'
     : showBorder
@@ -72,7 +76,7 @@ export default function EditableCell({
 
   if (readOnly) {
     return (
-      <div className={`${textAlignClass} ${highlight ? 'bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded' : ''}`}>
+      <div className={`${textAlignClass} ${highlightDanger ? 'bg-red-100 dark:bg-red-900/30 p-2 rounded' : highlight ? 'bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded' : ''}`}>
         {value}
       </div>
     );

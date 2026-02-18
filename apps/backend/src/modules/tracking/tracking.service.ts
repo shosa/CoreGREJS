@@ -1,12 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CacheService } from '../../common/services/cache.service';
 
 @Injectable()
 export class TrackingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cache: CacheService,
+  ) {}
 
   // ==================== STATS ====================
   async getStats() {
+    return this.cache.getOrSet('tracking:stats', 120, () => this._computeStats());
+  }
+
+  private async _computeStats() {
     const [linksCount, lotsWithoutDdt, ordersWithoutDate, articlesWithoutSku] = await Promise.all([
       this.prisma.trackLink.count(),
       this.prisma.$queryRaw<[{count: bigint}]>`
@@ -41,15 +49,19 @@ export class TrackingService {
 
   // ==================== TYPES ====================
   async findAllTypes() {
-    return this.prisma.trackType.findMany({
-      orderBy: { name: 'asc' },
-    });
+    return this.cache.getOrSet('tracking:types', 600, () =>
+      this.prisma.trackType.findMany({
+        orderBy: { name: 'asc' },
+      }),
+    );
   }
 
   async createType(name: string, note?: string) {
-    return this.prisma.trackType.create({
+    const result = await this.prisma.trackType.create({
       data: { name, note },
     });
+    await this.cache.invalidate('tracking:types');
+    return result;
   }
 
   // ==================== SEARCH DATA (multisearch) ====================
@@ -193,6 +205,7 @@ export class TrackingService {
       }
     }
 
+    await this.cache.invalidate('tracking:stats');
     return { created: created.length, links: created };
   }
 
@@ -289,7 +302,9 @@ export class TrackingService {
     if (!link) {
       throw new NotFoundException('Link non trovato');
     }
-    return this.prisma.trackLink.delete({ where: { id } });
+    const result = await this.prisma.trackLink.delete({ where: { id } });
+    await this.cache.invalidate('tracking:stats');
+    return result;
   }
 
   // ==================== LOT DETAIL (3 tabs) ====================
@@ -442,34 +457,42 @@ export class TrackingService {
 
   // Update lot info (DDT)
   async updateLotInfo(lot: string, data: { doc?: string; date?: Date; note?: string }) {
-    return this.prisma.trackLotInfo.upsert({
+    const result = await this.prisma.trackLotInfo.upsert({
       where: { lot },
       create: { lot, ...data },
       update: data,
     });
+    await this.cache.invalidate('tracking:stats');
+    return result;
   }
 
   // Update order info
   async updateOrderInfo(ordine: string, date?: Date) {
     const existing = await this.prisma.trackOrderInfo.findFirst({ where: { ordine } });
+    let result;
     if (existing) {
-      return this.prisma.trackOrderInfo.update({
+      result = await this.prisma.trackOrderInfo.update({
         where: { id: existing.id },
         data: { date },
       });
+    } else {
+      result = await this.prisma.trackOrderInfo.create({
+        data: { ordine, date },
+      });
     }
-    return this.prisma.trackOrderInfo.create({
-      data: { ordine, date },
-    });
+    await this.cache.invalidate('tracking:stats');
+    return result;
   }
 
   // Update SKU
   async updateSku(art: string, sku: string) {
-    return this.prisma.trackSku.upsert({
+    const result = await this.prisma.trackSku.upsert({
       where: { art },
       create: { art, sku },
       update: { sku },
     });
+    await this.cache.invalidate('tracking:stats');
+    return result;
   }
 
   // ==================== LOAD SUMMARY (for reports) ====================

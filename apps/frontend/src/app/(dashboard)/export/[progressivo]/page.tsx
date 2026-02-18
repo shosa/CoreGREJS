@@ -1138,6 +1138,8 @@ export default function DocumentDetailPage() {
               ? item.article.voceDoganale || ""
               : item.voceLibera || "";
 
+          const isVoceEmpty = !currentValue || currentValue.trim() === "" || currentValue.trim() === "0";
+
           return (
             <EditableCell
               value={currentValue}
@@ -1151,6 +1153,7 @@ export default function DocumentDetailPage() {
               }
               isLoading={savingField === `${item.id}-voceDoganale`}
               readOnly={!isOpen}
+              highlightDanger={isVoceEmpty}
             />
           );
         },
@@ -1212,6 +1215,7 @@ export default function DocumentDetailPage() {
             item.tipoRiga === "articolo" && item.article
               ? Number(item.article.prezzoUnitario || 0)
               : Number(item.prezzoLibero || 0);
+          const isPrezzoEmpty = !prezzoUnitario || prezzoUnitario === 0;
 
           return (
             <EditableCell
@@ -1222,6 +1226,7 @@ export default function DocumentDetailPage() {
               align="right"
               isLoading={savingField === `${item.id}-prezzo`}
               readOnly={!isOpen}
+              highlightDanger={isPrezzoEmpty}
             />
           );
         },
