@@ -628,7 +628,7 @@ export const settingsApi = {
     return response.data;
   },
   saveWebhooks: async (webhooks: any[]) => {
-    const response = await api.put('/settings/webhooks', webhooks);
+    const response = await api.put('/settings/webhooks', { items: webhooks });
     return response.data;
   },
   testWebhook: async (url: string) => {
@@ -641,7 +641,7 @@ export const settingsApi = {
     return response.data;
   },
   saveCronJobs: async (jobs: any[]) => {
-    const response = await api.put('/settings/cron', jobs);
+    const response = await api.put('/settings/cron', { items: jobs });
     return response.data;
   },
   getCronEndpoints: async () => {

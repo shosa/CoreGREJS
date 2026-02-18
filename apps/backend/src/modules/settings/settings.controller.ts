@@ -318,8 +318,9 @@ export class SettingsController {
   @RequirePermissions('settings')
   @LogActivity({ module: 'settings', action: 'update_webhooks', entity: 'Webhook', description: 'Modifica configurazione webhooks' })
   @ApiOperation({ summary: 'Salva configurazione webhooks' })
-  async saveWebhooks(@Body() webhooks: any[]) {
-    return this.settingsService.saveWebhooks(webhooks);
+  async saveWebhooks(@Body() body: any) {
+    const webhooks = body.items || body;
+    return this.settingsService.saveWebhooks(Array.isArray(webhooks) ? webhooks : []);
   }
 
   @Post('webhooks/test')
@@ -346,8 +347,9 @@ export class SettingsController {
   @RequirePermissions('settings')
   @LogActivity({ module: 'settings', action: 'update_cron', entity: 'CronJob', description: 'Modifica configurazione cron jobs' })
   @ApiOperation({ summary: 'Salva configurazione cron jobs' })
-  async saveCronJobs(@Body() jobs: any[]) {
-    return this.settingsService.saveCronJobs(jobs);
+  async saveCronJobs(@Body() body: any) {
+    const jobs = body.items || body;
+    return this.settingsService.saveCronJobs(Array.isArray(jobs) ? jobs : []);
   }
 
   @Get('cron/endpoints')
