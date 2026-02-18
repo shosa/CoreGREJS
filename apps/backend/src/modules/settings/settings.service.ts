@@ -2,6 +2,8 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../../common/services/cache.service';
 import * as XLSX from 'xlsx';
+import * as nodemailer from 'nodemailer';
+import * as os from 'os';
 
 // Colonne attese nell'ordine esatto del Legacy
 const EXPECTED_COLUMNS = [
@@ -430,5 +432,346 @@ export class SettingsService {
     });
 
     return { success: true };
+  }
+
+  // ==================== GENERALI ====================
+
+  async getGeneralConfig(): Promise<any> {
+    return this.cache.getOrSet('settings:general', 600, async () => {
+      const settings = await this.prisma.setting.findMany({
+        where: { group: 'general' },
+      });
+
+      const defaults: Record<string, string> = {
+        'general.nomeAzienda': '',
+        'general.partitaIva': '',
+        'general.indirizzo': '',
+        'general.citta': '',
+        'general.cap': '',
+        'general.provincia': '',
+        'general.telefono': '',
+        'general.email': '',
+        'general.valuta': 'EUR',
+        'general.formatoData': 'DD/MM/YYYY',
+        'general.timezone': 'Europe/Rome',
+      };
+
+      const config: Record<string, string> = { ...defaults };
+      settings.forEach(s => {
+        config[s.key] = s.value || defaults[s.key] || '';
+      });
+
+      return config;
+    });
+  }
+
+  async updateGeneralConfig(data: Record<string, string>): Promise<{ success: boolean }> {
+    for (const [key, value] of Object.entries(data)) {
+      if (!key.startsWith('general.')) continue;
+      await this.prisma.setting.upsert({
+        where: { key },
+        update: { value: String(value), updatedAt: new Date() },
+        create: { key, value: String(value), type: 'string', group: 'general' },
+      });
+    }
+    await this.cache.invalidate('settings:general');
+    return { success: true };
+  }
+
+  // ==================== SICUREZZA ====================
+
+  async getSecurityConfig(): Promise<any> {
+    return this.cache.getOrSet('settings:security', 600, async () => {
+      const settings = await this.prisma.setting.findMany({
+        where: { group: 'security' },
+      });
+
+      const defaults: Record<string, string> = {
+        'security.passwordMinLength': '8',
+        'security.passwordRequireUppercase': 'true',
+        'security.passwordRequireNumber': 'true',
+        'security.passwordRequireSpecial': 'false',
+        'security.sessionTimeoutMinutes': '480',
+        'security.maxLoginAttempts': '5',
+        'security.lockoutDurationMinutes': '15',
+      };
+
+      const config: Record<string, any> = {};
+      for (const [key, defaultVal] of Object.entries(defaults)) {
+        const setting = settings.find(s => s.key === key);
+        const val = setting?.value ?? defaultVal;
+        const shortKey = key.replace('security.', '');
+        if (val === 'true' || val === 'false') {
+          config[shortKey] = val === 'true';
+        } else {
+          config[shortKey] = parseInt(val) || val;
+        }
+      }
+      return config;
+    });
+  }
+
+  async updateSecurityConfig(data: Record<string, any>): Promise<{ success: boolean }> {
+    for (const [shortKey, value] of Object.entries(data)) {
+      const key = `security.${shortKey}`;
+      const type = typeof value === 'boolean' ? 'boolean' : 'number';
+      await this.prisma.setting.upsert({
+        where: { key },
+        update: { value: String(value), updatedAt: new Date() },
+        create: { key, value: String(value), type, group: 'security' },
+      });
+    }
+    await this.cache.invalidate('settings:security');
+    return { success: true };
+  }
+
+  // ==================== EXPORT DEFAULTS ====================
+
+  async getExportDefaults(): Promise<any> {
+    return this.cache.getOrSet('settings:export-defaults', 600, async () => {
+      const settings = await this.prisma.setting.findMany({
+        where: { group: 'export' },
+      });
+
+      const defaults: Record<string, string> = {
+        'export.trasportoDefault': '',
+        'export.causaleDefault': '',
+        'export.aspettoEsteriore': '',
+        'export.porto': '',
+        'export.valuta': 'EUR',
+        'export.terzistaPredefinito': '',
+        'export.noteDefault': '',
+      };
+
+      const config: Record<string, string> = {};
+      for (const [key, defaultVal] of Object.entries(defaults)) {
+        const setting = settings.find(s => s.key === key);
+        config[key.replace('export.', '')] = setting?.value ?? defaultVal;
+      }
+      return config;
+    });
+  }
+
+  async updateExportDefaults(data: Record<string, string>): Promise<{ success: boolean }> {
+    for (const [shortKey, value] of Object.entries(data)) {
+      const key = `export.${shortKey}`;
+      await this.prisma.setting.upsert({
+        where: { key },
+        update: { value: String(value), updatedAt: new Date() },
+        create: { key, value: String(value), type: 'string', group: 'export' },
+      });
+    }
+    await this.cache.invalidate('settings:export-defaults');
+    return { success: true };
+  }
+
+  // ==================== SOGLIE QUALITA ====================
+
+  async getQualityThresholds(): Promise<any> {
+    return this.cache.getOrSet('settings:quality', 600, async () => {
+      const settings = await this.prisma.setting.findMany({
+        where: { group: 'quality' },
+      });
+
+      const defaults: Record<string, string> = {
+        'quality.sogliaDifettiPercentuale': '5',
+        'quality.sogliaAllarme': '10',
+        'quality.controlliMinimiGiorno': '0',
+        'quality.autoChiusuraGiorni': '30',
+      };
+
+      const config: Record<string, number> = {};
+      for (const [key, defaultVal] of Object.entries(defaults)) {
+        const setting = settings.find(s => s.key === key);
+        config[key.replace('quality.', '')] = parseFloat(setting?.value ?? defaultVal);
+      }
+      return config;
+    });
+  }
+
+  async updateQualityThresholds(data: Record<string, number>): Promise<{ success: boolean }> {
+    for (const [shortKey, value] of Object.entries(data)) {
+      const key = `quality.${shortKey}`;
+      await this.prisma.setting.upsert({
+        where: { key },
+        update: { value: String(value), updatedAt: new Date() },
+        create: { key, value: String(value), type: 'number', group: 'quality' },
+      });
+    }
+    await this.cache.invalidate('settings:quality');
+    return { success: true };
+  }
+
+  // ==================== TEST SMTP ====================
+
+  async testSmtp(recipientEmail: string): Promise<{ success: boolean; message: string }> {
+    const config = await this.getSmtpConfig();
+
+    if (!config.host) {
+      throw new BadRequestException('Server SMTP non configurato');
+    }
+
+    try {
+      const transporter = nodemailer.createTransport({
+        host: config.host,
+        port: config.port || 587,
+        secure: config.secure || false,
+        // Non servono credenziali utente per il test, usa connessione anonima
+        tls: { rejectUnauthorized: false },
+      });
+
+      await transporter.verify();
+
+      return {
+        success: true,
+        message: `Connessione a ${config.host}:${config.port} riuscita`,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Errore connessione: ${error.message}`,
+      };
+    }
+  }
+
+  // ==================== BACKUP / RIPRISTINO ====================
+
+  async exportSettings(): Promise<any> {
+    const settings = await this.prisma.setting.findMany({
+      orderBy: [{ group: 'asc' }, { key: 'asc' }],
+    });
+
+    return {
+      exportedAt: new Date().toISOString(),
+      version: '1.0',
+      settings: settings.map(s => ({
+        key: s.key,
+        value: s.value,
+        type: s.type,
+        group: s.group,
+      })),
+    };
+  }
+
+  async importSettings(data: any): Promise<{ success: boolean; imported: number; skipped: number }> {
+    if (!data?.settings || !Array.isArray(data.settings)) {
+      throw new BadRequestException('Formato file non valido');
+    }
+
+    let imported = 0;
+    let skipped = 0;
+
+    for (const setting of data.settings) {
+      if (!setting.key || setting.value === undefined) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        await this.prisma.setting.upsert({
+          where: { key: setting.key },
+          update: { value: String(setting.value), updatedAt: new Date() },
+          create: {
+            key: setting.key,
+            value: String(setting.value),
+            type: setting.type || 'string',
+            group: setting.group || 'general',
+          },
+        });
+        imported++;
+      } catch {
+        skipped++;
+      }
+    }
+
+    // Invalida tutte le cache settings
+    await this.cache.invalidatePattern('settings:*');
+    await this.cache.invalidate('settings:modules', 'settings:smtp', 'settings:general', 'settings:security', 'settings:export-defaults', 'settings:quality');
+
+    return { success: true, imported, skipped };
+  }
+
+  // ==================== SYSTEM INFO ====================
+
+  async getSystemInfo(): Promise<any> {
+    const [
+      totalUsers,
+      totalSettings,
+      totalLogs,
+      dbSize,
+      cacheInfo,
+    ] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.setting.count(),
+      this.prisma.activityLog.count(),
+      this.prisma.$queryRaw<any[]>`
+        SELECT
+          table_schema AS db,
+          ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS size_mb
+        FROM information_schema.tables
+        WHERE table_schema = DATABASE()
+        GROUP BY table_schema
+      `.catch(() => [{ size_mb: 0 }]),
+      this.cache.getInfo(),
+    ]);
+
+    return {
+      server: {
+        platform: os.platform(),
+        arch: os.arch(),
+        nodeVersion: process.version,
+        uptime: Math.floor(process.uptime()),
+        memoryUsage: {
+          rss: Math.round(process.memoryUsage().rss / 1024 / 1024),
+          heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+          heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+        },
+        cpuCount: os.cpus().length,
+        hostname: os.hostname(),
+        totalMemory: Math.round(os.totalmem() / 1024 / 1024 / 1024),
+        freeMemory: Math.round(os.freemem() / 1024 / 1024 / 1024),
+      },
+      database: {
+        sizeMb: dbSize[0]?.size_mb || 0,
+        totalUsers,
+        totalSettings,
+        totalLogs,
+      },
+      cache: cacheInfo,
+    };
+  }
+
+  async flushCache(): Promise<{ success: boolean; deleted: number }> {
+    const deleted = await this.cache.flushAll();
+    return { success: true, deleted };
+  }
+
+  // ==================== CRONOLOGIA MODIFICHE ====================
+
+  async getSettingsChangelog(page = 1, limit = 20): Promise<any> {
+    const offset = (page - 1) * limit;
+
+    const [logs, total] = await Promise.all([
+      this.prisma.activityLog.findMany({
+        where: { module: 'settings' },
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        take: limit,
+        include: {
+          user: {
+            select: { nome: true, userName: true },
+          },
+        },
+      }),
+      this.prisma.activityLog.count({ where: { module: 'settings' } }),
+    ]);
+
+    return {
+      data: logs,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }

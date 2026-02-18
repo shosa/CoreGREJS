@@ -8,7 +8,7 @@ import { useModulesStore } from '@/store/modules';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
-type Section = 'import' | 'modules' | 'smtp' | 'produzione' | 'general' | 'users' | 'system';
+type Section = 'import' | 'modules' | 'smtp' | 'produzione' | 'general' | 'security' | 'export-defaults' | 'quality' | 'system' | 'changelog';
 type ImportStep = 'select' | 'analyzing' | 'confirm' | 'importing' | 'completed';
 
 interface ImportAnalysis {
@@ -236,6 +236,43 @@ export default function SettingsPage() {
   const [emailsLoading, setEmailsLoading] = useState(false);
   const [emailsSaving, setEmailsSaving] = useState(false);
 
+  // General state
+  const [generalConfig, setGeneralConfig] = useState<Record<string, string>>({});
+  const [generalLoading, setGeneralLoading] = useState(false);
+  const [generalSaving, setGeneralSaving] = useState(false);
+
+  // Security state
+  const [securityConfig, setSecurityConfig] = useState<Record<string, any>>({});
+  const [securityLoading, setSecurityLoading] = useState(false);
+  const [securitySaving, setSecuritySaving] = useState(false);
+
+  // Export defaults state
+  const [exportDefaults, setExportDefaults] = useState<Record<string, string>>({});
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportSaving, setExportSaving] = useState(false);
+
+  // Quality state
+  const [qualityConfig, setQualityConfig] = useState<Record<string, number>>({});
+  const [qualityLoading, setQualityLoading] = useState(false);
+  const [qualitySaving, setQualitySaving] = useState(false);
+
+  // System state
+  const [systemInfo, setSystemInfo] = useState<any>(null);
+  const [systemLoading, setSystemLoading] = useState(false);
+  const [cacheFlushing, setCacheFlushing] = useState(false);
+
+  // Changelog state
+  const [changelog, setChangelog] = useState<any>(null);
+  const [changelogLoading, setChangelogLoading] = useState(false);
+  const [changelogPage, setChangelogPage] = useState(1);
+
+  // SMTP test state
+  const [smtpTesting, setSmtpTesting] = useState(false);
+
+  // Backup state
+  const [backupImporting, setBackupImporting] = useState(false);
+  const backupInputRef = useRef<HTMLInputElement>(null);
+
   // Cleanup interval on unmount
   useEffect(() => {
     return () => {
@@ -253,6 +290,18 @@ export default function SettingsPage() {
       loadSmtpConfig();
     } else if (activeSection === 'produzione') {
       loadProduzioneEmails();
+    } else if (activeSection === 'general') {
+      loadGeneralConfig();
+    } else if (activeSection === 'security') {
+      loadSecurityConfig();
+    } else if (activeSection === 'export-defaults') {
+      loadExportDefaults();
+    } else if (activeSection === 'quality') {
+      loadQualityConfig();
+    } else if (activeSection === 'system') {
+      loadSystemInfo();
+    } else if (activeSection === 'changelog') {
+      loadChangelog(1);
     }
   }, [activeSection]);
 
@@ -399,6 +448,204 @@ export default function SettingsPage() {
     }
   };
 
+  // ==================== GENERALI ====================
+  const loadGeneralConfig = async () => {
+    setGeneralLoading(true);
+    try {
+      const data = await settingsApi.getGeneralConfig();
+      setGeneralConfig(data);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento impostazioni generali');
+    } finally {
+      setGeneralLoading(false);
+    }
+  };
+
+  const handleSaveGeneral = async () => {
+    setGeneralSaving(true);
+    try {
+      await settingsApi.updateGeneralConfig(generalConfig);
+      showSuccess('Impostazioni generali salvate');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore salvataggio');
+    } finally {
+      setGeneralSaving(false);
+    }
+  };
+
+  // ==================== SICUREZZA ====================
+  const loadSecurityConfig = async () => {
+    setSecurityLoading(true);
+    try {
+      const data = await settingsApi.getSecurityConfig();
+      setSecurityConfig(data);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento sicurezza');
+    } finally {
+      setSecurityLoading(false);
+    }
+  };
+
+  const handleSaveSecurity = async () => {
+    setSecuritySaving(true);
+    try {
+      await settingsApi.updateSecurityConfig(securityConfig);
+      showSuccess('Impostazioni sicurezza salvate');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore salvataggio');
+    } finally {
+      setSecuritySaving(false);
+    }
+  };
+
+  // ==================== EXPORT DEFAULTS ====================
+  const loadExportDefaults = async () => {
+    setExportLoading(true);
+    try {
+      const data = await settingsApi.getExportDefaults();
+      setExportDefaults(data);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento valori export');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleSaveExportDefaults = async () => {
+    setExportSaving(true);
+    try {
+      await settingsApi.updateExportDefaults(exportDefaults);
+      showSuccess('Valori default export salvati');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore salvataggio');
+    } finally {
+      setExportSaving(false);
+    }
+  };
+
+  // ==================== QUALITA ====================
+  const loadQualityConfig = async () => {
+    setQualityLoading(true);
+    try {
+      const data = await settingsApi.getQualityThresholds();
+      setQualityConfig(data);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento soglie qualità');
+    } finally {
+      setQualityLoading(false);
+    }
+  };
+
+  const handleSaveQuality = async () => {
+    setQualitySaving(true);
+    try {
+      await settingsApi.updateQualityThresholds(qualityConfig);
+      showSuccess('Soglie qualità salvate');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore salvataggio');
+    } finally {
+      setQualitySaving(false);
+    }
+  };
+
+  // ==================== SMTP TEST ====================
+  const handleTestSmtp = async () => {
+    setSmtpTesting(true);
+    try {
+      const result = await settingsApi.testSmtp('');
+      if (result.success) {
+        showSuccess(result.message);
+      } else {
+        showError(result.message);
+      }
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore test SMTP');
+    } finally {
+      setSmtpTesting(false);
+    }
+  };
+
+  // ==================== SYSTEM ====================
+  const loadSystemInfo = async () => {
+    setSystemLoading(true);
+    try {
+      const data = await settingsApi.getSystemInfo();
+      setSystemInfo(data);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento info sistema');
+    } finally {
+      setSystemLoading(false);
+    }
+  };
+
+  const handleFlushCache = async () => {
+    setCacheFlushing(true);
+    try {
+      const result = await settingsApi.flushCache();
+      showSuccess(`Cache svuotata: ${result.deleted} chiavi rimosse`);
+      loadSystemInfo();
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore svuotamento cache');
+    } finally {
+      setCacheFlushing(false);
+    }
+  };
+
+  // ==================== BACKUP ====================
+  const handleExportBackup = async () => {
+    try {
+      const data = await settingsApi.exportBackup();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `settings-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showSuccess('Backup esportato');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore esportazione');
+    }
+  };
+
+  const handleImportBackup = async (file: File) => {
+    setBackupImporting(true);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const result = await settingsApi.importBackup(data);
+      showSuccess(`Importate ${result.imported} impostazioni (${result.skipped} saltate)`);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore importazione backup');
+    } finally {
+      setBackupImporting(false);
+      if (backupInputRef.current) backupInputRef.current.value = '';
+    }
+  };
+
+  // ==================== CHANGELOG ====================
+  const loadChangelog = async (page: number) => {
+    setChangelogLoading(true);
+    setChangelogPage(page);
+    try {
+      const data = await settingsApi.getChangelog(page);
+      setChangelog(data);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento cronologia');
+    } finally {
+      setChangelogLoading(false);
+    }
+  };
+
+  const formatUptime = (seconds: number) => {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    if (days > 0) return `${days}g ${hours}h ${mins}m`;
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${mins}m`;
+  };
+
   const handleFileSelect = async (file: File) => {
     if (!file.name.endsWith('.xlsx')) {
       showError('Seleziona un file Excel (.xlsx)');
@@ -489,10 +736,14 @@ export default function SettingsPage() {
   const sections = [
     { id: 'import' as Section, label: 'Import Dati', icon: 'fa-file-import', color: 'blue' },
     { id: 'modules' as Section, label: 'Moduli Attivi', icon: 'fa-puzzle-piece', color: 'purple' },
+    { id: 'general' as Section, label: 'Generali', icon: 'fa-building', color: 'gray' },
     { id: 'smtp' as Section, label: 'Server Email (SMTP)', icon: 'fa-server', color: 'green' },
     { id: 'produzione' as Section, label: 'Email Produzione', icon: 'fa-envelope', color: 'orange' },
-    { id: 'general' as Section, label: 'Generali', icon: 'fa-cog', color: 'gray', disabled: true },
-    { id: 'users' as Section, label: 'Utenti', icon: 'fa-users', color: 'red', disabled: true },
+    { id: 'security' as Section, label: 'Sicurezza', icon: 'fa-shield-alt', color: 'red' },
+    { id: 'export-defaults' as Section, label: 'Default Export', icon: 'fa-globe-europe', color: 'indigo' },
+    { id: 'quality' as Section, label: 'Soglie Qualità', icon: 'fa-check-circle', color: 'green' },
+    { id: 'system' as Section, label: 'Sistema', icon: 'fa-microchip', color: 'cyan' },
+    { id: 'changelog' as Section, label: 'Cronologia', icon: 'fa-history', color: 'yellow' },
   ];
 
   const progressPercent = progress && progress.total > 0
@@ -1063,17 +1314,30 @@ export default function SettingsPage() {
                         </div>
                       </div>
 
-                      <button
-                        onClick={handleSaveSmtp}
-                        disabled={smtpSaving}
-                        className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 transition font-medium shadow-lg disabled:opacity-50"
-                      >
-                        {smtpSaving ? (
-                          <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</>
-                        ) : (
-                          <><i className="fas fa-save mr-2"></i>Salva Configurazione</>
-                        )}
-                      </button>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={handleSaveSmtp}
+                          disabled={smtpSaving}
+                          className="flex-1 px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 transition font-medium shadow-lg disabled:opacity-50"
+                        >
+                          {smtpSaving ? (
+                            <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</>
+                          ) : (
+                            <><i className="fas fa-save mr-2"></i>Salva Configurazione</>
+                          )}
+                        </button>
+                        <button
+                          onClick={handleTestSmtp}
+                          disabled={smtpTesting || !smtpConfig.host}
+                          className="px-6 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 transition font-medium shadow-lg disabled:opacity-50"
+                        >
+                          {smtpTesting ? (
+                            <><i className="fas fa-spinner fa-spin mr-2"></i>Test...</>
+                          ) : (
+                            <><i className="fas fa-plug mr-2"></i>Test Connessione</>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1229,18 +1493,541 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Placeholder for other sections */}
-          {activeSection !== 'import' && activeSection !== 'modules' && activeSection !== 'smtp' && activeSection !== 'produzione' && (
-            <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow p-12 text-center">
-              <div className="mx-auto h-20 w-20 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4">
-                <i className="fas fa-tools text-4xl text-gray-400 dark:text-gray-500"></i>
+          {/* ==================== GENERALI ==================== */}
+          {activeSection === 'general' && (
+            <div className="space-y-6">
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-800 dark:to-slate-900/20">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-gray-600 to-slate-700 shadow-lg">
+                      <i className="fas fa-building text-white text-2xl"></i>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Impostazioni Generali</h3>
+                      <p className="text-gray-600 dark:text-gray-400">Dati azienda, formato e preferenze sistema</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  {generalLoading ? (
+                    <div className="text-center py-12">
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-gray-500 border-t-transparent mb-4" />
+                      <p className="text-lg font-medium text-gray-600">Caricamento...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome Azienda</label>
+                          <input type="text" value={generalConfig['general.nomeAzienda'] || ''} onChange={(e) => setGeneralConfig({ ...generalConfig, 'general.nomeAzienda': e.target.value })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Partita IVA</label>
+                          <input type="text" value={generalConfig['general.partitaIva'] || ''} onChange={(e) => setGeneralConfig({ ...generalConfig, 'general.partitaIva': e.target.value })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Indirizzo</label>
+                        <input type="text" value={generalConfig['general.indirizzo'] || ''} onChange={(e) => setGeneralConfig({ ...generalConfig, 'general.indirizzo': e.target.value })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Città</label>
+                          <input type="text" value={generalConfig['general.citta'] || ''} onChange={(e) => setGeneralConfig({ ...generalConfig, 'general.citta': e.target.value })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">CAP</label>
+                          <input type="text" value={generalConfig['general.cap'] || ''} onChange={(e) => setGeneralConfig({ ...generalConfig, 'general.cap': e.target.value })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Provincia</label>
+                          <input type="text" value={generalConfig['general.provincia'] || ''} onChange={(e) => setGeneralConfig({ ...generalConfig, 'general.provincia': e.target.value })} maxLength={2} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Telefono</label>
+                          <input type="text" value={generalConfig['general.telefono'] || ''} onChange={(e) => setGeneralConfig({ ...generalConfig, 'general.telefono': e.target.value })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
+                          <input type="email" value={generalConfig['general.email'] || ''} onChange={(e) => setGeneralConfig({ ...generalConfig, 'general.email': e.target.value })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Valuta</label>
+                          <select value={generalConfig['general.valuta'] || 'EUR'} onChange={(e) => setGeneralConfig({ ...generalConfig, 'general.valuta': e.target.value })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500">
+                            <option value="EUR">EUR (€)</option>
+                            <option value="USD">USD ($)</option>
+                            <option value="GBP">GBP (£)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Formato Data</label>
+                          <select value={generalConfig['general.formatoData'] || 'DD/MM/YYYY'} onChange={(e) => setGeneralConfig({ ...generalConfig, 'general.formatoData': e.target.value })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500">
+                            <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                            <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                            <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Timezone</label>
+                          <select value={generalConfig['general.timezone'] || 'Europe/Rome'} onChange={(e) => setGeneralConfig({ ...generalConfig, 'general.timezone': e.target.value })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500">
+                            <option value="Europe/Rome">Europe/Rome</option>
+                            <option value="Europe/London">Europe/London</option>
+                            <option value="America/New_York">America/New_York</option>
+                            <option value="UTC">UTC</option>
+                          </select>
+                        </div>
+                      </div>
+                      <button onClick={handleSaveGeneral} disabled={generalSaving} className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-gray-600 to-slate-700 text-white hover:from-gray-700 hover:to-slate-800 transition font-medium shadow-lg disabled:opacity-50">
+                        {generalSaving ? <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</> : <><i className="fas fa-save mr-2"></i>Salva Impostazioni</>}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                Sezione in sviluppo
-              </h3>
-              <p className="text-gray-500 dark:text-gray-400">
-                Questa sezione sara disponibile a breve
-              </p>
+
+              {/* Backup/Ripristino */}
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow p-6">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <i className="fas fa-database text-gray-500"></i>
+                  Backup / Ripristino Impostazioni
+                </h4>
+                <div className="flex gap-3">
+                  <button onClick={handleExportBackup} className="flex-1 px-4 py-3 rounded-lg border-2 border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition font-medium">
+                    <i className="fas fa-download mr-2"></i>Esporta Backup
+                  </button>
+                  <button onClick={() => backupInputRef.current?.click()} disabled={backupImporting} className="flex-1 px-4 py-3 rounded-lg border-2 border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition font-medium disabled:opacity-50">
+                    {backupImporting ? <><i className="fas fa-spinner fa-spin mr-2"></i>Importazione...</> : <><i className="fas fa-upload mr-2"></i>Importa Backup</>}
+                  </button>
+                  <input ref={backupInputRef} type="file" accept=".json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportBackup(f); }} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==================== SICUREZZA ==================== */}
+          {activeSection === 'security' && (
+            <div className="space-y-6">
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-red-500 to-rose-600 shadow-lg">
+                      <i className="fas fa-shield-alt text-white text-2xl"></i>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Sicurezza</h3>
+                      <p className="text-gray-600 dark:text-gray-400">Policy password, sessione e accesso</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  {securityLoading ? (
+                    <div className="text-center py-12">
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-red-500 border-t-transparent mb-4" />
+                      <p className="text-lg font-medium text-red-600">Caricamento...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                          <i className="fas fa-key text-red-500"></i> Policy Password
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Lunghezza Minima</label>
+                            <input type="number" min={4} max={32} value={securityConfig.passwordMinLength || 8} onChange={(e) => setSecurityConfig({ ...securityConfig, passwordMinLength: parseInt(e.target.value) || 8 })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500" />
+                          </div>
+                          <div className="flex flex-col gap-3 justify-center">
+                            <label className="flex items-center cursor-pointer">
+                              <input type="checkbox" checked={securityConfig.passwordRequireUppercase || false} onChange={(e) => setSecurityConfig({ ...securityConfig, passwordRequireUppercase: e.target.checked })} className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Richiedi maiuscola</span>
+                            </label>
+                            <label className="flex items-center cursor-pointer">
+                              <input type="checkbox" checked={securityConfig.passwordRequireNumber || false} onChange={(e) => setSecurityConfig({ ...securityConfig, passwordRequireNumber: e.target.checked })} className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Richiedi numero</span>
+                            </label>
+                            <label className="flex items-center cursor-pointer">
+                              <input type="checkbox" checked={securityConfig.passwordRequireSpecial || false} onChange={(e) => setSecurityConfig({ ...securityConfig, passwordRequireSpecial: e.target.checked })} className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Richiedi carattere speciale</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <hr className="border-gray-200 dark:border-gray-700" />
+
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                          <i className="fas fa-clock text-red-500"></i> Sessione e Accesso
+                        </h4>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Timeout Sessione (minuti)</label>
+                            <input type="number" min={5} max={1440} value={securityConfig.sessionTimeoutMinutes || 480} onChange={(e) => setSecurityConfig({ ...securityConfig, sessionTimeoutMinutes: parseInt(e.target.value) || 480 })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Max Tentativi Login</label>
+                            <input type="number" min={1} max={20} value={securityConfig.maxLoginAttempts || 5} onChange={(e) => setSecurityConfig({ ...securityConfig, maxLoginAttempts: parseInt(e.target.value) || 5 })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Blocco Account (minuti)</label>
+                            <input type="number" min={1} max={1440} value={securityConfig.lockoutDurationMinutes || 15} onChange={(e) => setSecurityConfig({ ...securityConfig, lockoutDurationMinutes: parseInt(e.target.value) || 15 })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <button onClick={handleSaveSecurity} disabled={securitySaving} className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 text-white hover:from-red-600 hover:to-rose-700 transition font-medium shadow-lg disabled:opacity-50">
+                        {securitySaving ? <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</> : <><i className="fas fa-save mr-2"></i>Salva Impostazioni Sicurezza</>}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==================== EXPORT DEFAULTS ==================== */}
+          {activeSection === 'export-defaults' && (
+            <div className="space-y-6">
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 shadow-lg">
+                      <i className="fas fa-globe-europe text-white text-2xl"></i>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Valori Default Export/DDT</h3>
+                      <p className="text-gray-600 dark:text-gray-400">Precompila automaticamente i campi dei nuovi documenti</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  {exportLoading ? (
+                    <div className="text-center py-12">
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-indigo-500 border-t-transparent mb-4" />
+                      <p className="text-lg font-medium text-indigo-600">Caricamento...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Trasporto Default</label>
+                          <input type="text" value={exportDefaults.trasportoDefault || ''} onChange={(e) => setExportDefaults({ ...exportDefaults, trasportoDefault: e.target.value })} placeholder="Es: Mittente, Destinatario, Vettore" className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Causale Default</label>
+                          <input type="text" value={exportDefaults.causaleDefault || ''} onChange={(e) => setExportDefaults({ ...exportDefaults, causaleDefault: e.target.value })} placeholder="Es: Conto lavorazione, Vendita" className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Aspetto Esteriore</label>
+                          <input type="text" value={exportDefaults.aspettoEsteriore || ''} onChange={(e) => setExportDefaults({ ...exportDefaults, aspettoEsteriore: e.target.value })} placeholder="Es: Scatole, Sacchi" className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Porto</label>
+                          <input type="text" value={exportDefaults.porto || ''} onChange={(e) => setExportDefaults({ ...exportDefaults, porto: e.target.value })} placeholder="Es: Franco, Assegnato" className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Valuta Default</label>
+                          <select value={exportDefaults.valuta || 'EUR'} onChange={(e) => setExportDefaults({ ...exportDefaults, valuta: e.target.value })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="EUR">EUR (€)</option>
+                            <option value="USD">USD ($)</option>
+                            <option value="GBP">GBP (£)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Terzista Predefinito</label>
+                          <input type="text" value={exportDefaults.terzistaPredefinito || ''} onChange={(e) => setExportDefaults({ ...exportDefaults, terzistaPredefinito: e.target.value })} placeholder="Nome terzista" className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Note Default</label>
+                        <textarea value={exportDefaults.noteDefault || ''} onChange={(e) => setExportDefaults({ ...exportDefaults, noteDefault: e.target.value })} rows={3} placeholder="Note che verranno inserite automaticamente nei nuovi documenti" className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      </div>
+                      <button onClick={handleSaveExportDefaults} disabled={exportSaving} className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:from-indigo-600 hover:to-violet-700 transition font-medium shadow-lg disabled:opacity-50">
+                        {exportSaving ? <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</> : <><i className="fas fa-save mr-2"></i>Salva Valori Default</>}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==================== SOGLIE QUALITA ==================== */}
+          {activeSection === 'quality' && (
+            <div className="space-y-6">
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 shadow-lg">
+                      <i className="fas fa-check-circle text-white text-2xl"></i>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Soglie Qualità</h3>
+                      <p className="text-gray-600 dark:text-gray-400">Parametri e limiti per il controllo qualità</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  {qualityLoading ? (
+                    <div className="text-center py-12">
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-green-500 border-t-transparent mb-4" />
+                      <p className="text-lg font-medium text-green-600">Caricamento...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                          <label className="block text-sm font-medium text-green-800 dark:text-green-300 mb-2">
+                            <i className="fas fa-percentage mr-2"></i>Soglia Difetti Accettabile (%)
+                          </label>
+                          <input type="number" min={0} max={100} step={0.5} value={qualityConfig.sogliaDifettiPercentuale || 5} onChange={(e) => setQualityConfig({ ...qualityConfig, sogliaDifettiPercentuale: parseFloat(e.target.value) || 5 })} className="w-full px-4 py-2 rounded-lg border border-green-300 dark:border-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500" />
+                          <p className="mt-1 text-xs text-green-600 dark:text-green-400">Sotto questa soglia il controllo è considerato conforme</p>
+                        </div>
+                        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                          <label className="block text-sm font-medium text-red-800 dark:text-red-300 mb-2">
+                            <i className="fas fa-exclamation-triangle mr-2"></i>Soglia Allarme (%)
+                          </label>
+                          <input type="number" min={0} max={100} step={0.5} value={qualityConfig.sogliaAllarme || 10} onChange={(e) => setQualityConfig({ ...qualityConfig, sogliaAllarme: parseFloat(e.target.value) || 10 })} className="w-full px-4 py-2 rounded-lg border border-red-300 dark:border-red-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500" />
+                          <p className="mt-1 text-xs text-red-600 dark:text-red-400">Sopra questa soglia scatta l'allarme qualità</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Controlli Minimi al Giorno</label>
+                          <input type="number" min={0} max={1000} value={qualityConfig.controlliMinimiGiorno || 0} onChange={(e) => setQualityConfig({ ...qualityConfig, controlliMinimiGiorno: parseInt(e.target.value) || 0 })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500" />
+                          <p className="mt-1 text-xs text-gray-500">0 = nessun limite minimo</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Auto-chiusura dopo (giorni)</label>
+                          <input type="number" min={0} max={365} value={qualityConfig.autoChiusuraGiorni || 30} onChange={(e) => setQualityConfig({ ...qualityConfig, autoChiusuraGiorni: parseInt(e.target.value) || 30 })} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500" />
+                          <p className="mt-1 text-xs text-gray-500">0 = mai chiusura automatica</p>
+                        </div>
+                      </div>
+                      <button onClick={handleSaveQuality} disabled={qualitySaving} className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 transition font-medium shadow-lg disabled:opacity-50">
+                        {qualitySaving ? <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</> : <><i className="fas fa-save mr-2"></i>Salva Soglie Qualità</>}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==================== SISTEMA ==================== */}
+          {activeSection === 'system' && (
+            <div className="space-y-6">
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-cyan-50 to-sky-50 dark:from-cyan-900/20 dark:to-sky-900/20">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-sky-600 shadow-lg">
+                      <i className="fas fa-microchip text-white text-2xl"></i>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Informazioni Sistema</h3>
+                      <p className="text-gray-600 dark:text-gray-400">Server, database, cache e diagnostica</p>
+                    </div>
+                    <button onClick={loadSystemInfo} className="ml-auto px-4 py-2 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-200 transition">
+                      <i className="fas fa-sync-alt mr-2"></i>Aggiorna
+                    </button>
+                  </div>
+                </div>
+                <div className="p-6">
+                  {systemLoading ? (
+                    <div className="text-center py-12">
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-cyan-500 border-t-transparent mb-4" />
+                      <p className="text-lg font-medium text-cyan-600">Caricamento info sistema...</p>
+                    </div>
+                  ) : systemInfo ? (
+                    <div className="space-y-6">
+                      {/* Server */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                          <i className="fas fa-server text-cyan-500"></i> Server
+                        </h4>
+                        <div className="grid grid-cols-4 gap-3">
+                          <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Platform</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{systemInfo.server.platform} ({systemInfo.server.arch})</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Node.js</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{systemInfo.server.nodeVersion}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Uptime</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatUptime(systemInfo.server.uptime)}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">CPU</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{systemInfo.server.cpuCount} core</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Memoria */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                          <i className="fas fa-memory text-blue-500"></i> Memoria
+                        </h4>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                            <p className="text-xs text-blue-600 dark:text-blue-400">Heap Usato</p>
+                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{systemInfo.server.memoryUsage.heapUsed} MB</p>
+                            <p className="text-xs text-gray-500">di {systemInfo.server.memoryUsage.heapTotal} MB allocati</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                            <p className="text-xs text-blue-600 dark:text-blue-400">RSS</p>
+                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{systemInfo.server.memoryUsage.rss} MB</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                            <p className="text-xs text-blue-600 dark:text-blue-400">Sistema</p>
+                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{systemInfo.server.freeMemory} GB liberi</p>
+                            <p className="text-xs text-gray-500">di {systemInfo.server.totalMemory} GB totali</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Database */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                          <i className="fas fa-database text-green-500"></i> Database
+                        </h4>
+                        <div className="grid grid-cols-4 gap-3">
+                          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+                            <p className="text-xs text-green-600 dark:text-green-400">Dimensione</p>
+                            <p className="text-lg font-bold text-green-700 dark:text-green-300">{systemInfo.database.sizeMb} MB</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+                            <p className="text-xs text-green-600 dark:text-green-400">Utenti</p>
+                            <p className="text-lg font-bold text-green-700 dark:text-green-300">{systemInfo.database.totalUsers}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+                            <p className="text-xs text-green-600 dark:text-green-400">Impostazioni</p>
+                            <p className="text-lg font-bold text-green-700 dark:text-green-300">{systemInfo.database.totalSettings}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+                            <p className="text-xs text-green-600 dark:text-green-400">Log Attività</p>
+                            <p className="text-lg font-bold text-green-700 dark:text-green-300">{systemInfo.database.totalLogs.toLocaleString()}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cache Redis */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                          <i className="fas fa-bolt text-orange-500"></i> Cache Redis
+                        </h4>
+                        <div className="flex items-center gap-4">
+                          <div className="grid grid-cols-3 gap-3 flex-1">
+                            <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                              <p className="text-xs text-orange-600 dark:text-orange-400">Stato</p>
+                              <p className={`text-lg font-bold ${systemInfo.cache?.connected ? 'text-green-600' : 'text-red-600'}`}>
+                                {systemInfo.cache?.connected ? 'Connesso' : 'Disconnesso'}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                              <p className="text-xs text-orange-600 dark:text-orange-400">Chiavi</p>
+                              <p className="text-lg font-bold text-orange-700 dark:text-orange-300">{systemInfo.cache?.keys || 0}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                              <p className="text-xs text-orange-600 dark:text-orange-400">Memoria</p>
+                              <p className="text-lg font-bold text-orange-700 dark:text-orange-300">{systemInfo.cache?.memoryUsed || '0'}</p>
+                            </div>
+                          </div>
+                          <button onClick={handleFlushCache} disabled={cacheFlushing || !systemInfo.cache?.connected} className="px-4 py-3 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 transition font-medium disabled:opacity-50">
+                            {cacheFlushing ? <i className="fas fa-spinner fa-spin"></i> : <><i className="fas fa-broom mr-2"></i>Svuota</>}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==================== CRONOLOGIA ==================== */}
+          {activeSection === 'changelog' && (
+            <div className="space-y-6">
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 shadow-lg">
+                      <i className="fas fa-history text-white text-2xl"></i>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Cronologia Modifiche</h3>
+                      <p className="text-gray-600 dark:text-gray-400">Storico delle modifiche alle impostazioni</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  {changelogLoading ? (
+                    <div className="text-center py-12">
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-yellow-500 border-t-transparent mb-4" />
+                      <p className="text-lg font-medium text-yellow-600">Caricamento cronologia...</p>
+                    </div>
+                  ) : changelog?.data?.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="space-y-3">
+                        {changelog.data.map((log: any) => (
+                          <div key={log.id} className="flex items-start gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex-shrink-0">
+                              <i className="fas fa-pen text-yellow-600 dark:text-yellow-400"></i>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                  {log.user?.nome || log.user?.userName || 'Sistema'}
+                                </p>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {new Date(log.createdAt).toLocaleString('it-IT')}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium mr-2">
+                                  {log.action}
+                                </span>
+                                {log.description || log.entity}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Pagination */}
+                      {changelog.totalPages > 1 && (
+                        <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                          <p className="text-sm text-gray-500">
+                            Pagina {changelog.page} di {changelog.totalPages} ({changelog.total} totali)
+                          </p>
+                          <div className="flex gap-2">
+                            <button onClick={() => loadChangelog(changelogPage - 1)} disabled={changelogPage <= 1} className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 transition disabled:opacity-50">
+                              <i className="fas fa-chevron-left"></i>
+                            </button>
+                            <button onClick={() => loadChangelog(changelogPage + 1)} disabled={changelogPage >= changelog.totalPages} className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 transition disabled:opacity-50">
+                              <i className="fas fa-chevron-right"></i>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <i className="fas fa-inbox text-5xl text-gray-400 mb-4"></i>
+                      <p className="text-gray-500">Nessuna modifica registrata</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </motion.div>

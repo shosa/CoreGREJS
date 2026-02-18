@@ -536,6 +536,70 @@ export const settingsApi = {
     const response = await api.put('/settings/produzione/emails', { emails });
     return response.data;
   },
+  // General settings
+  getGeneralConfig: async () => {
+    const response = await api.get('/settings/general');
+    return response.data;
+  },
+  updateGeneralConfig: async (data: Record<string, string>) => {
+    const response = await api.put('/settings/general', data);
+    return response.data;
+  },
+  // Security settings
+  getSecurityConfig: async () => {
+    const response = await api.get('/settings/security');
+    return response.data;
+  },
+  updateSecurityConfig: async (data: Record<string, any>) => {
+    const response = await api.put('/settings/security', data);
+    return response.data;
+  },
+  // Export defaults
+  getExportDefaults: async () => {
+    const response = await api.get('/settings/export-defaults');
+    return response.data;
+  },
+  updateExportDefaults: async (data: Record<string, string>) => {
+    const response = await api.put('/settings/export-defaults', data);
+    return response.data;
+  },
+  // Quality thresholds
+  getQualityThresholds: async () => {
+    const response = await api.get('/settings/quality');
+    return response.data;
+  },
+  updateQualityThresholds: async (data: Record<string, number>) => {
+    const response = await api.put('/settings/quality', data);
+    return response.data;
+  },
+  // SMTP test
+  testSmtp: async (email: string) => {
+    const response = await api.post('/settings/smtp/test', { email });
+    return response.data;
+  },
+  // Backup
+  exportBackup: async () => {
+    const response = await api.get('/settings/backup/export');
+    return response.data;
+  },
+  importBackup: async (data: any) => {
+    const response = await api.post('/settings/backup/import', data);
+    return response.data;
+  },
+  // System info
+  getSystemInfo: async () => {
+    const response = await api.get('/settings/system');
+    return response.data;
+  },
+  flushCache: async () => {
+    const response = await api.post('/settings/cache/flush');
+    return response.data;
+  },
+  // Changelog
+  getChangelog: async (page = 1, limit = 20) => {
+    const response = await api.get('/settings/changelog', { params: { page, limit } });
+    return response.data;
+  },
 };
 
 // Jobs / Spool API

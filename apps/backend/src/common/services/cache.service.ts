@@ -99,6 +99,56 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Svuota tutta la cache applicativa
+   */
+  async flushAll(): Promise<number> {
+    if (!this.connected || !this.client) return 0;
+
+    try {
+      let deleted = 0;
+      let cursor = '0';
+      do {
+        const [nextCursor, keys] = await this.client.scan(cursor, 'MATCH', 'coregre:cache:*', 'COUNT', 100);
+        cursor = nextCursor;
+        if (keys.length > 0) {
+          const cleanKeys = keys.map(k => k.replace('coregre:cache:', ''));
+          await this.client.del(...cleanKeys);
+          deleted += keys.length;
+        }
+      } while (cursor !== '0');
+      return deleted;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Statistiche cache Redis
+   */
+  async getInfo(): Promise<{ connected: boolean; keys: number; memoryUsed: string; uptime: number } | null> {
+    if (!this.connected || !this.client) {
+      return { connected: false, keys: 0, memoryUsed: '0', uptime: 0 };
+    }
+
+    try {
+      const info = await this.client.info();
+      const keysCount = await this.client.dbsize();
+
+      const memoryMatch = info.match(/used_memory_human:(.+)/);
+      const uptimeMatch = info.match(/uptime_in_seconds:(\d+)/);
+
+      return {
+        connected: true,
+        keys: keysCount,
+        memoryUsed: memoryMatch ? memoryMatch[1].trim() : '0',
+        uptime: uptimeMatch ? parseInt(uptimeMatch[1]) : 0,
+      };
+    } catch {
+      return { connected: false, keys: 0, memoryUsed: '0', uptime: 0 };
+    }
+  }
+
+  /**
    * Invalida tutte le chiavi che matchano un pattern
    */
   async invalidatePattern(pattern: string): Promise<void> {
