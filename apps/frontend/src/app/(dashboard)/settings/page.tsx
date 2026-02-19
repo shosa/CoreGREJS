@@ -8,7 +8,12 @@ import { useModulesStore } from '@/store/modules';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
-type Section = 'import' | 'modules' | 'smtp' | 'produzione' | 'general' | 'security' | 'system' | 'changelog' | 'jobs' | 'webhooks' | 'cron' | 'riparazioni';
+type Section =
+  | 'import' | 'modules' | 'smtp' | 'produzione' | 'general' | 'security'
+  | 'system' | 'changelog' | 'jobs' | 'webhooks' | 'cron'
+  | 'riparazioni' | 'qualita' | 'produzione-mod' | 'export-mod' | 'scm'
+  | 'analitiche' | 'tracking' | 'dbsql' | 'log' | 'inwork' | 'file-manager'
+  | 'users-mod' | 'settings-mod';
 type ImportStep = 'select' | 'analyzing' | 'confirm' | 'importing' | 'completed';
 
 interface ImportAnalysis {
@@ -1100,19 +1105,51 @@ export default function SettingsPage() {
     }
   };
 
-  const sections = [
-    { id: 'import' as Section, label: 'Import Dati', icon: 'fa-file-import', color: 'blue' },
-    { id: 'modules' as Section, label: 'Moduli Attivi', icon: 'fa-puzzle-piece', color: 'purple' },
-    { id: 'general' as Section, label: 'Generali', icon: 'fa-building', color: 'gray' },
-    { id: 'smtp' as Section, label: 'Server Email (SMTP)', icon: 'fa-server', color: 'green' },
-    { id: 'produzione' as Section, label: 'Email Produzione', icon: 'fa-envelope', color: 'orange' },
-    { id: 'security' as Section, label: 'Sicurezza', icon: 'fa-shield-alt', color: 'red' },
-    { id: 'jobs' as Section, label: 'Coda Lavori', icon: 'fa-tasks', color: 'violet' },
-    { id: 'webhooks' as Section, label: 'Webhooks', icon: 'fa-link', color: 'pink' },
-    { id: 'cron' as Section, label: 'Cron Jobs', icon: 'fa-clock', color: 'teal' },
-    { id: 'system' as Section, label: 'Sistema', icon: 'fa-heartbeat', color: 'cyan' },
-    { id: 'changelog' as Section, label: 'Cronologia', icon: 'fa-history', color: 'yellow' },
-    { id: 'riparazioni' as Section, label: 'Riparazioni', icon: 'fa-hammer', color: 'blue' },
+  const sectionGroups = [
+    {
+      label: 'DATI',
+      items: [
+        { id: 'import' as Section, label: 'Import Dati', icon: 'fa-file-import' },
+      ],
+    },
+    {
+      label: 'MODULI',
+      items: [
+        { id: 'riparazioni' as Section,   label: 'Riparazioni',       icon: 'fa-hammer' },
+        { id: 'qualita' as Section,        label: 'Qualità',           icon: 'fa-check-circle' },
+        { id: 'produzione-mod' as Section, label: 'Produzione',        icon: 'fa-calendar' },
+        { id: 'export-mod' as Section,     label: 'Export / DDT',      icon: 'fa-globe-europe' },
+        { id: 'scm' as Section,            label: 'SCM',               icon: 'fa-network-wired' },
+        { id: 'analitiche' as Section,     label: 'Analitiche',        icon: 'fa-chart-bar' },
+        { id: 'tracking' as Section,       label: 'Tracking',          icon: 'fa-map-marker-alt' },
+        { id: 'dbsql' as Section,          label: 'Gestione Dati',     icon: 'fa-database' },
+        { id: 'log' as Section,            label: 'Log Attività',      icon: 'fa-history' },
+        { id: 'inwork' as Section,         label: 'InWork',            icon: 'fa-mobile' },
+        { id: 'file-manager' as Section,   label: 'File Manager',      icon: 'fa-folder-open' },
+        { id: 'users-mod' as Section,      label: 'Utenti',            icon: 'fa-users' },
+        { id: 'settings-mod' as Section,   label: 'Impostazioni',      icon: 'fa-cog' },
+        { id: 'modules' as Section,        label: 'Moduli Attivi',     icon: 'fa-puzzle-piece' },
+      ],
+    },
+    {
+      label: 'GENERALI',
+      items: [
+        { id: 'general' as Section,   label: 'Azienda',              icon: 'fa-building' },
+        { id: 'smtp' as Section,      label: 'Server Email (SMTP)',  icon: 'fa-server' },
+        { id: 'produzione' as Section,label: 'Email Produzione',     icon: 'fa-envelope' },
+        { id: 'security' as Section,  label: 'Sicurezza',            icon: 'fa-shield-alt' },
+      ],
+    },
+    {
+      label: 'SISTEMA',
+      items: [
+        { id: 'jobs' as Section,      label: 'Coda Lavori',  icon: 'fa-tasks' },
+        { id: 'webhooks' as Section,  label: 'Webhooks',     icon: 'fa-link' },
+        { id: 'cron' as Section,      label: 'Cron Jobs',    icon: 'fa-clock' },
+        { id: 'system' as Section,    label: 'Sistema',      icon: 'fa-heartbeat' },
+        { id: 'changelog' as Section, label: 'Cronologia',   icon: 'fa-history' },
+      ],
+    },
   ];
 
   const progressPercent = progress && progress.total > 0
@@ -1148,28 +1185,27 @@ export default function SettingsPage() {
                 Sezioni
               </h3>
             </div>
-            <nav className="p-2">
-              {sections.map((section) => (
-                <button
-                  key={section.id}
-                  onClick={() => !section.disabled && setActiveSection(section.id)}
-                  disabled={section.disabled}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition mb-1 ${
-                    activeSection === section.id
-                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
-                      : section.disabled
-                      ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                  }`}
-                >
-                  <i className={`fas ${section.icon} w-5`}></i>
-                  <span>{section.label}</span>
-                  {section.disabled && (
-                    <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-500">
-                      Soon
-                    </span>
-                  )}
-                </button>
+            <nav className="p-2 space-y-1">
+              {sectionGroups.map((group) => (
+                <div key={group.label}>
+                  <p className="px-3 pt-3 pb-1 text-xs font-bold tracking-widest text-gray-400 dark:text-gray-500 uppercase">
+                    {group.label}
+                  </p>
+                  {group.items.map((section) => (
+                    <button
+                      key={section.id}
+                      onClick={() => setActiveSection(section.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition mb-0.5 text-sm ${
+                        activeSection === section.id
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      }`}
+                    >
+                      <i className={`fas ${section.icon} w-4 text-center`}></i>
+                      <span>{section.label}</span>
+                    </button>
+                  ))}
+                </div>
               ))}
             </nav>
           </div>
@@ -3183,6 +3219,52 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+          {/* ── SEZIONI MODULI VUOTE (da riempire) ── */}
+          {(['qualita', 'produzione-mod', 'export-mod', 'scm', 'analitiche', 'tracking', 'dbsql', 'log', 'inwork', 'file-manager', 'users-mod', 'settings-mod'] as readonly string[]).includes(activeSection) && (() => {
+            const modInfo: Record<string, { label: string; desc: string; icon: string; from: string; to: string }> = {
+              'qualita':       { label: 'Controllo Qualità', desc: 'Impostazioni per il modulo controllo qualità',      icon: 'fa-check-circle',   from: 'from-green-500',  to: 'to-emerald-600' },
+              'produzione-mod':{ label: 'Produzione',        desc: 'Impostazioni per il modulo pianificazione produzione', icon: 'fa-calendar',    from: 'from-yellow-500', to: 'to-amber-600' },
+              'export-mod':    { label: 'Export / DDT',      desc: 'Impostazioni per il modulo export e DDT',           icon: 'fa-globe-europe',   from: 'from-indigo-500', to: 'to-violet-600' },
+              'scm':           { label: 'SCM',               desc: 'Impostazioni per il modulo supply chain',           icon: 'fa-network-wired',  from: 'from-orange-500', to: 'to-amber-600' },
+              'analitiche':    { label: 'Analitiche',        desc: 'Impostazioni per il modulo analisi dati',           icon: 'fa-chart-bar',      from: 'from-purple-500', to: 'to-violet-600' },
+              'tracking':      { label: 'Tracking',          desc: 'Impostazioni per il modulo tracciabilità',          icon: 'fa-map-marker-alt', from: 'from-pink-500',   to: 'to-rose-600' },
+              'dbsql':         { label: 'Gestione Dati',     desc: 'Impostazioni per il modulo database e query SQL',   icon: 'fa-database',       from: 'from-cyan-500',   to: 'to-teal-600' },
+              'log':           { label: 'Log Attività',      desc: 'Impostazioni per il modulo audit log',              icon: 'fa-history',        from: 'from-cyan-500',   to: 'to-teal-600' },
+              'inwork':        { label: 'InWork',            desc: 'Impostazioni per il modulo operatori mobile',       icon: 'fa-mobile',         from: 'from-cyan-500',   to: 'to-teal-600' },
+              'file-manager':  { label: 'File Manager',      desc: 'Impostazioni per il modulo gestione file',          icon: 'fa-folder-open',    from: 'from-cyan-500',   to: 'to-teal-600' },
+              'users-mod':     { label: 'Utenti',            desc: 'Impostazioni per il modulo gestione utenti',        icon: 'fa-users',          from: 'from-gray-500',   to: 'to-slate-600' },
+              'settings-mod':  { label: 'Impostazioni',      desc: 'Impostazioni per il modulo configurazione sistema', icon: 'fa-cog',            from: 'from-gray-500',   to: 'to-slate-600' },
+            };
+            const m = modInfo[activeSection];
+            if (!m) return null;
+            return (
+              <div className="space-y-6">
+                <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                  <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/50">
+                    <div className="flex items-center gap-4">
+                      <div className={`flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r ${m.from} ${m.to} shadow-lg`}>
+                        <i className={`fas ${m.icon} text-white text-2xl`}></i>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{m.label}</h3>
+                        <p className="text-gray-600 dark:text-gray-400">{m.desc}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-10 flex flex-col items-center justify-center text-center">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 mb-4">
+                      <i className={`fas ${m.icon} text-3xl text-gray-400 dark:text-gray-500`}></i>
+                    </div>
+                    <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Nessuna impostazione configurata</h4>
+                    <p className="text-sm text-gray-400 dark:text-gray-500 max-w-sm">
+                      Le impostazioni per questo modulo verranno aggiunte in futuro.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {activeSection === 'riparazioni' && (
             <div className="space-y-6">
               <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
