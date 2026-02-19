@@ -13,7 +13,7 @@ type Section =
   | 'system' | 'changelog' | 'jobs' | 'webhooks' | 'cron'
   | 'riparazioni' | 'qualita' | 'produzione-mod' | 'export-mod' | 'scm'
   | 'analitiche' | 'tracking' | 'dbsql' | 'log' | 'inwork' | 'file-manager'
-  | 'users-mod' | 'settings-mod';
+  | 'users-mod';
 type ImportStep = 'select' | 'analyzing' | 'confirm' | 'importing' | 'completed';
 
 interface ImportAnalysis {
@@ -314,6 +314,9 @@ export default function SettingsPage() {
   const [newCronExternalUrl, setNewCronExternalUrl] = useState('');
   const [editingCronIdx, setEditingCronIdx] = useState<number | null>(null);
 
+  // Tab moduli (impostazioni / jobs)
+  const [modTab, setModTab] = useState<'impostazioni' | 'jobs'>('impostazioni');
+
   // Riparazioni state
   const [riparazioniConfig, setRiparazioniConfig] = useState<{ layoutStampa: string }>({ layoutStampa: 'nuovo' });
   const [riparazioniLoading, setRiparazioniLoading] = useState(false);
@@ -357,6 +360,8 @@ export default function SettingsPage() {
     } else if (activeSection === 'riparazioni') {
       loadRiparazioniConfig();
     }
+    // Reset tab moduli ad ogni cambio sezione
+    setModTab('impostazioni');
   }, [activeSection]);
 
   const loadModules = async () => {
@@ -1127,8 +1132,6 @@ export default function SettingsPage() {
         { id: 'inwork' as Section,         label: 'InWork',            icon: 'fa-mobile' },
         { id: 'file-manager' as Section,   label: 'File Manager',      icon: 'fa-folder-open' },
         { id: 'users-mod' as Section,      label: 'Utenti',            icon: 'fa-users' },
-        { id: 'settings-mod' as Section,   label: 'Impostazioni',      icon: 'fa-cog' },
-        { id: 'modules' as Section,        label: 'Moduli Attivi',     icon: 'fa-puzzle-piece' },
       ],
     },
     {
@@ -1137,7 +1140,7 @@ export default function SettingsPage() {
         { id: 'general' as Section,   label: 'Azienda',              icon: 'fa-building' },
         { id: 'smtp' as Section,      label: 'Server Email (SMTP)',  icon: 'fa-server' },
         { id: 'produzione' as Section,label: 'Email Produzione',     icon: 'fa-envelope' },
-        { id: 'security' as Section,  label: 'Sicurezza',            icon: 'fa-shield-alt' },
+        { id: 'modules' as Section,   label: 'Moduli Attivi',        icon: 'fa-puzzle-piece' },
       ],
     },
     {
@@ -1146,6 +1149,7 @@ export default function SettingsPage() {
         { id: 'jobs' as Section,      label: 'Coda Lavori',  icon: 'fa-tasks' },
         { id: 'webhooks' as Section,  label: 'Webhooks',     icon: 'fa-link' },
         { id: 'cron' as Section,      label: 'Cron Jobs',    icon: 'fa-clock' },
+        { id: 'security' as Section,  label: 'Sicurezza',    icon: 'fa-shield-alt' },
         { id: 'system' as Section,    label: 'Sistema',      icon: 'fa-heartbeat' },
         { id: 'changelog' as Section, label: 'Cronologia',   icon: 'fa-history' },
       ],
@@ -3219,181 +3223,226 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
-          {/* ── SEZIONI MODULI VUOTE (da riempire) ── */}
-          {(['qualita', 'produzione-mod', 'export-mod', 'scm', 'analitiche', 'tracking', 'dbsql', 'log', 'inwork', 'file-manager', 'users-mod', 'settings-mod'] as readonly string[]).includes(activeSection) && (() => {
-            const modInfo: Record<string, { label: string; desc: string; icon: string; from: string; to: string }> = {
-              'qualita':       { label: 'Controllo Qualità', desc: 'Impostazioni per il modulo controllo qualità',      icon: 'fa-check-circle',   from: 'from-green-500',  to: 'to-emerald-600' },
-              'produzione-mod':{ label: 'Produzione',        desc: 'Impostazioni per il modulo pianificazione produzione', icon: 'fa-calendar',    from: 'from-yellow-500', to: 'to-amber-600' },
-              'export-mod':    { label: 'Export / DDT',      desc: 'Impostazioni per il modulo export e DDT',           icon: 'fa-globe-europe',   from: 'from-indigo-500', to: 'to-violet-600' },
-              'scm':           { label: 'SCM',               desc: 'Impostazioni per il modulo supply chain',           icon: 'fa-network-wired',  from: 'from-orange-500', to: 'to-amber-600' },
-              'analitiche':    { label: 'Analitiche',        desc: 'Impostazioni per il modulo analisi dati',           icon: 'fa-chart-bar',      from: 'from-purple-500', to: 'to-violet-600' },
-              'tracking':      { label: 'Tracking',          desc: 'Impostazioni per il modulo tracciabilità',          icon: 'fa-map-marker-alt', from: 'from-pink-500',   to: 'to-rose-600' },
-              'dbsql':         { label: 'Gestione Dati',     desc: 'Impostazioni per il modulo database e query SQL',   icon: 'fa-database',       from: 'from-cyan-500',   to: 'to-teal-600' },
-              'log':           { label: 'Log Attività',      desc: 'Impostazioni per il modulo audit log',              icon: 'fa-history',        from: 'from-cyan-500',   to: 'to-teal-600' },
-              'inwork':        { label: 'InWork',            desc: 'Impostazioni per il modulo operatori mobile',       icon: 'fa-mobile',         from: 'from-cyan-500',   to: 'to-teal-600' },
-              'file-manager':  { label: 'File Manager',      desc: 'Impostazioni per il modulo gestione file',          icon: 'fa-folder-open',    from: 'from-cyan-500',   to: 'to-teal-600' },
-              'users-mod':     { label: 'Utenti',            desc: 'Impostazioni per il modulo gestione utenti',        icon: 'fa-users',          from: 'from-gray-500',   to: 'to-slate-600' },
-              'settings-mod':  { label: 'Impostazioni',      desc: 'Impostazioni per il modulo configurazione sistema', icon: 'fa-cog',            from: 'from-gray-500',   to: 'to-slate-600' },
+          {/* ── SEZIONI MODULI (con tab Impostazioni / Jobs collegati) ── */}
+          {(['riparazioni', 'qualita', 'produzione-mod', 'export-mod', 'scm', 'analitiche', 'tracking', 'dbsql', 'log', 'inwork', 'file-manager', 'users-mod'] as readonly string[]).includes(activeSection) && (() => {
+            type ModuleTab = 'impostazioni' | 'jobs';
+
+            const MOD_INFO: Record<string, { label: string; desc: string; icon: string; from: string; to: string; jobs: { key: string; label: string; desc: string; output: string }[] }> = {
+              'riparazioni': {
+                label: 'Riparazioni', desc: 'Configurazione del modulo riparazioni', icon: 'fa-hammer', from: 'from-blue-500', to: 'to-indigo-600',
+                jobs: [
+                  { key: 'riparazioni.cedola-pdf', label: 'Stampa Cedola', desc: 'Genera il PDF della cedola di riparazione. Usa il template impostato (originale A4 verticale o nuovo A4 landscape tecnico).', output: 'PDF' },
+                ],
+              },
+              'qualita': {
+                label: 'Controllo Qualità', desc: 'Configurazione del modulo qualità', icon: 'fa-check-circle', from: 'from-green-500', to: 'to-emerald-600',
+                jobs: [
+                  { key: 'quality.report-pdf', label: 'Report Qualità PDF', desc: 'Genera il report PDF del controllo qualità con statistiche difetti, eccezioni taglie e andamento per operatore/reparto.', output: 'PDF' },
+                ],
+              },
+              'produzione-mod': {
+                label: 'Produzione', desc: 'Configurazione del modulo produzione', icon: 'fa-calendar', from: 'from-yellow-500', to: 'to-amber-600',
+                jobs: [
+                  { key: 'prod.report-pdf', label: 'Report Produzione PDF', desc: 'Genera il report PDF giornaliero/periodico con i dati di produzione per fase (Montaggio, Orlatura, Taglio) e relativi trend.', output: 'PDF' },
+                  { key: 'prod.csv-report-pdf', label: 'Report CSV Produzione PDF', desc: 'Genera un PDF a partire dai dati CSV di produzione, con layout tabellare compatto per la condivisione via email.', output: 'PDF' },
+                ],
+              },
+              'export-mod': {
+                label: 'Export / DDT', desc: 'Configurazione del modulo export e DDT', icon: 'fa-globe-europe', from: 'from-indigo-500', to: 'to-violet-600',
+                jobs: [
+                  { key: 'export.segnacolli-pdf', label: 'Segnacolli PDF', desc: 'Genera le etichette segnacolli in PDF per i colli del lotto di esportazione, con barcode e dati spedizione.', output: 'PDF' },
+                  { key: 'export.griglia-materiali-pdf', label: 'Griglia Materiali PDF', desc: 'Genera la griglia materiali in PDF con l\'elenco dettagliato dei materiali per terzista e commessa.', output: 'PDF' },
+                  { key: 'export.ddt-completo-pdf', label: 'DDT Completo PDF', desc: 'Genera il Documento di Trasporto completo in PDF con intestazione azienda, articoli, quantità e dati del vettore.', output: 'PDF' },
+                  { key: 'export.ddt-excel', label: 'DDT Excel', desc: 'Esporta i dati del DDT in formato Excel per elaborazioni successive o archiviazione.', output: 'XLSX' },
+                  { key: 'export.download-excel', label: 'Download Dati Excel', desc: 'Esporta i dati grezzi di esportazione in formato Excel con tutti i campi disponibili.', output: 'XLSX' },
+                ],
+              },
+              'scm': {
+                label: 'SCM', desc: 'Configurazione del modulo supply chain', icon: 'fa-network-wired', from: 'from-orange-500', to: 'to-amber-600',
+                jobs: [],
+              },
+              'analitiche': {
+                label: 'Analitiche', desc: 'Configurazione del modulo analitiche', icon: 'fa-chart-bar', from: 'from-purple-500', to: 'to-violet-600',
+                jobs: [
+                  { key: 'analitiche.report-pdf', label: 'Report Analitiche PDF', desc: 'Genera il report PDF con le analisi statistiche sui dati storici, grafici di produzione e indicatori chiave per periodo selezionato.', output: 'PDF' },
+                  { key: 'analitiche.report-excel', label: 'Report Analitiche Excel', desc: 'Esporta i dati analitici in formato Excel con tabelle pivot e dati grezzi per elaborazioni personalizzate.', output: 'XLSX' },
+                ],
+              },
+              'tracking': {
+                label: 'Tracking', desc: 'Configurazione del modulo tracciabilità', icon: 'fa-map-marker-alt', from: 'from-pink-500', to: 'to-rose-600',
+                jobs: [
+                  { key: 'track.report-lot-pdf', label: 'Report Lotto PDF', desc: 'Genera il report PDF di tracciabilità per lotto con storico movimentazioni, dati cartellino e stato corrente.', output: 'PDF' },
+                  { key: 'track.report-cartel-pdf', label: 'Report Cartellino PDF', desc: 'Genera il report PDF del singolo cartellino con dettaglio movimentazioni, link e dati correlati.', output: 'PDF' },
+                  { key: 'track.report-lot-excel', label: 'Report Lotto Excel', desc: 'Esporta i dati di tracciabilità del lotto in formato Excel per analisi e archiviazione.', output: 'XLSX' },
+                  { key: 'track.report-cartel-excel', label: 'Report Cartellino Excel', desc: 'Esporta i dati del cartellino in formato Excel con tutte le informazioni di tracciabilità.', output: 'XLSX' },
+                  { key: 'track.report-fiches-pdf', label: 'Report Fiches PDF', desc: 'Genera il PDF delle fiches di tracking con layout compatto per stampa di controllo.', output: 'PDF' },
+                  { key: 'track.links-report-pdf', label: 'Report Link PDF', desc: 'Genera il report PDF dei link di tracking con riepilogo associazioni cartellino-ordine.', output: 'PDF' },
+                ],
+              },
+              'dbsql': {
+                label: 'Gestione Dati', desc: 'Configurazione del modulo gestione dati', icon: 'fa-database', from: 'from-cyan-500', to: 'to-teal-600',
+                jobs: [],
+              },
+              'log': {
+                label: 'Log Attività', desc: 'Configurazione del modulo log', icon: 'fa-history', from: 'from-cyan-600', to: 'to-teal-700',
+                jobs: [],
+              },
+              'inwork': {
+                label: 'InWork', desc: 'Configurazione del modulo operatori mobile', icon: 'fa-mobile', from: 'from-teal-500', to: 'to-cyan-600',
+                jobs: [],
+              },
+              'file-manager': {
+                label: 'File Manager', desc: 'Configurazione del modulo gestione file', icon: 'fa-folder-open', from: 'from-slate-500', to: 'to-gray-600',
+                jobs: [],
+              },
+              'users-mod': {
+                label: 'Utenti', desc: 'Configurazione del modulo gestione utenti', icon: 'fa-users', from: 'from-gray-500', to: 'to-slate-600',
+                jobs: [],
+              },
             };
-            const m = modInfo[activeSection];
+
+            const m = MOD_INFO[activeSection];
             if (!m) return null;
+
+            const outputBadge: Record<string, string> = {
+              PDF:  'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+              XLSX: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+              CSV:  'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+            };
+
             return (
-              <div className="space-y-6">
+              <div className="space-y-4">
+                {/* Header */}
                 <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
-                  <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/50">
+                  <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/50">
                     <div className="flex items-center gap-4">
-                      <div className={`flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r ${m.from} ${m.to} shadow-lg`}>
-                        <i className={`fas ${m.icon} text-white text-2xl`}></i>
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r ${m.from} ${m.to} shadow`}>
+                        <i className={`fas ${m.icon} text-white text-xl`}></i>
                       </div>
                       <div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{m.label}</h3>
-                        <p className="text-gray-600 dark:text-gray-400">{m.desc}</p>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">{m.label}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{m.desc}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="p-10 flex flex-col items-center justify-center text-center">
-                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 mb-4">
-                      <i className={`fas ${m.icon} text-3xl text-gray-400 dark:text-gray-500`}></i>
-                    </div>
-                    <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Nessuna impostazione configurata</h4>
-                    <p className="text-sm text-gray-400 dark:text-gray-500 max-w-sm">
-                      Le impostazioni per questo modulo verranno aggiunte in futuro.
-                    </p>
+
+                  {/* Tab bar */}
+                  <div className="flex border-b border-gray-200 dark:border-gray-700">
+                    {(['impostazioni', 'jobs'] as ModuleTab[]).map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setModTab(tab)}
+                        className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition -mb-px ${
+                          modTab === tab
+                            ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                      >
+                        <i className={`fas ${tab === 'impostazioni' ? 'fa-sliders-h' : 'fa-cogs'} text-xs`}></i>
+                        {tab === 'impostazioni' ? 'Impostazioni' : 'Jobs collegati'}
+                        {tab === 'jobs' && m.jobs.length > 0 && (
+                          <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                            {m.jobs.length}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Tab content */}
+                  <div className="p-6">
+                    {modTab === 'impostazioni' && (
+                      activeSection === 'riparazioni' ? (
+                        riparazioniLoading ? (
+                          <div className="text-center py-10">
+                            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-12 w-12 rounded-full border-4 border-blue-500 border-t-transparent mb-3" />
+                            <p className="text-blue-600 font-medium">Caricamento...</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-6">
+                            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-5">
+                              <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Layout stampa cedola</h4>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Scegli il template usato alla stampa della cedola di riparazione.</p>
+                              <div className="grid grid-cols-2 gap-3">
+                                {[
+                                  { val: 'originale', label: 'ORIGINALE', sub: 'A4 verticale, classico',    icon: 'fa-file-alt',     active: 'border-blue-500 bg-blue-50 dark:bg-blue-900/20',   iconBg: 'bg-blue-500',   txt: 'text-blue-700 dark:text-blue-300',   dot: 'bg-blue-500' },
+                                  { val: 'nuovo',     label: 'NUOVO',     sub: 'A4 orizzontale, tecnico', icon: 'fa-file-invoice', active: 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20', iconBg: 'bg-indigo-500', txt: 'text-indigo-700 dark:text-indigo-300', dot: 'bg-indigo-500' },
+                                ].map((opt) => (
+                                  <button key={opt.val} onClick={() => setRiparazioniConfig({ layoutStampa: opt.val })}
+                                    className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-5 transition cursor-pointer ${riparazioniConfig.layoutStampa === opt.val ? opt.active : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 bg-white dark:bg-gray-800'}`}>
+                                    <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${riparazioniConfig.layoutStampa === opt.val ? opt.iconBg : 'bg-gray-100 dark:bg-gray-700'}`}>
+                                      <i className={`fas ${opt.icon} text-xl ${riparazioniConfig.layoutStampa === opt.val ? 'text-white' : 'text-gray-500 dark:text-gray-400'}`}></i>
+                                    </div>
+                                    <div className="text-center">
+                                      <p className={`font-semibold text-sm ${riparazioniConfig.layoutStampa === opt.val ? opt.txt : 'text-gray-700 dark:text-gray-300'}`}>{opt.label}</p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{opt.sub}</p>
+                                    </div>
+                                    {riparazioniConfig.layoutStampa === opt.val && (
+                                      <div className={`absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full ${opt.dot}`}>
+                                        <i className="fas fa-check text-white text-xs"></i>
+                                      </div>
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex justify-end">
+                              <button onClick={saveRiparazioniConfig} disabled={riparazioniSaving}
+                                className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 font-medium">
+                                {riparazioniSaving
+                                  ? <><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="h-4 w-4 rounded-full border-2 border-white border-t-transparent" />Salvataggio...</>
+                                  : <><i className="fas fa-save"></i>Salva impostazioni</>}
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 mb-3">
+                            <i className="fas fa-sliders-h text-2xl text-gray-400 dark:text-gray-500"></i>
+                          </div>
+                          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Nessuna impostazione configurata</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-xs">Le impostazioni per questo modulo verranno aggiunte in futuro.</p>
+                        </div>
+                      )
+                    )}
+
+                    {modTab === 'jobs' && (
+                      m.jobs.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 mb-3">
+                            <i className="fas fa-cogs text-2xl text-gray-400 dark:text-gray-500"></i>
+                          </div>
+                          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Nessun job collegato</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Questo modulo non ha job in background associati.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {m.jobs.map((job) => (
+                            <div key={job.key} className="flex items-start gap-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/40">
+                              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+                                <i className="fas fa-cog text-gray-400 dark:text-gray-500"></i>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{job.label}</p>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${outputBadge[job.output] || outputBadge['PDF']}`}>
+                                    {job.output}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{job.desc}</p>
+                                <p className="text-xs font-mono text-gray-400 dark:text-gray-600 mt-1">{job.key}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
               </div>
             );
           })()}
-
-          {activeSection === 'riparazioni' && (
-            <div className="space-y-6">
-              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
-                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg">
-                      <i className="fas fa-hammer text-white text-2xl"></i>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Impostazioni Riparazioni</h3>
-                      <p className="text-gray-600 dark:text-gray-400">Configurazione del modulo riparazioni</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-6">
-                  {riparazioniLoading ? (
-                    <div className="text-center py-12">
-                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-blue-500 border-t-transparent mb-4" />
-                      <p className="text-lg font-medium text-blue-600">Caricamento...</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {/* Layout Stampa Cedola */}
-                      <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-5">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Layout stampa cedola</h4>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Scegli il template usato alla stampa della cedola di riparazione.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 grid grid-cols-2 gap-3">
-                          {/* Opzione ORIGINALE */}
-                          <button
-                            onClick={() => setRiparazioniConfig({ layoutStampa: 'originale' })}
-                            className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-5 text-left transition cursor-pointer ${
-                              riparazioniConfig.layoutStampa === 'originale'
-                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
-                            }`}
-                          >
-                            <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${
-                              riparazioniConfig.layoutStampa === 'originale'
-                                ? 'bg-blue-500'
-                                : 'bg-gray-100 dark:bg-gray-700'
-                            }`}>
-                              <i className={`fas fa-file-alt text-xl ${
-                                riparazioniConfig.layoutStampa === 'originale' ? 'text-white' : 'text-gray-500 dark:text-gray-400'
-                              }`}></i>
-                            </div>
-                            <div className="text-center">
-                              <p className={`font-semibold text-sm ${
-                                riparazioniConfig.layoutStampa === 'originale'
-                                  ? 'text-blue-700 dark:text-blue-300'
-                                  : 'text-gray-700 dark:text-gray-300'
-                              }`}>ORIGINALE</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">A4 verticale, classico</p>
-                            </div>
-                            {riparazioniConfig.layoutStampa === 'originale' && (
-                              <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500">
-                                <i className="fas fa-check text-white text-xs"></i>
-                              </div>
-                            )}
-                          </button>
-
-                          {/* Opzione NUOVO */}
-                          <button
-                            onClick={() => setRiparazioniConfig({ layoutStampa: 'nuovo' })}
-                            className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-5 text-left transition cursor-pointer ${
-                              riparazioniConfig.layoutStampa === 'nuovo'
-                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
-                            }`}
-                          >
-                            <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${
-                              riparazioniConfig.layoutStampa === 'nuovo'
-                                ? 'bg-indigo-500'
-                                : 'bg-gray-100 dark:bg-gray-700'
-                            }`}>
-                              <i className={`fas fa-file-invoice text-xl ${
-                                riparazioniConfig.layoutStampa === 'nuovo' ? 'text-white' : 'text-gray-500 dark:text-gray-400'
-                              }`}></i>
-                            </div>
-                            <div className="text-center">
-                              <p className={`font-semibold text-sm ${
-                                riparazioniConfig.layoutStampa === 'nuovo'
-                                  ? 'text-indigo-700 dark:text-indigo-300'
-                                  : 'text-gray-700 dark:text-gray-300'
-                              }`}>NUOVO</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">A4 orizzontale, tecnico</p>
-                            </div>
-                            {riparazioniConfig.layoutStampa === 'nuovo' && (
-                              <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500">
-                                <i className="fas fa-check text-white text-xs"></i>
-                              </div>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Bottone salva */}
-                      <div className="flex justify-end">
-                        <button
-                          onClick={saveRiparazioniConfig}
-                          disabled={riparazioniSaving}
-                          className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                        >
-                          {riparazioniSaving ? (
-                            <>
-                              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="h-4 w-4 rounded-full border-2 border-white border-t-transparent" />
-                              Salvataggio...
-                            </>
-                          ) : (
-                            <>
-                              <i className="fas fa-save"></i>
-                              Salva impostazioni
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
 
         </motion.div>
       </div>
