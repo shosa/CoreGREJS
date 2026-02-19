@@ -395,9 +395,24 @@ export class SettingsController {
   @Get('logo/:tipo')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('settings')
-  async getLogoUrl(@Param('tipo') tipo: string) {
+  async getLogoExists(@Param('tipo') tipo: string) {
     if (!['documenti', 'icona'].includes(tipo)) throw new BadRequestException('Tipo non valido');
-    return this.settingsService.getLogoUrl(tipo as 'documenti' | 'icona');
+    return this.settingsService.getLogoExists(tipo as 'documenti' | 'icona');
+  }
+
+  /**
+   * Proxy pubblico per l'immagine logo — nessun JWT richiesto.
+   * Il browser usa questo URL direttamente come <img src>.
+   */
+  @Get('logo/:tipo/image')
+  async serveLogoImage(
+    @Param('tipo') tipo: string,
+    @Res() res: Response,
+  ) {
+    if (!['documenti', 'icona'].includes(tipo)) {
+      return res.status(400).send('Tipo non valido');
+    }
+    await this.settingsService.pipeLogoImage(tipo as 'documenti' | 'icona', res);
   }
 
   // ==================== CRONOLOGIA ====================

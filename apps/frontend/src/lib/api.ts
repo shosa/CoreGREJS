@@ -661,9 +661,14 @@ export const settingsApi = {
     });
     return response.data;
   },
-  getLogoUrl: async (tipo: 'documenti' | 'icona') => {
+  getLogoExists: async (tipo: 'documenti' | 'icona') => {
     const response = await api.get(`/settings/logo/${tipo}`);
-    return response.data;
+    return response.data as { exists: boolean };
+  },
+  /** URL pubblico del proxy logo — usabile direttamente come <img src> */
+  getLogoImageUrl: (tipo: 'documenti' | 'icona'): string => {
+    const base = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/api$/, '');
+    return `${base}/api/settings/logo/${tipo}/image`;
   },
 };
 

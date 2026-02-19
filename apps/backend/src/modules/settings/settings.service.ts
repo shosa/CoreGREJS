@@ -1159,7 +1159,7 @@ export class SettingsService implements OnModuleInit {
   /**
    * Upload logo (tipo: 'documenti' | 'icona') su MinIO e salva il path in core_settings
    */
-  async uploadLogo(tipo: 'documenti' | 'icona', file: Express.Multer.File): Promise<{ success: boolean; url: string }> {
+  async uploadLogo(tipo: 'documenti' | 'icona', file: Express.Multer.File): Promise<{ success: boolean }> {
     const ext = file.originalname.split('.').pop()?.toLowerCase() || 'png';
     const objectName = tipo === 'documenti'
       ? `system/logo-documenti.${ext}`
@@ -1180,26 +1180,48 @@ export class SettingsService implements OnModuleInit {
     });
 
     await this.cache.invalidate('settings:general');
-
-    // URL presigned valido 7 giorni
-    const url = await this.minioService.getPresignedUrl(bucket, objectName, 7 * 24 * 3600);
-    return { success: true, url };
+    return { success: true };
   }
 
   /**
-   * Ottieni URL presigned per il logo (tipo: 'documenti' | 'icona')
+   * Verifica se il logo è configurato (il frontend usa il proxy endpoint per visualizzarlo)
    */
-  async getLogoUrl(tipo: 'documenti' | 'icona'): Promise<{ url: string | null }> {
+  async getLogoExists(tipo: 'documenti' | 'icona'): Promise<{ exists: boolean }> {
     const settingKey = tipo === 'documenti' ? 'general.logoDocumenti' : 'general.logoIcona';
     const setting = await this.prisma.setting.findUnique({ where: { key: settingKey } });
-    if (!setting?.value) return { url: null };
+    return { exists: !!(setting?.value) };
+  }
+
+  /**
+   * Proxy immagine logo: scarica da MinIO e streamma al browser.
+   * Endpoint pubblico (no JWT) — il browser lo usa come <img src>.
+   */
+  async pipeLogoImage(tipo: 'documenti' | 'icona', res: any): Promise<void> {
+    const settingKey = tipo === 'documenti' ? 'general.logoDocumenti' : 'general.logoIcona';
+    const setting = await this.prisma.setting.findUnique({ where: { key: settingKey } });
+
+    if (!setting?.value) {
+      res.status(404).send('Logo non configurato');
+      return;
+    }
 
     try {
       const bucket = this.minioService.getDefaultBucket();
-      const url = await this.minioService.getPresignedUrl(bucket, setting.value, 7 * 24 * 3600);
-      return { url };
+      const stream = await this.minioService.getFile(bucket, setting.value);
+
+      // Determina Content-Type dall'estensione
+      const ext = setting.value.split('.').pop()?.toLowerCase() || 'png';
+      const mimeMap: Record<string, string> = {
+        png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+        gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+      };
+      const contentType = mimeMap[ext] || 'image/png';
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      stream.pipe(res);
     } catch {
-      return { url: null };
+      res.status(404).send('Logo non trovato');
     }
   }
 

@@ -171,14 +171,14 @@ export default function Sidebar() {
   const popupRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
-  const [logoIconaUrl, setLogoIconaUrl] = useState<string | null>(null);
+  const [hasLogoIcona, setHasLogoIcona] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     fetchModules();
-    // Carica logo icona
-    settingsApi.getLogoUrl('icona').then(res => {
-      if (res.url) setLogoIconaUrl(res.url);
+    // Verifica se esiste logo icona personalizzato
+    settingsApi.getLogoExists('icona').then(res => {
+      if (res.exists) setHasLogoIcona(true);
     }).catch(() => {});
   }, [fetchModules]);
 
@@ -485,8 +485,13 @@ export default function Sidebar() {
                   whileHover={{ y: -2, scale: 1.05 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                 >
-                  {logoIconaUrl ? (
-                    <img className="h-5 w-5 object-contain" src={logoIconaUrl} alt="COREGRE" />
+                  {hasLogoIcona ? (
+                    <img
+                      className="h-5 w-5 object-contain"
+                      style={{ filter: 'brightness(0) invert(1)' }}
+                      src={settingsApi.getLogoImageUrl('icona')}
+                      alt="COREGRE"
+                    />
                   ) : (
                     <img className="h-5 w-5" src="/assets/logo-white.png" alt="COREGRE" />
                   )}

@@ -242,8 +242,9 @@ export default function SettingsPage() {
   const [generalSaving, setGeneralSaving] = useState(false);
 
   // Logo state
-  const [logoDocumentiUrl, setLogoDocumentiUrl] = useState<string | null>(null);
-  const [logoIconaUrl, setLogoIconaUrl] = useState<string | null>(null);
+  const [logoDocumentiExists, setLogoDocumentiExists] = useState(false);
+  const [logoIconaExists, setLogoIconaExists] = useState(false);
+  const [logoCacheBust, setLogoCacheBust] = useState(Date.now());
   const [logoDocumentiUploading, setLogoDocumentiUploading] = useState(false);
   const [logoIconaUploading, setLogoIconaUploading] = useState(false);
   const logoDocumentiRef = useRef<HTMLInputElement>(null);
@@ -517,11 +518,11 @@ export default function SettingsPage() {
   const loadLogoUrls = async () => {
     try {
       const [doc, icona] = await Promise.all([
-        settingsApi.getLogoUrl('documenti'),
-        settingsApi.getLogoUrl('icona'),
+        settingsApi.getLogoExists('documenti'),
+        settingsApi.getLogoExists('icona'),
       ]);
-      setLogoDocumentiUrl(doc.url);
-      setLogoIconaUrl(icona.url);
+      setLogoDocumentiExists(doc.exists);
+      setLogoIconaExists(icona.exists);
     } catch {
       // Ignora errori (logo non configurati)
     }
@@ -531,9 +532,10 @@ export default function SettingsPage() {
     if (tipo === 'documenti') setLogoDocumentiUploading(true);
     else setLogoIconaUploading(true);
     try {
-      const result = await settingsApi.uploadLogo(tipo, file);
-      if (tipo === 'documenti') setLogoDocumentiUrl(result.url);
-      else setLogoIconaUrl(result.url);
+      await settingsApi.uploadLogo(tipo, file);
+      if (tipo === 'documenti') setLogoDocumentiExists(true);
+      else setLogoIconaExists(true);
+      setLogoCacheBust(Date.now());
       showSuccess(`Logo ${tipo === 'documenti' ? 'documenti' : 'icona'} caricato con successo`);
     } catch (error: any) {
       showError(error.response?.data?.message || 'Errore caricamento logo');
@@ -1921,8 +1923,8 @@ export default function SettingsPage() {
                       className="relative flex items-center justify-center h-32 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 cursor-pointer hover:border-gray-400 transition-colors overflow-hidden"
                       onClick={() => logoDocumentiRef.current?.click()}
                     >
-                      {logoDocumentiUrl ? (
-                        <img src={logoDocumentiUrl} alt="Logo documenti" className="max-h-full max-w-full object-contain p-2" />
+                      {logoDocumentiExists ? (
+                        <img src={`${settingsApi.getLogoImageUrl('documenti')}?v=${logoCacheBust}`} alt="Logo documenti" className="max-h-full max-w-full object-contain p-2" />
                       ) : (
                         <div className="text-center">
                           <i className="fas fa-file-image text-3xl text-gray-300 dark:text-gray-600 mb-2"></i>
@@ -1941,7 +1943,7 @@ export default function SettingsPage() {
                       className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition disabled:opacity-50"
                     >
                       <i className="fas fa-upload mr-2"></i>
-                      {logoDocumentiUrl ? 'Sostituisci' : 'Carica'} Logo Documenti
+                      {logoDocumentiExists ? 'Sostituisci' : 'Carica'} Logo Documenti
                     </button>
                     <input
                       ref={logoDocumentiRef}
@@ -1962,8 +1964,8 @@ export default function SettingsPage() {
                       className="relative flex items-center justify-center h-32 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 cursor-pointer hover:border-gray-400 transition-colors overflow-hidden"
                       onClick={() => logoIconaRef.current?.click()}
                     >
-                      {logoIconaUrl ? (
-                        <img src={logoIconaUrl} alt="Logo icona" className="max-h-full max-w-full object-contain p-2" />
+                      {logoIconaExists ? (
+                        <img src={`${settingsApi.getLogoImageUrl('icona')}?v=${logoCacheBust}`} alt="Logo icona" className="max-h-full max-w-full object-contain p-2" />
                       ) : (
                         <div className="text-center">
                           <i className="fas fa-circle text-3xl text-gray-300 dark:text-gray-600 mb-2"></i>
@@ -1982,7 +1984,7 @@ export default function SettingsPage() {
                       className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition disabled:opacity-50"
                     >
                       <i className="fas fa-upload mr-2"></i>
-                      {logoIconaUrl ? 'Sostituisci' : 'Carica'} Logo Icona
+                      {logoIconaExists ? 'Sostituisci' : 'Carica'} Logo Icona
                     </button>
                     <input
                       ref={logoIconaRef}
