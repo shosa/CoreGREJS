@@ -136,8 +136,8 @@ export class SettingsController {
   @UseGuards(PermissionsGuard)
   @RequirePermissions('settings')
   @LogActivity({ module: 'settings', action: 'update_produzione_emails', entity: 'EmailConfig', description: 'Modifica email produzione' })
-  async updateProduzioneEmailConfig(@Body('emails') emails: string[]) {
-    return this.settingsService.updateProduzioneEmailConfig(emails);
+  async updateProduzioneEmailConfig(@Body('emails') emails: string[], @Body('ccn') ccn: string[]) {
+    return this.settingsService.updateProduzioneEmailConfig(emails || [], ccn || []);
   }
 
   // ==================== GENERALI ====================

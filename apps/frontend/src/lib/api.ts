@@ -528,12 +528,12 @@ export const settingsApi = {
     return response.data;
   },
   // Produzione email configuration
-  getProduzioneEmails: async () => {
+  getProduzioneEmails: async (): Promise<{ recipients: string[]; ccn: string[] }> => {
     const response = await api.get('/settings/produzione/emails');
     return response.data;
   },
-  updateProduzioneEmails: async (emails: string[]) => {
-    const response = await api.put('/settings/produzione/emails', { emails });
+  updateProduzioneEmails: async (emails: string[], ccn: string[]) => {
+    const response = await api.put('/settings/produzione/emails', { emails, ccn });
     return response.data;
   },
   // General settings

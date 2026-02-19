@@ -115,18 +115,19 @@ export class EmailService {
         throw new BadRequestException('Password email non configurata. Configura la password email nel tuo profilo.');
       }
 
-      // Get recipients from settings
-      const setting = await this.prisma.setting.findUnique({
-        where: { key: 'produzione.email.recipients' },
-      });
+      // Get recipients and CCN from settings
+      const [recipientsSetting, ccnSetting] = await Promise.all([
+        this.prisma.setting.findUnique({ where: { key: 'produzione.email.recipients' } }),
+        this.prisma.setting.findUnique({ where: { key: 'produzione.email.ccn' } }),
+      ]);
 
-      if (!setting || !setting.value) {
+      if (!recipientsSetting || !recipientsSetting.value) {
         throw new BadRequestException('Nessun destinatario configurato per le email di produzione. Configura gli indirizzi nelle impostazioni.');
       }
 
       let recipients: string[];
       try {
-        recipients = JSON.parse(setting.value);
+        recipients = JSON.parse(recipientsSetting.value);
       } catch {
         throw new BadRequestException('Errore nel formato degli indirizzi email configurati.');
       }
@@ -134,6 +135,9 @@ export class EmailService {
       if (!recipients || recipients.length === 0) {
         throw new BadRequestException('Nessun destinatario configurato per le email di produzione.');
       }
+
+      let ccn: string[] = [];
+      try { ccn = JSON.parse(ccnSetting?.value || '[]'); } catch { ccn = []; }
 
       // Download PDF from MinIO (pdfPath is now MinIO object name like "jobs/userId/jobId/file.pdf")
       let pdfBuffer: Buffer;
@@ -170,6 +174,7 @@ export class EmailService {
       const info = await transporter.sendMail({
         from: user.mail,
         to: recipients.join(', '),
+        ...(ccn.length > 0 && { bcc: ccn.join(', ') }),
         subject: `Produzione del ${dateFormatted}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

@@ -429,36 +429,34 @@ export class SettingsService implements OnModuleInit {
 
   // ==================== PRODUZIONE EMAIL CONFIGURATION ====================
 
-  async getProduzioneEmailConfig(): Promise<string[]> {
-    const setting = await this.prisma.setting.findUnique({
-      where: { key: 'produzione.email.recipients' },
-    });
+  async getProduzioneEmailConfig(): Promise<{ recipients: string[]; ccn: string[] }> {
+    const [recipientsSetting, ccnSetting] = await Promise.all([
+      this.prisma.setting.findUnique({ where: { key: 'produzione.email.recipients' } }),
+      this.prisma.setting.findUnique({ where: { key: 'produzione.email.ccn' } }),
+    ]);
 
-    if (!setting || !setting.value) {
-      return [];
-    }
+    let recipients: string[] = [];
+    let ccn: string[] = [];
 
-    try {
-      return JSON.parse(setting.value);
-    } catch {
-      return [];
-    }
+    try { recipients = JSON.parse(recipientsSetting?.value || '[]'); } catch { recipients = []; }
+    try { ccn = JSON.parse(ccnSetting?.value || '[]'); } catch { ccn = []; }
+
+    return { recipients, ccn };
   }
 
-  async updateProduzioneEmailConfig(emails: string[]): Promise<{ success: boolean }> {
-    await this.prisma.setting.upsert({
-      where: { key: 'produzione.email.recipients' },
-      update: {
-        value: JSON.stringify(emails),
-        updatedAt: new Date(),
-      },
-      create: {
-        key: 'produzione.email.recipients',
-        value: JSON.stringify(emails),
-        type: 'json',
-        group: 'produzione',
-      },
-    });
+  async updateProduzioneEmailConfig(emails: string[], ccn: string[]): Promise<{ success: boolean }> {
+    await Promise.all([
+      this.prisma.setting.upsert({
+        where: { key: 'produzione.email.recipients' },
+        update: { value: JSON.stringify(emails), updatedAt: new Date() },
+        create: { key: 'produzione.email.recipients', value: JSON.stringify(emails), type: 'json', group: 'produzione' },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: 'produzione.email.ccn' },
+        update: { value: JSON.stringify(ccn), updatedAt: new Date() },
+        create: { key: 'produzione.email.ccn', value: JSON.stringify(ccn), type: 'json', group: 'produzione' },
+      }),
+    ]);
 
     return { success: true };
   }

@@ -232,7 +232,9 @@ export default function SettingsPage() {
 
   // Produzione email state
   const [produzioneEmails, setProduzioneEmails] = useState<string[]>([]);
+  const [produzioneCcn, setProduzioneCcn] = useState<string[]>([]);
   const [newEmail, setNewEmail] = useState('');
+  const [newCcn, setNewCcn] = useState('');
   const [emailsLoading, setEmailsLoading] = useState(false);
   const [emailsSaving, setEmailsSaving] = useState(false);
 
@@ -450,8 +452,9 @@ export default function SettingsPage() {
   const loadProduzioneEmails = async () => {
     setEmailsLoading(true);
     try {
-      const emails = await settingsApi.getProduzioneEmails();
-      setProduzioneEmails(emails);
+      const data = await settingsApi.getProduzioneEmails();
+      setProduzioneEmails(data.recipients || []);
+      setProduzioneCcn(data.ccn || []);
     } catch (error: any) {
       showError(error.response?.data?.message || 'Errore caricamento email produzione');
     } finally {
@@ -476,11 +479,28 @@ export default function SettingsPage() {
     setProduzioneEmails(produzioneEmails.filter(e => e !== email));
   };
 
+  const handleAddCcn = () => {
+    if (!newCcn || !newCcn.includes('@')) {
+      showError('Inserisci un indirizzo email CCN valido');
+      return;
+    }
+    if (produzioneCcn.includes(newCcn)) {
+      showError('Email CCN già presente nella lista');
+      return;
+    }
+    setProduzioneCcn([...produzioneCcn, newCcn]);
+    setNewCcn('');
+  };
+
+  const handleRemoveCcn = (email: string) => {
+    setProduzioneCcn(produzioneCcn.filter(e => e !== email));
+  };
+
   const handleSaveEmails = async () => {
     setEmailsSaving(true);
     try {
-      await settingsApi.updateProduzioneEmails(produzioneEmails);
-      showSuccess('Indirizzi email salvati');
+      await settingsApi.updateProduzioneEmails(produzioneEmails, produzioneCcn);
+      showSuccess('Configurazione email produzione salvata');
     } catch (error: any) {
       showError(error.response?.data?.message || 'Errore salvataggio email');
     } finally {
@@ -1739,6 +1759,7 @@ export default function SettingsPage() {
                         </button>
                       </div>
 
+                      {/* Lista destinatari TO */}
                       {produzioneEmails.length > 0 ? (
                         <div className="space-y-2">
                           {produzioneEmails.map((email, idx) => (
@@ -1752,35 +1773,76 @@ export default function SettingsPage() {
                                 <i className="fas fa-envelope text-orange-500 mr-3"></i>
                                 {email}
                               </span>
-                              <button
-                                onClick={() => handleRemoveEmail(email)}
-                                className="text-red-500 hover:text-red-700 transition"
-                              >
+                              <button onClick={() => handleRemoveEmail(email)} className="text-red-500 hover:text-red-700 transition">
                                 <i className="fas fa-trash"></i>
                               </button>
                             </motion.div>
                           ))}
                         </div>
                       ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <i className="fas fa-inbox text-4xl mb-2"></i>
-                          <p>Nessun indirizzo configurato</p>
+                        <div className="text-center py-6 text-gray-500 text-sm">
+                          <i className="fas fa-inbox text-3xl mb-2 block"></i>
+                          Nessun destinatario configurato
                         </div>
                       )}
 
-                      {produzioneEmails.length > 0 && (
-                        <button
-                          onClick={handleSaveEmails}
-                          disabled={emailsSaving}
-                          className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700 transition font-medium shadow-lg disabled:opacity-50"
-                        >
-                          {emailsSaving ? (
-                            <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</>
-                          ) : (
-                            <><i className="fas fa-save mr-2"></i>Salva Indirizzi</>
-                          )}
-                        </button>
-                      )}
+                      {/* Sezione CCN */}
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                          <i className="fas fa-eye-slash text-gray-400"></i>
+                          CCN — Copia Conoscenza Nascosta
+                        </p>
+                        <div className="flex gap-2 mb-2">
+                          <input
+                            type="email"
+                            value={newCcn}
+                            onChange={(e) => setNewCcn(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleAddCcn()}
+                            placeholder="ccn@email.com"
+                            className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+                          />
+                          <button
+                            onClick={handleAddCcn}
+                            className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500 transition text-sm font-medium"
+                          >
+                            <i className="fas fa-plus mr-1"></i>Aggiungi
+                          </button>
+                        </div>
+                        {produzioneCcn.length > 0 ? (
+                          <div className="space-y-2">
+                            {produzioneCcn.map((email, idx) => (
+                              <motion.div
+                                key={idx}
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-700/60 rounded-lg"
+                              >
+                                <span className="text-gray-700 dark:text-gray-300 flex items-center text-sm">
+                                  <i className="fas fa-eye-slash text-gray-400 mr-3"></i>
+                                  {email}
+                                </span>
+                                <button onClick={() => handleRemoveCcn(email)} className="text-red-500 hover:text-red-700 transition">
+                                  <i className="fas fa-trash text-sm"></i>
+                                </button>
+                              </motion.div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-400 italic">Nessun indirizzo CCN configurato</p>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={handleSaveEmails}
+                        disabled={emailsSaving}
+                        className="w-full mt-2 px-6 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700 transition font-medium shadow-lg disabled:opacity-50"
+                      >
+                        {emailsSaving ? (
+                          <><i className="fas fa-spinner fa-spin mr-2"></i>Salvataggio...</>
+                        ) : (
+                          <><i className="fas fa-save mr-2"></i>Salva Configurazione Email</>
+                        )}
+                      </button>
                     </div>
                   )}
                 </div>
