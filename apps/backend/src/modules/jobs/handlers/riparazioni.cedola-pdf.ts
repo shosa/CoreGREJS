@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import { PrismaClient } from '@prisma/client';
 import { JobHandler } from '../types';
 import * as bwipjs from 'bwip-js';
+import { getCompanyInfo } from './company-info.helper';
 
 const prisma = new PrismaClient();
 
@@ -45,6 +46,9 @@ const handler: JobHandler = async (payload, helpers) => {
       }
     }
   }
+
+  // Leggi dati aziendali dalle impostazioni
+  const company = await getCompanyInfo(prisma);
 
   const date = new Date();
   const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
@@ -130,17 +134,30 @@ const handler: JobHandler = async (payload, helpers) => {
   y += 27 * mm;
 
   // ==================== COMPANY BANNER ====================
-  doc.rect(margin, y, contentWidth, 5 * mm)
+  // Calcola altezza banner in base alle righe da mostrare
+  const bannerLines = [
+    company.nomeAzienda || 'AZIENDA',
+    [company.indirizzo, [company.cap, company.citta, company.provincia].filter(Boolean).join(' ')].filter(Boolean).join(' - '),
+    [company.partitaIva ? `P.IVA: ${company.partitaIva}` : '', company.telefono ? `Tel: ${company.telefono}` : '', company.email].filter(Boolean).join('  |  '),
+  ].filter(Boolean);
+
+  const bannerHeight = (bannerLines.length * 4.5 + 2) * mm;
+  doc.rect(margin, y, contentWidth, bannerHeight)
     .fillAndStroke(white, black);
 
-  doc.fillColor(black)
-    .font('Helvetica-Bold', 11)
-    .text('CALZATURIFICIO EMMEGIEMME SHOES S.R.L', margin, y + 1 * mm, {
-      width: contentWidth,
-      align: 'center'
-    });
+  let bannerY = y + 1.5 * mm;
+  doc.fillColor(black).font('Helvetica-Bold', 11)
+    .text(bannerLines[0], margin, bannerY, { width: contentWidth, align: 'center' });
+  if (bannerLines[1]) {
+    bannerY += 4.5 * mm;
+    doc.font('Helvetica', 8).text(bannerLines[1], margin, bannerY, { width: contentWidth, align: 'center' });
+  }
+  if (bannerLines[2]) {
+    bannerY += 4 * mm;
+    doc.font('Helvetica', 7).fillColor('#444444').text(bannerLines[2], margin, bannerY, { width: contentWidth, align: 'center' });
+  }
 
-  y += 7 * mm;
+  y += bannerHeight + 1 * mm;
 
   // ==================== INFO BOX ====================
   const infoBoxY = y;

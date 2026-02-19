@@ -1,6 +1,10 @@
 import { JobHandler } from '../types';
 import * as fs from 'fs';
 import * as PDFDocument from 'pdfkit';
+import { PrismaClient } from '@prisma/client';
+import { getCompanyInfo } from './company-info.helper';
+
+const prisma = new PrismaClient();
 
 interface CsvRow {
   commessa_csv: string;
@@ -26,6 +30,8 @@ const handler: JobHandler = async (payload, helpers) => {
   if (!csvData || csvData.length === 0) {
     throw new Error('Nessun dato CSV disponibile per la generazione del report');
   }
+
+  const company = await getCompanyInfo(prisma);
 
   const fileName = `REPORT PRODUZIONE ${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
@@ -65,8 +71,16 @@ const handler: JobHandler = async (payload, helpers) => {
   doc.pipe(writeStream);
 
   // Header
-  doc.fontSize(18).font('Helvetica-Bold').text('EMMEGIEMME SHOES SRL', { align: 'center' });
-  doc.moveDown(2);
+  doc.fontSize(18).font('Helvetica-Bold').text(company.nomeAzienda || 'REPORT PRODUZIONE', { align: 'center' });
+  if (company.indirizzo || company.citta) {
+    const addr = [company.indirizzo, [company.cap, company.citta, company.provincia].filter(Boolean).join(' ')].filter(Boolean).join(' - ');
+    doc.fontSize(9).font('Helvetica').fillColor('#555555').text(addr, { align: 'center' });
+  }
+  if (company.partitaIva || company.telefono) {
+    const info = [company.partitaIva ? `P.IVA: ${company.partitaIva}` : '', company.telefono ? `Tel: ${company.telefono}` : ''].filter(Boolean).join('  |  ');
+    doc.fontSize(8).font('Helvetica').text(info, { align: 'center' });
+  }
+  doc.fillColor('#000000').moveDown(1.5);
 
   // Draw groups
   for (const group of groupedData) {

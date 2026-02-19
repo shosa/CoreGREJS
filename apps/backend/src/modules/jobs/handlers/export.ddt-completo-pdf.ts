@@ -2,6 +2,10 @@ import PDFDocument = require('pdfkit');
 import { JobHandler } from '../types';
 import * as fs from 'fs';
 import * as path from 'path';
+import { PrismaClient } from '@prisma/client';
+import { getCompanyInfo } from './company-info.helper';
+
+const prisma = new PrismaClient();
 
 /**
  * Helper: Separa articoli con voce doganale 64061010 dagli altri (come nel legacy)
@@ -318,6 +322,9 @@ const handler: JobHandler = async (payload, helpers) => {
     throw new Error(`Documento ${progressivo} non trovato`);
   }
 
+  // Leggi dati aziendali
+  const company = await getCompanyInfo(prisma);
+
   const fileName = `DDT ${progressivo}_${new Date().toISOString().split('T')[0]}.pdf`;
   const { fullPath } = await ensureOutputPath(userId, jobId, fileName);
 
@@ -345,19 +352,36 @@ const handler: JobHandler = async (payload, helpers) => {
   const logoColWidth = usableWidth * 0.45;
   const destColWidth = usableWidth * 0.55;
 
-  // Box logo (sinistra)
+  // Box logo (sinistra) - logo + dati aziendali mittente
   if (hasLogo) {
     try {
-      doc.image(logoPath, marginX + 10, currentY + 10, {
-        width: logoColWidth - 20,
-        height: tableLogoHeight - 20,
-        fit: [logoColWidth - 20, tableLogoHeight - 20],
+      const logoDisplayHeight = tableLogoHeight * 0.55;
+      doc.image(logoPath, marginX + 5, currentY + 5, {
+        width: logoColWidth - 10,
+        height: logoDisplayHeight - 5,
+        fit: [logoColWidth - 10, logoDisplayHeight - 5],
         align: 'center',
         valign: 'center',
       });
     } catch (err) {
       // Logo non caricabile
     }
+  }
+  // Dati aziendali mittente
+  const companyTopY = hasLogo ? currentY + tableLogoHeight * 0.58 : currentY + 8;
+  if (company.nomeAzienda) {
+    doc.fontSize(hasLogo ? 7.5 : 9.5).font('Helvetica-Bold').fillColor('#000000')
+      .text(company.nomeAzienda, marginX + 5, companyTopY, { width: logoColWidth - 10, align: 'center' });
+  }
+  const addrLine = [company.indirizzo, [company.cap, company.citta, company.provincia].filter(Boolean).join(' ')].filter(Boolean).join('\n');
+  if (addrLine) {
+    doc.fontSize(7).font('Helvetica').fillColor('#333333')
+      .text(addrLine, marginX + 5, companyTopY + (hasLogo ? 12 : 16), { width: logoColWidth - 10, align: 'center' });
+  }
+  const contactLine = [company.partitaIva ? `P.IVA: ${company.partitaIva}` : '', company.telefono ? `Tel: ${company.telefono}` : ''].filter(Boolean).join('  |  ');
+  if (contactLine) {
+    doc.fontSize(6.5).font('Helvetica').fillColor('#555555')
+      .text(contactLine, marginX + 5, companyTopY + (hasLogo ? 26 : 34), { width: logoColWidth - 10, align: 'center' });
   }
 
   // Box destinatario (destra)
