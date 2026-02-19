@@ -36,6 +36,7 @@ export default function ProduzioneViewPage() {
   const [record, setRecord] = useState<any>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailRecipients, setEmailRecipients] = useState<string[]>([]);
+  const [emailCcn, setEmailCcn] = useState<string[]>([]);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailStatus, setEmailStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [emailError, setEmailError] = useState<string>('');
@@ -70,8 +71,9 @@ export default function ProduzioneViewPage() {
 
   const handleOpenEmailModal = async () => {
     try {
-      const recipients = await settingsApi.getProduzioneEmails();
-      setEmailRecipients(recipients);
+      const data = await settingsApi.getProduzioneEmails();
+      setEmailRecipients(data.recipients || []);
+      setEmailCcn(data.ccn || []);
       setEmailStatus('idle');
       setEmailError('');
       setShowEmailModal(true);
@@ -454,6 +456,19 @@ export default function ProduzioneViewPage() {
                                 )}
                               </div>
                             </div>
+                            {emailCcn.length > 0 && (
+                              <div>
+                                <span className="font-medium">CCN:</span>
+                                <div className="mt-1 ml-4 space-y-1">
+                                  {emailCcn.map((email, idx) => (
+                                    <div key={idx} className="flex items-center gap-2">
+                                      <i className="fas fa-circle text-xs"></i>
+                                      {email}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                             <div className="pt-2 border-t border-blue-200 dark:border-blue-700">
                               <span className="font-medium">Allegato:</span> PRODUZIONE_{date}.pdf
                             </div>
