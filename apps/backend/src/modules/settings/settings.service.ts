@@ -1079,15 +1079,21 @@ export class SettingsService implements OnModuleInit {
       const job = new CronJob(cron.expression, async () => {
         this.logger.log(`Cron eseguito: ${cron.label || cron.endpoint}`);
         try {
-          const baseUrl = `http://127.0.0.1:${this.configService.get('PORT') || 3011}`;
-          // Sostituisci parametri nel path (es. :id -> valore salvato)
-          let endpoint = cron.endpoint;
-          if (cron.paramValues) {
-            for (const [param, value] of Object.entries(cron.paramValues)) {
-              endpoint = endpoint.replace(`:${param}`, String(value));
+          let url: string;
+          if (cron.isExternal) {
+            // URL esterno: usare direttamente
+            url = cron.endpoint;
+          } else {
+            const baseUrl = `http://127.0.0.1:${this.configService.get('PORT') || 3011}`;
+            // Sostituisci parametri nel path (es. :id -> valore salvato)
+            let endpoint = cron.endpoint;
+            if (cron.paramValues) {
+              for (const [param, value] of Object.entries(cron.paramValues)) {
+                endpoint = endpoint.replace(`:${param}`, String(value));
+              }
             }
+            url = `${baseUrl}${endpoint}`;
           }
-          const url = `${baseUrl}${endpoint}`;
           const method = (cron.method || 'GET').toUpperCase();
 
           const response = method === 'POST'

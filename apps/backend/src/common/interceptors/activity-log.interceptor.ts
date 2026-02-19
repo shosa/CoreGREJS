@@ -8,6 +8,7 @@ import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { ActivityLogService } from '../../modules/activity-log/activity-log.service';
+import { WebhookService } from '../services/webhook.service';
 import { LOG_ACTIVITY_KEY, LogActivityMetadata } from '../decorators/log-activity.decorator';
 
 @Injectable()
@@ -15,6 +16,7 @@ export class ActivityLogInterceptor implements NestInterceptor {
   constructor(
     private reflector: Reflector,
     private activityLogService: ActivityLogService,
+    private webhookService: WebhookService,
   ) {}
 
   /**
@@ -80,6 +82,22 @@ export class ActivityLogInterceptor implements NestInterceptor {
           },
           ipAddress,
           userAgent,
+        });
+
+        // Dispatch webhooks (fire-and-forget, non blocca il flusso)
+        this.webhookService.dispatch({
+          event: `${metadata.module}.${metadata.action}`,
+          module: metadata.module,
+          action: metadata.action,
+          entity: metadata.entity,
+          entityId: entityId ? String(entityId) : undefined,
+          description: metadata.description,
+          userId,
+          timestamp: new Date().toISOString(),
+          data: {
+            params: request.params,
+            query: request.query,
+          },
         });
       }),
     );

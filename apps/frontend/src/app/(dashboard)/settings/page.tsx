@@ -294,6 +294,8 @@ export default function SettingsPage() {
   const [newCronExpression, setNewCronExpression] = useState('');
   const [newCronPreset, setNewCronPreset] = useState('');
   const [newCronParamValues, setNewCronParamValues] = useState<Record<string, string>>({});
+  const [newCronIsExternal, setNewCronIsExternal] = useState(false);
+  const [newCronExternalUrl, setNewCronExternalUrl] = useState('');
   const [editingCronIdx, setEditingCronIdx] = useState<number | null>(null);
 
   // Cleanup interval on unmount
@@ -793,33 +795,53 @@ export default function SettingsPage() {
       showError('Inserisci un nome per il cron job');
       return;
     }
-    if (!newCronEndpoint) {
-      showError('Seleziona un endpoint');
-      return;
-    }
     if (!newCronExpression.trim()) {
       showError('Inserisci un\'espressione cron');
       return;
     }
-    // Verifica parametri richiesti
-    const selectedEp = cronEndpoints.find((ep: any) => ep.path === newCronEndpoint);
-    const requiredParams = selectedEp?.params || [];
-    for (const param of requiredParams) {
-      if (!newCronParamValues[param]?.trim()) {
-        showError(`Inserisci il valore per il parametro "${param}"`);
+
+    let endpoint = '';
+    let method = newCronMethod;
+    let paramValues: Record<string, string> | undefined;
+    let isExternal = newCronIsExternal;
+
+    if (newCronIsExternal) {
+      if (!newCronExternalUrl.trim() || !newCronExternalUrl.startsWith('http')) {
+        showError('Inserisci un URL esterno valido (http:// o https://)');
         return;
       }
+      endpoint = newCronExternalUrl.trim();
+    } else {
+      if (!newCronEndpoint) {
+        showError('Seleziona un endpoint interno');
+        return;
+      }
+      endpoint = newCronEndpoint;
+      // Verifica parametri richiesti
+      const selectedEp = cronEndpoints.find((ep: any) => ep.path === newCronEndpoint);
+      const requiredParams = selectedEp?.params || [];
+      for (const param of requiredParams) {
+        if (!newCronParamValues[param]?.trim()) {
+          showError(`Inserisci il valore per il parametro "${param}"`);
+          return;
+        }
+      }
+      if (requiredParams.length > 0) {
+        paramValues = { ...newCronParamValues };
+      }
+      if (selectedEp) method = selectedEp.method;
     }
+
     const newJob: any = {
       label: newCronLabel.trim(),
-      endpoint: newCronEndpoint,
-      method: newCronMethod,
+      endpoint,
+      method,
       expression: newCronExpression.trim(),
       enabled: true,
+      isExternal,
     };
-    if (requiredParams.length > 0) {
-      newJob.paramValues = { ...newCronParamValues };
-    }
+    if (paramValues) newJob.paramValues = paramValues;
+
     if (editingCronIdx !== null) {
       const updated = [...cronJobs];
       updated[editingCronIdx] = newJob;
@@ -830,16 +852,25 @@ export default function SettingsPage() {
     }
     setNewCronLabel('');
     setNewCronEndpoint('');
+    setNewCronExternalUrl('');
     setNewCronMethod('GET');
     setNewCronExpression('');
     setNewCronPreset('');
     setNewCronParamValues({});
+    setNewCronIsExternal(false);
   };
 
   const handleEditCron = (idx: number) => {
     const job = cronJobs[idx];
     setNewCronLabel(job.label);
-    setNewCronEndpoint(job.endpoint);
+    setNewCronIsExternal(job.isExternal || false);
+    if (job.isExternal) {
+      setNewCronExternalUrl(job.endpoint);
+      setNewCronEndpoint('');
+    } else {
+      setNewCronEndpoint(job.endpoint);
+      setNewCronExternalUrl('');
+    }
     setNewCronMethod(job.method || 'GET');
     setNewCronExpression(job.expression);
     setNewCronPreset('');
@@ -851,10 +882,12 @@ export default function SettingsPage() {
     setEditingCronIdx(null);
     setNewCronLabel('');
     setNewCronEndpoint('');
+    setNewCronExternalUrl('');
     setNewCronMethod('GET');
     setNewCronExpression('');
     setNewCronPreset('');
     setNewCronParamValues({});
+    setNewCronIsExternal(false);
   };
 
   const handleRemoveCron = (idx: number) => {
@@ -2339,15 +2372,113 @@ export default function SettingsPage() {
                             }}
                             className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
                           >
-                            <option value="">Eventi...</option>
-                            <option value="*">Tutti</option>
-                            <option value="import.completed">Import completato</option>
-                            <option value="export.created">DDT creato</option>
-                            <option value="export.closed">DDT chiuso</option>
-                            <option value="job.completed">Job completato</option>
-                            <option value="job.failed">Job fallito</option>
-                            <option value="quality.exception">Eccezione qualita</option>
-                            <option value="tracking.created">Tracking creato</option>
+                            <option value="">Seleziona evento...</option>
+                            <option value="*">★ Tutti gli eventi</option>
+                            {/* Wildcard per modulo */}
+                            <optgroup label="── Wildcard modulo ──">
+                              <option value="settings.*">settings.* (tutte le impostazioni)</option>
+                              <option value="export.*">export.* (tutti gli export/DDT)</option>
+                              <option value="quality.*">quality.* (tutte la qualita)</option>
+                              <option value="tracking.*">tracking.* (tutto il tracking)</option>
+                              <option value="riparazioni.*">riparazioni.* (tutte le riparazioni)</option>
+                              <option value="produzione.*">produzione.* (tutta la produzione)</option>
+                              <option value="scm.*">scm.* (tutto l&apos;SCM)</option>
+                              <option value="analitiche.*">analitiche.* (tutte le analitiche)</option>
+                              <option value="users.*">users.* (tutti gli utenti)</option>
+                              <option value="jobs.*">jobs.* (tutti i job)</option>
+                            </optgroup>
+                            {/* Import */}
+                            <optgroup label="── Import ──">
+                              <option value="settings.execute_import">Import dati eseguito</option>
+                              <option value="settings.cancel_import">Import dati annullato</option>
+                            </optgroup>
+                            {/* Export / DDT */}
+                            <optgroup label="── Export / DDT ──">
+                              <option value="export.create_document">DDT creato</option>
+                              <option value="export.update_document">DDT modificato</option>
+                              <option value="export.delete_document">DDT eliminato</option>
+                              <option value="export.close_document">DDT chiuso</option>
+                              <option value="export.reopen_document">DDT riaperto</option>
+                              <option value="export.generate_ddt">DDT PDF generato</option>
+                              <option value="export.create_article">Articolo creato</option>
+                              <option value="export.update_article">Articolo modificato</option>
+                              <option value="export.delete_article">Articolo eliminato</option>
+                            </optgroup>
+                            {/* Qualita */}
+                            <optgroup label="── Qualita ──">
+                              <option value="quality.create">Record qualita creato</option>
+                              <option value="quality.generate_report">Report qualita generato</option>
+                              <option value="quality.create_department">Reparto creato</option>
+                              <option value="quality.update_department">Reparto modificato</option>
+                              <option value="quality.delete_department">Reparto eliminato</option>
+                              <option value="quality.create_defect_type">Tipo difetto creato</option>
+                              <option value="quality.update_defect_type">Tipo difetto modificato</option>
+                            </optgroup>
+                            {/* Tracking */}
+                            <optgroup label="── Tracking ──">
+                              <option value="tracking.save_links">Link tracking salvati</option>
+                              <option value="tracking.generate_links_pdf">PDF tracking generato</option>
+                              <option value="tracking.update_lot_info">Info lotto aggiornata</option>
+                              <option value="tracking.update_order_info">Info ordine aggiornata</option>
+                              <option value="tracking.create">Tipo tracking creato</option>
+                            </optgroup>
+                            {/* Riparazioni */}
+                            <optgroup label="── Riparazioni ──">
+                              <option value="riparazioni.create">Riparazione creata</option>
+                              <option value="riparazioni.update">Riparazione modificata</option>
+                              <option value="riparazioni.complete">Riparazione completata</option>
+                              <option value="riparazioni.delete">Riparazione eliminata</option>
+                            </optgroup>
+                            {/* Produzione */}
+                            <optgroup label="── Produzione ──">
+                              <option value="produzione.upsert">Record produzione aggiornato</option>
+                              <option value="produzione.send_email">Email cedola inviata</option>
+                              <option value="produzione.upload_csv">CSV produzione caricato</option>
+                              <option value="produzione.create_phase">Fase creata</option>
+                              <option value="produzione.update_phase">Fase modificata</option>
+                              <option value="produzione.delete_phase">Fase eliminata</option>
+                            </optgroup>
+                            {/* SCM */}
+                            <optgroup label="── SCM ──">
+                              <option value="scm.create_launch">Lancio creato</option>
+                              <option value="scm.update_launch">Lancio modificato</option>
+                              <option value="scm.delete_launch">Lancio eliminato</option>
+                              <option value="scm.create_laboratory">Laboratorio creato</option>
+                              <option value="scm.update_laboratory">Laboratorio modificato</option>
+                              <option value="scm.login">Login SCM laboratorio</option>
+                            </optgroup>
+                            {/* Analitiche */}
+                            <optgroup label="── Analitiche ──">
+                              <option value="analitiche.import">Import analitiche</option>
+                              <option value="analitiche.report">Report analitiche generato</option>
+                              <option value="analitiche.update">Record analitica modificato</option>
+                              <option value="analitiche.delete">Record analitica eliminato</option>
+                            </optgroup>
+                            {/* Utenti */}
+                            <optgroup label="── Utenti ──">
+                              <option value="users.create">Utente creato</option>
+                              <option value="users.update">Utente modificato</option>
+                              <option value="users.delete">Utente eliminato</option>
+                              <option value="users.update_permissions">Permessi aggiornati</option>
+                            </optgroup>
+                            {/* Jobs */}
+                            <optgroup label="── Jobs ──">
+                              <option value="jobs.enqueue">Job accodato</option>
+                              <option value="jobs.delete">Job eliminato</option>
+                              <option value="jobs.merge_pdf">PDF unione generato</option>
+                            </optgroup>
+                            {/* Auth */}
+                            <optgroup label="── Autenticazione ──">
+                              <option value="auth.login">Login utente</option>
+                              <option value="auth.change_password">Password modificata</option>
+                            </optgroup>
+                            {/* Settings */}
+                            <optgroup label="── Impostazioni ──">
+                              <option value="settings.update_smtp">SMTP modificato</option>
+                              <option value="settings.flush_cache">Cache svuotata</option>
+                              <option value="settings.import_backup">Backup importato</option>
+                              <option value="settings.export_backup">Backup esportato</option>
+                            </optgroup>
                           </select>
                           <button onClick={handleAddWebhook} className="px-4 py-2 rounded-lg bg-pink-500 text-white hover:bg-pink-600 transition font-medium">
                             <i className="fas fa-plus"></i>
@@ -2449,6 +2580,24 @@ export default function SettingsPage() {
                           <i className={`fas ${editingCronIdx !== null ? 'fa-edit' : 'fa-plus-circle'} mr-2`}></i>
                           {editingCronIdx !== null ? 'Modifica Cron Job' : 'Nuovo Cron Job'}
                         </h4>
+                        {/* Toggle interno / esterno */}
+                        <div className="flex items-center gap-2 mb-3">
+                          <button
+                            type="button"
+                            onClick={() => { setNewCronIsExternal(false); setNewCronExternalUrl(''); setNewCronParamValues({}); }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${!newCronIsExternal ? 'bg-teal-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
+                          >
+                            <i className="fas fa-server mr-1.5"></i>Endpoint interno
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setNewCronIsExternal(true); setNewCronEndpoint(''); setNewCronParamValues({}); }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${newCronIsExternal ? 'bg-indigo-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
+                          >
+                            <i className="fas fa-globe mr-1.5"></i>URL esterno
+                          </button>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
                             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Nome</label>
@@ -2460,26 +2609,41 @@ export default function SettingsPage() {
                               className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                             />
                           </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Endpoint API</label>
-                            <select
-                              value={newCronEndpoint}
-                              onChange={e => {
-                                const ep = cronEndpoints.find((ep: any) => ep.path === e.target.value);
-                                setNewCronEndpoint(e.target.value);
-                                if (ep) setNewCronMethod(ep.method);
-                                setNewCronParamValues({});
-                              }}
-                              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
-                            >
-                              <option value="">Seleziona endpoint...</option>
-                              {cronEndpoints.map((ep: any) => (
-                                <option key={`${ep.method}-${ep.path}`} value={ep.path}>
-                                  {ep.method} {ep.path}{ep.params?.length > 0 ? ` [${ep.params.join(', ')}]` : ''}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                          {newCronIsExternal ? (
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                                <i className="fas fa-globe text-indigo-400 mr-1"></i>URL Esterno
+                              </label>
+                              <input
+                                type="url"
+                                value={newCronExternalUrl}
+                                onChange={e => setNewCronExternalUrl(e.target.value)}
+                                placeholder="https://api.esempio.com/endpoint"
+                                className="w-full px-4 py-2 rounded-lg border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm"
+                              />
+                            </div>
+                          ) : (
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Endpoint API interno</label>
+                              <select
+                                value={newCronEndpoint}
+                                onChange={e => {
+                                  const ep = cronEndpoints.find((ep: any) => ep.path === e.target.value);
+                                  setNewCronEndpoint(e.target.value);
+                                  if (ep) setNewCronMethod(ep.method);
+                                  setNewCronParamValues({});
+                                }}
+                                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                              >
+                                <option value="">Seleziona endpoint...</option>
+                                {cronEndpoints.map((ep: any) => (
+                                  <option key={`${ep.method}-${ep.path}`} value={ep.path}>
+                                    {ep.method} {ep.path}{ep.params?.length > 0 ? ` [${ep.params.join(', ')}]` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                           <div>
                             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Metodo HTTP</label>
                             <select
@@ -2577,15 +2741,20 @@ export default function SettingsPage() {
                               <div key={idx} className={`p-4 rounded-xl border-2 transition ${job.enabled ? 'border-teal-200 dark:border-teal-800 bg-white dark:bg-gray-800' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 opacity-60'}`}>
                                 <div className="flex items-center justify-between">
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                       <i className={`fas fa-circle text-[8px] ${job.enabled ? 'text-green-500' : 'text-gray-400'}`}></i>
                                       <span className="font-semibold text-sm text-gray-900 dark:text-white">{job.label}</span>
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-mono">
                                         {job.method || 'GET'}
                                       </span>
+                                      {job.isExternal && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-medium">
+                                          <i className="fas fa-globe text-[10px]"></i>Esterno
+                                        </span>
+                                      )}
                                     </div>
                                     <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                                      <span className="font-mono text-xs text-gray-500 dark:text-gray-400 truncate">{job.endpoint}</span>
+                                      <span className="font-mono text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">{job.endpoint}</span>
                                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 text-xs font-mono">
                                         <i className="fas fa-clock text-[10px]"></i>
                                         {job.expression}
