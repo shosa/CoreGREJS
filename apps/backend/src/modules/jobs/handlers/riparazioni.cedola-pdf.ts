@@ -137,8 +137,6 @@ const handler: JobHandler = async (payload, helpers) => {
   // Calcola altezza banner in base alle righe da mostrare
   const bannerLines = [
     company.nomeAzienda || 'AZIENDA',
-    [company.indirizzo, [company.cap, company.citta, company.provincia].filter(Boolean).join(' ')].filter(Boolean).join(' - '),
-    [company.partitaIva ? `P.IVA: ${company.partitaIva}` : '', company.telefono ? `Tel: ${company.telefono}` : '', company.email].filter(Boolean).join('  |  '),
   ].filter(Boolean);
 
   const bannerHeight = (bannerLines.length * 4.5 + 2) * mm;
