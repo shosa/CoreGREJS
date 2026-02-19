@@ -241,6 +241,14 @@ export default function SettingsPage() {
   const [generalLoading, setGeneralLoading] = useState(false);
   const [generalSaving, setGeneralSaving] = useState(false);
 
+  // Logo state
+  const [logoDocumentiUrl, setLogoDocumentiUrl] = useState<string | null>(null);
+  const [logoIconaUrl, setLogoIconaUrl] = useState<string | null>(null);
+  const [logoDocumentiUploading, setLogoDocumentiUploading] = useState(false);
+  const [logoIconaUploading, setLogoIconaUploading] = useState(false);
+  const logoDocumentiRef = useRef<HTMLInputElement>(null);
+  const logoIconaRef = useRef<HTMLInputElement>(null);
+
   // Security state
   const [securityConfig, setSecurityConfig] = useState<Record<string, any>>({});
   const [securityLoading, setSecurityLoading] = useState(false);
@@ -317,6 +325,7 @@ export default function SettingsPage() {
       loadProduzioneEmails();
     } else if (activeSection === 'general') {
       loadGeneralConfig();
+      loadLogoUrls();
     } else if (activeSection === 'security') {
       loadSecurityConfig();
     } else if (activeSection === 'system') {
@@ -500,6 +509,37 @@ export default function SettingsPage() {
       showError(error.response?.data?.message || 'Errore salvataggio');
     } finally {
       setGeneralSaving(false);
+    }
+  };
+
+  // ==================== LOGO ====================
+
+  const loadLogoUrls = async () => {
+    try {
+      const [doc, icona] = await Promise.all([
+        settingsApi.getLogoUrl('documenti'),
+        settingsApi.getLogoUrl('icona'),
+      ]);
+      setLogoDocumentiUrl(doc.url);
+      setLogoIconaUrl(icona.url);
+    } catch {
+      // Ignora errori (logo non configurati)
+    }
+  };
+
+  const handleUploadLogo = async (tipo: 'documenti' | 'icona', file: File) => {
+    if (tipo === 'documenti') setLogoDocumentiUploading(true);
+    else setLogoIconaUploading(true);
+    try {
+      const result = await settingsApi.uploadLogo(tipo, file);
+      if (tipo === 'documenti') setLogoDocumentiUrl(result.url);
+      else setLogoIconaUrl(result.url);
+      showSuccess(`Logo ${tipo === 'documenti' ? 'documenti' : 'icona'} caricato con successo`);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento logo');
+    } finally {
+      if (tipo === 'documenti') setLogoDocumentiUploading(false);
+      else setLogoIconaUploading(false);
     }
   };
 
@@ -1861,6 +1901,97 @@ export default function SettingsPage() {
                       </button>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Logo Azienda */}
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow p-6">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <i className="fas fa-image text-gray-500"></i>
+                  Logo Azienda
+                </h4>
+                <div className="grid grid-cols-2 gap-6">
+                  {/* Logo Documenti */}
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Logo Documenti</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Usato nei PDF (DDT, report). Formati: PNG, JPG, SVG</p>
+                    </div>
+                    <div
+                      className="relative flex items-center justify-center h-32 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 cursor-pointer hover:border-gray-400 transition-colors overflow-hidden"
+                      onClick={() => logoDocumentiRef.current?.click()}
+                    >
+                      {logoDocumentiUrl ? (
+                        <img src={logoDocumentiUrl} alt="Logo documenti" className="max-h-full max-w-full object-contain p-2" />
+                      ) : (
+                        <div className="text-center">
+                          <i className="fas fa-file-image text-3xl text-gray-300 dark:text-gray-600 mb-2"></i>
+                          <p className="text-xs text-gray-400">Nessun logo caricato</p>
+                        </div>
+                      )}
+                      {logoDocumentiUploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-gray-800/70">
+                          <i className="fas fa-spinner fa-spin text-gray-600 text-2xl"></i>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => logoDocumentiRef.current?.click()}
+                      disabled={logoDocumentiUploading}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition disabled:opacity-50"
+                    >
+                      <i className="fas fa-upload mr-2"></i>
+                      {logoDocumentiUrl ? 'Sostituisci' : 'Carica'} Logo Documenti
+                    </button>
+                    <input
+                      ref={logoDocumentiRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
+                      className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadLogo('documenti', f); }}
+                    />
+                  </div>
+
+                  {/* Logo Icona */}
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Logo Icona Sidebar</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Icona quadrata/rotonda per la sidebar. Formato consigliato: PNG 32×32</p>
+                    </div>
+                    <div
+                      className="relative flex items-center justify-center h-32 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 cursor-pointer hover:border-gray-400 transition-colors overflow-hidden"
+                      onClick={() => logoIconaRef.current?.click()}
+                    >
+                      {logoIconaUrl ? (
+                        <img src={logoIconaUrl} alt="Logo icona" className="max-h-full max-w-full object-contain p-2" />
+                      ) : (
+                        <div className="text-center">
+                          <i className="fas fa-circle text-3xl text-gray-300 dark:text-gray-600 mb-2"></i>
+                          <p className="text-xs text-gray-400">Nessun logo caricato</p>
+                        </div>
+                      )}
+                      {logoIconaUploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-gray-800/70">
+                          <i className="fas fa-spinner fa-spin text-gray-600 text-2xl"></i>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => logoIconaRef.current?.click()}
+                      disabled={logoIconaUploading}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition disabled:opacity-50"
+                    >
+                      <i className="fas fa-upload mr-2"></i>
+                      {logoIconaUrl ? 'Sostituisci' : 'Carica'} Logo Icona
+                    </button>
+                    <input
+                      ref={logoIconaRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
+                      className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadLogo('icona', f); }}
+                    />
+                  </div>
                 </div>
               </div>
 

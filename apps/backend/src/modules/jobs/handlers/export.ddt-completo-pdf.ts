@@ -1,9 +1,8 @@
 import PDFDocument = require('pdfkit');
 import { JobHandler } from '../types';
 import * as fs from 'fs';
-import * as path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { getCompanyInfo } from './company-info.helper';
+import { getCompanyInfo, getLogoBuffer } from './company-info.helper';
 
 const prisma = new PrismaClient();
 
@@ -79,7 +78,7 @@ function handlePageBreak(
   data: string,
   stato: string,
   piede: any,
-  logoPath: string,
+  logoBuffer: Buffer | null,
   hasLogo: boolean
 ) {
   // Chiudi bordo inferiore tabella
@@ -110,9 +109,9 @@ function handlePageBreak(
   const destColWidth = usableWidth * 0.55;
 
   // Box logo (sinistra)
-  if (hasLogo) {
+  if (hasLogo && logoBuffer) {
     try {
-      doc.image(logoPath, marginX + 10, currentY + 10, {
+      doc.image(logoBuffer, marginX + 10, currentY + 10, {
         width: logoColWidth - 20,
         height: tableLogoHeight - 20,
         fit: [logoColWidth - 20, tableLogoHeight - 20],
@@ -341,9 +340,9 @@ const handler: JobHandler = async (payload, helpers) => {
   const marginY = 30;
   const usableWidth = pageWidth - marginX * 2;
 
-  // Logo path
-  const logoPath = path.join(process.cwd(), 'public', 'assets', 'top_logo.jpg');
-  const hasLogo = fs.existsSync(logoPath);
+  // Logo da MinIO (fallback: nessun logo)
+  const logoBuffer = await getLogoBuffer(prisma);
+  const hasLogo = logoBuffer !== null;
 
   let currentY = marginY;
 
@@ -356,7 +355,7 @@ const handler: JobHandler = async (payload, helpers) => {
   if (hasLogo) {
     try {
       const logoDisplayHeight = tableLogoHeight * 0.55;
-      doc.image(logoPath, marginX + 5, currentY + 5, {
+      doc.image(logoBuffer!, marginX + 5, currentY + 5, {
         width: logoColWidth - 10,
         height: logoDisplayHeight - 5,
         fit: [logoColWidth - 10, logoDisplayHeight - 5],
@@ -626,7 +625,7 @@ const handler: JobHandler = async (payload, helpers) => {
         String(document.data),
         document.stato,
         document.piede,
-        logoPath,
+        logoBuffer,
         hasLogo
       );
     }
@@ -724,7 +723,7 @@ const handler: JobHandler = async (payload, helpers) => {
         String(document.data),
         document.stato,
         document.piede,
-        logoPath,
+        logoBuffer,
         hasLogo
       );
     }
@@ -779,7 +778,7 @@ const handler: JobHandler = async (payload, helpers) => {
         String(document.data),
         document.stato,
         document.piede,
-        logoPath,
+        logoBuffer,
         hasLogo
       );
     }
@@ -882,7 +881,7 @@ const handler: JobHandler = async (payload, helpers) => {
         String(document.data),
         document.stato,
         document.piede,
-        logoPath,
+        logoBuffer,
         hasLogo
       );
     }
@@ -921,7 +920,7 @@ const handler: JobHandler = async (payload, helpers) => {
         String(document.data),
         document.stato,
         document.piede,
-        logoPath,
+        logoBuffer,
         hasLogo
       );
     }
@@ -968,7 +967,7 @@ const handler: JobHandler = async (payload, helpers) => {
           String(document.data),
           document.stato,
           document.piede,
-          logoPath,
+          logoBuffer,
           hasLogo
         );
       }
@@ -1041,7 +1040,7 @@ const handler: JobHandler = async (payload, helpers) => {
         String(document.data),
         document.stato,
         document.piede,
-        logoPath,
+        logoBuffer,
         hasLogo
       );
     }
@@ -1082,7 +1081,7 @@ const handler: JobHandler = async (payload, helpers) => {
         String(document.data),
         document.stato,
         document.piede,
-        logoPath,
+        logoBuffer,
         hasLogo
       );
     }
@@ -1112,7 +1111,7 @@ const handler: JobHandler = async (payload, helpers) => {
         String(document.data),
         document.stato,
         document.piede,
-        logoPath,
+        logoBuffer,
         hasLogo
       );
     }
@@ -1147,7 +1146,7 @@ const handler: JobHandler = async (payload, helpers) => {
           String(document.data),
           document.stato,
           document.piede,
-          logoPath,
+          logoBuffer,
           hasLogo
         );
       }
@@ -1227,7 +1226,7 @@ const handler: JobHandler = async (payload, helpers) => {
         doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
         colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
         document.progressivo, document.terzista, document.data.toISOString(), document.stato,
-        document.piede, logoPath, hasLogo
+        document.piede, logoBuffer, hasLogo
       );
     }
     doc.save();
@@ -1245,7 +1244,7 @@ const handler: JobHandler = async (payload, helpers) => {
         doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
         colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
         document.progressivo, document.terzista, document.data.toISOString(), document.stato,
-        document.piede, logoPath, hasLogo
+        document.piede, logoBuffer, hasLogo
       );
     }
     doc.moveTo(marginX, currentY).lineTo(marginX + usableWidth, currentY).stroke();
@@ -1257,7 +1256,7 @@ const handler: JobHandler = async (payload, helpers) => {
       doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
       colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
       document.progressivo, document.terzista, document.data.toISOString(), document.stato,
-      document.piede, logoPath, hasLogo
+      document.piede, logoBuffer, hasLogo
     );
   }
   doc
@@ -1276,7 +1275,7 @@ const handler: JobHandler = async (payload, helpers) => {
       doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
       colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
       document.progressivo, document.terzista, document.data.toISOString(), document.stato,
-      document.piede, logoPath, hasLogo
+      document.piede, logoBuffer, hasLogo
     );
   }
 
@@ -1312,7 +1311,7 @@ const handler: JobHandler = async (payload, helpers) => {
           doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
           colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
           document.progressivo, document.terzista, document.data.toISOString(), document.stato,
-          document.piede, logoPath, hasLogo
+          document.piede, logoBuffer, hasLogo
         );
       }
 
@@ -1440,7 +1439,7 @@ const handler: JobHandler = async (payload, helpers) => {
       doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
       colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
       document.progressivo, document.terzista, document.data.toISOString(), document.stato,
-      document.piede, logoPath, hasLogo
+      document.piede, logoBuffer, hasLogo
     );
   }
 
@@ -1485,7 +1484,7 @@ const handler: JobHandler = async (payload, helpers) => {
       doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
       colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
       document.progressivo, document.terzista, document.data.toISOString(), document.stato,
-      document.piede, logoPath, hasLogo
+      document.piede, logoBuffer, hasLogo
     );
   }
 
@@ -1502,7 +1501,7 @@ const handler: JobHandler = async (payload, helpers) => {
       doc, currentY, pageHeight, marginX, marginY, usableWidth, rowHeight,
       colArticolo, colDescrizione, colNomCom, colUM, colQta, colValore,
       document.progressivo, document.terzista, document.data.toISOString(), document.stato,
-      document.piede, logoPath, hasLogo
+      document.piede, logoBuffer, hasLogo
     );
   }
 

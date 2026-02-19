@@ -652,6 +652,19 @@ export const settingsApi = {
     const response = await api.get('/settings/cron/log', { params: { page, limit } });
     return response.data;
   },
+  // Logo upload
+  uploadLogo: async (tipo: 'documenti' | 'icona', file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/settings/logo/${tipo}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+  getLogoUrl: async (tipo: 'documenti' | 'icona') => {
+    const response = await api.get(`/settings/logo/${tipo}`);
+    return response.data;
+  },
 };
 
 // Jobs / Spool API

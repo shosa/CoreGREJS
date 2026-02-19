@@ -1154,6 +1154,55 @@ export class SettingsService implements OnModuleInit {
     }
   }
 
+  // ==================== LOGO AZIENDA ====================
+
+  /**
+   * Upload logo (tipo: 'documenti' | 'icona') su MinIO e salva il path in core_settings
+   */
+  async uploadLogo(tipo: 'documenti' | 'icona', file: Express.Multer.File): Promise<{ success: boolean; url: string }> {
+    const ext = file.originalname.split('.').pop()?.toLowerCase() || 'png';
+    const objectName = tipo === 'documenti'
+      ? `system/logo-documenti.${ext}`
+      : `system/logo-icona.${ext}`;
+    const settingKey = tipo === 'documenti' ? 'general.logoDocumenti' : 'general.logoIcona';
+    const bucket = this.minioService.getDefaultBucket();
+
+    // Carica su MinIO
+    await this.minioService.uploadFile(bucket, objectName, file.buffer, file.size, {
+      'Content-Type': file.mimetype,
+    });
+
+    // Salva object name in settings
+    await this.prisma.setting.upsert({
+      where: { key: settingKey },
+      update: { value: objectName, updatedAt: new Date() },
+      create: { key: settingKey, value: objectName, type: 'string', group: 'general' },
+    });
+
+    await this.cache.invalidate('settings:general');
+
+    // URL presigned valido 7 giorni
+    const url = await this.minioService.getPresignedUrl(bucket, objectName, 7 * 24 * 3600);
+    return { success: true, url };
+  }
+
+  /**
+   * Ottieni URL presigned per il logo (tipo: 'documenti' | 'icona')
+   */
+  async getLogoUrl(tipo: 'documenti' | 'icona'): Promise<{ url: string | null }> {
+    const settingKey = tipo === 'documenti' ? 'general.logoDocumenti' : 'general.logoIcona';
+    const setting = await this.prisma.setting.findUnique({ where: { key: settingKey } });
+    if (!setting?.value) return { url: null };
+
+    try {
+      const bucket = this.minioService.getDefaultBucket();
+      const url = await this.minioService.getPresignedUrl(bucket, setting.value, 7 * 24 * 3600);
+      return { url };
+    } catch {
+      return { url: null };
+    }
+  }
+
   // ==================== CRONOLOGIA MODIFICHE ====================
 
   async getSettingsChangelog(page = 1, limit = 20): Promise<any> {

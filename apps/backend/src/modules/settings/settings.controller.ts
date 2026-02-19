@@ -374,6 +374,32 @@ export class SettingsController {
     );
   }
 
+  // ==================== LOGO AZIENDA ====================
+
+  @Post('logo/:tipo')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  @UseInterceptors(FileInterceptor('file'))
+  @LogActivity({ module: 'settings', action: 'upload_logo', entity: 'Logo', description: 'Caricamento logo azienda' })
+  async uploadLogo(
+    @Param('tipo') tipo: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('File non fornito');
+    if (!['documenti', 'icona'].includes(tipo)) throw new BadRequestException('Tipo non valido (documenti|icona)');
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!validTypes.includes(file.mimetype)) throw new BadRequestException('Formato immagine non valido (PNG, JPG, GIF, WebP, SVG)');
+    return this.settingsService.uploadLogo(tipo as 'documenti' | 'icona', file);
+  }
+
+  @Get('logo/:tipo')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  async getLogoUrl(@Param('tipo') tipo: string) {
+    if (!['documenti', 'icona'].includes(tipo)) throw new BadRequestException('Tipo non valido');
+    return this.settingsService.getLogoUrl(tipo as 'documenti' | 'icona');
+  }
+
   // ==================== CRONOLOGIA ====================
 
   @Get('changelog')

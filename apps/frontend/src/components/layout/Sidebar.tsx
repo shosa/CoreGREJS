@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/auth';
 import { useModulesStore } from '@/store/modules';
+import { settingsApi } from '@/lib/api';
 
 interface SubMenuItem {
   name: string;
@@ -170,10 +171,15 @@ export default function Sidebar() {
   const popupRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [logoIconaUrl, setLogoIconaUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
     fetchModules();
+    // Carica logo icona
+    settingsApi.getLogoUrl('icona').then(res => {
+      if (res.url) setLogoIconaUrl(res.url);
+    }).catch(() => {});
   }, [fetchModules]);
 
   useEffect(() => {
@@ -479,7 +485,11 @@ export default function Sidebar() {
                   whileHover={{ y: -2, scale: 1.05 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                 >
-                  <img className="h-5 w-5" src="/assets/logo-white.png" alt="COREGRE" />
+                  {logoIconaUrl ? (
+                    <img className="h-5 w-5 object-contain" src={logoIconaUrl} alt="COREGRE" />
+                  ) : (
+                    <img className="h-5 w-5" src="/assets/logo-white.png" alt="COREGRE" />
+                  )}
                 </motion.div>
                 <span className="ml-3 text-[15px] font-extrabold tracking-tight bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-gray-300 bg-clip-text text-transparent whitespace-nowrap">
                   COREGRE
