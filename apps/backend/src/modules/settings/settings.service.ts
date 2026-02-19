@@ -1152,6 +1152,28 @@ export class SettingsService implements OnModuleInit {
     }
   }
 
+  // ==================== RIPARAZIONI ====================
+
+  async getRiparazioniConfig(): Promise<{ layoutStampa: string }> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: 'riparazioni.layoutStampa' },
+    });
+    return { layoutStampa: setting?.value ?? 'nuovo' };
+  }
+
+  async updateRiparazioniConfig(data: { layoutStampa: string }): Promise<{ success: boolean }> {
+    const allowed = ['originale', 'nuovo'];
+    const value = allowed.includes(data.layoutStampa) ? data.layoutStampa : 'nuovo';
+
+    await this.prisma.setting.upsert({
+      where: { key: 'riparazioni.layoutStampa' },
+      update: { value, updatedAt: new Date() },
+      create: { key: 'riparazioni.layoutStampa', value, type: 'string', group: 'riparazioni' },
+    });
+
+    return { success: true };
+  }
+
   // ==================== LOGO AZIENDA ====================
 
   /**

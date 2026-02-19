@@ -8,7 +8,7 @@ import { useModulesStore } from '@/store/modules';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
-type Section = 'import' | 'modules' | 'smtp' | 'produzione' | 'general' | 'security' | 'system' | 'changelog' | 'jobs' | 'webhooks' | 'cron';
+type Section = 'import' | 'modules' | 'smtp' | 'produzione' | 'general' | 'security' | 'system' | 'changelog' | 'jobs' | 'webhooks' | 'cron' | 'riparazioni';
 type ImportStep = 'select' | 'analyzing' | 'confirm' | 'importing' | 'completed';
 
 interface ImportAnalysis {
@@ -309,6 +309,11 @@ export default function SettingsPage() {
   const [newCronExternalUrl, setNewCronExternalUrl] = useState('');
   const [editingCronIdx, setEditingCronIdx] = useState<number | null>(null);
 
+  // Riparazioni state
+  const [riparazioniConfig, setRiparazioniConfig] = useState<{ layoutStampa: string }>({ layoutStampa: 'nuovo' });
+  const [riparazioniLoading, setRiparazioniLoading] = useState(false);
+  const [riparazioniSaving, setRiparazioniSaving] = useState(false);
+
   // Cleanup interval on unmount
   useEffect(() => {
     return () => {
@@ -344,6 +349,8 @@ export default function SettingsPage() {
       loadCronJobs();
       loadCronEndpoints();
       loadCronLog(1);
+    } else if (activeSection === 'riparazioni') {
+      loadRiparazioniConfig();
     }
   }, [activeSection]);
 
@@ -1069,6 +1076,30 @@ export default function SettingsPage() {
     if (file) handleFileSelect(file);
   };
 
+  const loadRiparazioniConfig = async () => {
+    setRiparazioniLoading(true);
+    try {
+      const data = await settingsApi.getRiparazioniConfig();
+      setRiparazioniConfig(data);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore caricamento impostazioni riparazioni');
+    } finally {
+      setRiparazioniLoading(false);
+    }
+  };
+
+  const saveRiparazioniConfig = async () => {
+    setRiparazioniSaving(true);
+    try {
+      await settingsApi.updateRiparazioniConfig(riparazioniConfig);
+      showSuccess('Impostazioni riparazioni salvate');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Errore salvataggio impostazioni riparazioni');
+    } finally {
+      setRiparazioniSaving(false);
+    }
+  };
+
   const sections = [
     { id: 'import' as Section, label: 'Import Dati', icon: 'fa-file-import', color: 'blue' },
     { id: 'modules' as Section, label: 'Moduli Attivi', icon: 'fa-puzzle-piece', color: 'purple' },
@@ -1081,6 +1112,7 @@ export default function SettingsPage() {
     { id: 'cron' as Section, label: 'Cron Jobs', icon: 'fa-clock', color: 'teal' },
     { id: 'system' as Section, label: 'Sistema', icon: 'fa-heartbeat', color: 'cyan' },
     { id: 'changelog' as Section, label: 'Cronologia', icon: 'fa-history', color: 'yellow' },
+    { id: 'riparazioni' as Section, label: 'Riparazioni', icon: 'fa-hammer', color: 'blue' },
   ];
 
   const progressPercent = progress && progress.total > 0
@@ -3151,6 +3183,136 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+          {activeSection === 'riparazioni' && (
+            <div className="space-y-6">
+              <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg">
+                      <i className="fas fa-hammer text-white text-2xl"></i>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Impostazioni Riparazioni</h3>
+                      <p className="text-gray-600 dark:text-gray-400">Configurazione del modulo riparazioni</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  {riparazioniLoading ? (
+                    <div className="text-center py-12">
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-16 w-16 rounded-full border-4 border-blue-500 border-t-transparent mb-4" />
+                      <p className="text-lg font-medium text-blue-600">Caricamento...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {/* Layout Stampa Cedola */}
+                      <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Layout stampa cedola</h4>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Scegli il template usato alla stampa della cedola di riparazione.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                          {/* Opzione ORIGINALE */}
+                          <button
+                            onClick={() => setRiparazioniConfig({ layoutStampa: 'originale' })}
+                            className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-5 text-left transition cursor-pointer ${
+                              riparazioniConfig.layoutStampa === 'originale'
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
+                            }`}
+                          >
+                            <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${
+                              riparazioniConfig.layoutStampa === 'originale'
+                                ? 'bg-blue-500'
+                                : 'bg-gray-100 dark:bg-gray-700'
+                            }`}>
+                              <i className={`fas fa-file-alt text-xl ${
+                                riparazioniConfig.layoutStampa === 'originale' ? 'text-white' : 'text-gray-500 dark:text-gray-400'
+                              }`}></i>
+                            </div>
+                            <div className="text-center">
+                              <p className={`font-semibold text-sm ${
+                                riparazioniConfig.layoutStampa === 'originale'
+                                  ? 'text-blue-700 dark:text-blue-300'
+                                  : 'text-gray-700 dark:text-gray-300'
+                              }`}>ORIGINALE</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">A4 verticale, classico</p>
+                            </div>
+                            {riparazioniConfig.layoutStampa === 'originale' && (
+                              <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500">
+                                <i className="fas fa-check text-white text-xs"></i>
+                              </div>
+                            )}
+                          </button>
+
+                          {/* Opzione NUOVO */}
+                          <button
+                            onClick={() => setRiparazioniConfig({ layoutStampa: 'nuovo' })}
+                            className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-5 text-left transition cursor-pointer ${
+                              riparazioniConfig.layoutStampa === 'nuovo'
+                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
+                            }`}
+                          >
+                            <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${
+                              riparazioniConfig.layoutStampa === 'nuovo'
+                                ? 'bg-indigo-500'
+                                : 'bg-gray-100 dark:bg-gray-700'
+                            }`}>
+                              <i className={`fas fa-file-invoice text-xl ${
+                                riparazioniConfig.layoutStampa === 'nuovo' ? 'text-white' : 'text-gray-500 dark:text-gray-400'
+                              }`}></i>
+                            </div>
+                            <div className="text-center">
+                              <p className={`font-semibold text-sm ${
+                                riparazioniConfig.layoutStampa === 'nuovo'
+                                  ? 'text-indigo-700 dark:text-indigo-300'
+                                  : 'text-gray-700 dark:text-gray-300'
+                              }`}>NUOVO</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">A4 orizzontale, tecnico</p>
+                            </div>
+                            {riparazioniConfig.layoutStampa === 'nuovo' && (
+                              <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500">
+                                <i className="fas fa-check text-white text-xs"></i>
+                              </div>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Bottone salva */}
+                      <div className="flex justify-end">
+                        <button
+                          onClick={saveRiparazioniConfig}
+                          disabled={riparazioniSaving}
+                          className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                        >
+                          {riparazioniSaving ? (
+                            <>
+                              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="h-4 w-4 rounded-full border-2 border-white border-t-transparent" />
+                              Salvataggio...
+                            </>
+                          ) : (
+                            <>
+                              <i className="fas fa-save"></i>
+                              Salva impostazioni
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
         </motion.div>
       </div>
     </motion.div>

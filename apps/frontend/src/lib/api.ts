@@ -670,6 +670,15 @@ export const settingsApi = {
     const base = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/api$/, '');
     return `${base}/api/settings/logo/${tipo}/image`;
   },
+  // Riparazioni
+  getRiparazioniConfig: async (): Promise<{ layoutStampa: string }> => {
+    const response = await api.get('/settings/riparazioni');
+    return response.data;
+  },
+  updateRiparazioniConfig: async (data: { layoutStampa: string }) => {
+    const response = await api.put('/settings/riparazioni', data);
+    return response.data;
+  },
 };
 
 // Jobs / Spool API

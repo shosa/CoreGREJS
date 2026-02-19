@@ -374,6 +374,23 @@ export class SettingsController {
     );
   }
 
+  // ==================== RIPARAZIONI ====================
+
+  @Get('riparazioni')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  async getRiparazioniConfig() {
+    return this.settingsService.getRiparazioniConfig();
+  }
+
+  @Put('riparazioni')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('settings')
+  @LogActivity({ module: 'settings', action: 'update_riparazioni', entity: 'RiparazioniConfig', description: 'Modifica impostazioni riparazioni' })
+  async updateRiparazioniConfig(@Body() data: { layoutStampa: string }) {
+    return this.settingsService.updateRiparazioniConfig(data);
+  }
+
   // ==================== LOGO AZIENDA ====================
 
   @Post('logo/:tipo')
