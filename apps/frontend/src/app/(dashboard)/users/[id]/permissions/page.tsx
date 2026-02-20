@@ -51,7 +51,8 @@ const permissionsCategories: PermissionCategory[] = [
     description: 'Pannelli amministrativi e configurazione sistema',
     permissions: [
       { key: 'users', name: 'Gestione Utenti', description: 'Creazione, modifica e gestione utenti sistema', icon: 'fa-users', color: 'gray' },
-      { key: 'settings', name: 'Impostazioni', description: 'Configurazione sistema e import dati', icon: 'fa-cog', color: 'gray' },
+      { key: 'settings', name: 'Impostazioni Moduli', description: 'Accesso alla sezione impostazioni dei singoli moduli', icon: 'fa-cog', color: 'gray' },
+      { key: 'system-admin', name: 'Amministrazione Sistema', description: 'Configurazione avanzata: SMTP, import dati, moduli attivi, cron, webhook, sicurezza', icon: 'fa-server', color: 'slate' },
     ]
   },
 ];

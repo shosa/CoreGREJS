@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { settingsApi } from '@/lib/api';
 import { showSuccess, showError } from '@/store/notifications';
 import { useModulesStore } from '@/store/modules';
+import { useAuthStore } from '@/store/auth';
 import PageHeader from '@/components/layout/PageHeader';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
@@ -229,6 +230,7 @@ export default function SettingsPage() {
   const [modulesLoading, setModulesLoading] = useState(false);
   const [modulesSaving, setModulesSaving] = useState(false);
   const { clearCache: clearModulesCache } = useModulesStore();
+  const hasPermission = useAuthStore((s) => s.hasPermission);
 
   // SMTP state
   const [smtpConfig, setSmtpConfig] = useState({ host: '', port: 587, secure: false });
@@ -1114,47 +1116,52 @@ export default function SettingsPage() {
     {
       label: 'DATI',
       items: [
-        { id: 'import' as Section, label: 'Import Dati', icon: 'fa-file-import' },
+        { id: 'import' as Section, label: 'Import Dati',  icon: 'fa-file-import', permission: 'system-admin' as string | null },
       ],
     },
     {
       label: 'MODULI',
       items: [
-        { id: 'riparazioni' as Section,   label: 'Riparazioni',       icon: 'fa-hammer' },
-        { id: 'qualita' as Section,        label: 'Qualità',           icon: 'fa-check-circle' },
-        { id: 'produzione-mod' as Section, label: 'Produzione',        icon: 'fa-calendar' },
-        { id: 'export-mod' as Section,     label: 'Export / DDT',      icon: 'fa-globe-europe' },
-        { id: 'scm' as Section,            label: 'SCM',               icon: 'fa-network-wired' },
-        { id: 'analitiche' as Section,     label: 'Analitiche',        icon: 'fa-chart-bar' },
-        { id: 'tracking' as Section,       label: 'Tracking',          icon: 'fa-map-marker-alt' },
-        { id: 'dbsql' as Section,          label: 'Gestione Dati',     icon: 'fa-database' },
-        { id: 'log' as Section,            label: 'Log Attività',      icon: 'fa-history' },
-        { id: 'inwork' as Section,         label: 'InWork',            icon: 'fa-mobile' },
-        { id: 'file-manager' as Section,   label: 'File Manager',      icon: 'fa-folder-open' },
-        { id: 'users-mod' as Section,      label: 'Utenti',            icon: 'fa-users' },
+        { id: 'riparazioni' as Section,   label: 'Riparazioni',   icon: 'fa-hammer',          permission: 'riparazioni' as string | null },
+        { id: 'qualita' as Section,       label: 'Qualità',       icon: 'fa-check-circle',    permission: 'quality' as string | null },
+        { id: 'produzione-mod' as Section,label: 'Produzione',    icon: 'fa-calendar',        permission: 'produzione' as string | null },
+        { id: 'export-mod' as Section,    label: 'Export / DDT',  icon: 'fa-globe-europe',    permission: 'export' as string | null },
+        { id: 'scm' as Section,           label: 'SCM',           icon: 'fa-network-wired',   permission: 'scm_admin' as string | null },
+        { id: 'analitiche' as Section,    label: 'Analitiche',    icon: 'fa-chart-bar',       permission: 'analitiche' as string | null },
+        { id: 'tracking' as Section,      label: 'Tracking',      icon: 'fa-map-marker-alt',  permission: 'tracking' as string | null },
+        { id: 'dbsql' as Section,         label: 'Gestione Dati', icon: 'fa-database',        permission: 'dbsql' as string | null },
+        { id: 'log' as Section,           label: 'Log Attività',  icon: 'fa-history',         permission: 'log' as string | null },
+        { id: 'inwork' as Section,        label: 'InWork',        icon: 'fa-mobile',          permission: 'inwork' as string | null },
+        { id: 'file-manager' as Section,  label: 'File Manager',  icon: 'fa-folder-open',     permission: 'file-manager' as string | null },
+        { id: 'users-mod' as Section,     label: 'Utenti',        icon: 'fa-users',           permission: 'users' as string | null },
       ],
     },
     {
       label: 'GENERALI',
       items: [
-        { id: 'general' as Section,   label: 'Azienda',              icon: 'fa-building' },
-        { id: 'smtp' as Section,      label: 'Server Email (SMTP)',  icon: 'fa-server' },
-        { id: 'produzione' as Section,label: 'Email Produzione',     icon: 'fa-envelope' },
-        { id: 'modules' as Section,   label: 'Moduli Attivi',        icon: 'fa-puzzle-piece' },
+        { id: 'general' as Section,    label: 'Azienda',             icon: 'fa-building',    permission: 'system-admin' as string | null },
+        { id: 'smtp' as Section,       label: 'Server Email (SMTP)', icon: 'fa-server',      permission: 'system-admin' as string | null },
+        { id: 'produzione' as Section, label: 'Email Produzione',    icon: 'fa-envelope',    permission: 'system-admin' as string | null },
+        { id: 'modules' as Section,    label: 'Moduli Attivi',       icon: 'fa-puzzle-piece',permission: 'system-admin' as string | null },
       ],
     },
     {
       label: 'SISTEMA',
       items: [
-        { id: 'jobs' as Section,      label: 'Coda Lavori',  icon: 'fa-tasks' },
-        { id: 'webhooks' as Section,  label: 'Webhooks',     icon: 'fa-link' },
-        { id: 'cron' as Section,      label: 'Cron Jobs',    icon: 'fa-clock' },
-        { id: 'security' as Section,  label: 'Sicurezza',    icon: 'fa-shield-alt' },
-        { id: 'system' as Section,    label: 'Sistema',      icon: 'fa-heartbeat' },
-        { id: 'changelog' as Section, label: 'Cronologia',   icon: 'fa-history' },
+        { id: 'jobs' as Section,      label: 'Coda Lavori', icon: 'fa-tasks',      permission: 'system-admin' as string | null },
+        { id: 'webhooks' as Section,  label: 'Webhooks',    icon: 'fa-link',       permission: 'system-admin' as string | null },
+        { id: 'cron' as Section,      label: 'Cron Jobs',   icon: 'fa-clock',      permission: 'system-admin' as string | null },
+        { id: 'security' as Section,  label: 'Sicurezza',   icon: 'fa-shield-alt', permission: 'system-admin' as string | null },
+        { id: 'system' as Section,    label: 'Sistema',     icon: 'fa-heartbeat',  permission: 'system-admin' as string | null },
+        { id: 'changelog' as Section, label: 'Cronologia',  icon: 'fa-history',    permission: 'system-admin' as string | null },
       ],
     },
   ];
+
+  // Filtra le voci per permesso — sezioni MODULI mostrano sempre la voce ma bloccata se no permesso;
+  // sezioni DATI/GENERALI/SISTEMA sono nascoste se manca il permesso
+  const canSee = (perm: string | null) => perm === null || hasPermission(perm);
+  const MODULE_SECTION_IDS: readonly string[] = ['riparazioni','qualita','produzione-mod','export-mod','scm','analitiche','tracking','dbsql','log','inwork','file-manager','users-mod'];
 
   const progressPercent = progress && progress.total > 0
     ? Math.round((progress.processed / progress.total) * 100)
@@ -1190,27 +1197,45 @@ export default function SettingsPage() {
               </h3>
             </div>
             <nav className="p-2 space-y-1">
-              {sectionGroups.map((group) => (
-                <div key={group.label}>
-                  <p className="px-3 pt-3 pb-1 text-xs font-bold tracking-widest text-gray-400 dark:text-gray-500 uppercase">
-                    {group.label}
-                  </p>
-                  {group.items.map((section) => (
-                    <button
-                      key={section.id}
-                      onClick={() => setActiveSection(section.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition mb-0.5 text-sm ${
-                        activeSection === section.id
-                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                      }`}
-                    >
-                      <i className={`fas ${section.icon} w-4 text-center`}></i>
-                      <span>{section.label}</span>
-                    </button>
-                  ))}
-                </div>
-              ))}
+              {sectionGroups.map((group) => {
+                const isModuleGroup = group.label === 'MODULI';
+                // Nascondi gruppi non-MODULI se nessuna voce è visibile
+                const visibleItems = isModuleGroup
+                  ? group.items  // moduli: mostro sempre tutte le voci (con lock)
+                  : group.items.filter(s => canSee(s.permission));
+                if (visibleItems.length === 0) return null;
+                return (
+                  <div key={group.label}>
+                    <p className="px-3 pt-3 pb-1 text-xs font-bold tracking-widest text-gray-400 dark:text-gray-500 uppercase">
+                      {group.label}
+                    </p>
+                    {visibleItems.map((section) => {
+                      const locked = isModuleGroup && !canSee(section.permission);
+                      const isActive = activeSection === section.id;
+                      return (
+                        <button
+                          key={section.id}
+                          onClick={() => !locked && setActiveSection(section.id)}
+                          title={locked ? `Permesso "${section.permission}" richiesto` : undefined}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition mb-0.5 text-sm ${
+                            locked
+                              ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                              : isActive
+                              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
+                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                          }`}
+                        >
+                          <i className={`fas ${section.icon} w-4 text-center`}></i>
+                          <span className="flex-1">{section.label}</span>
+                          {locked && (
+                            <i className="fas fa-lock text-xs text-gray-400 dark:text-gray-600"></i>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </nav>
           </div>
         </motion.div>

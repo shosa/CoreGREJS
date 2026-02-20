@@ -140,11 +140,15 @@ export class UsersService {
         export: false,
         scm_admin: false,
         tracking: false,
+        analitiche: false,
         mrp: false,
         users: false,
         log: false,
         dbsql: false,
+        inwork: false,
+        'file-manager': false,
         settings: false,
+        'system-admin': false,
       };
     }
 
