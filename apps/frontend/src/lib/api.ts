@@ -481,6 +481,20 @@ export const trackingApi = {
     const response = await api.post('/tracking/report-fiches-pdf', { cartelli });
     return response.data;
   },
+  compact: async (dataDa: string, dataA: string) => {
+    const response = await api.post('/tracking/compact', { dataDa, dataA });
+    return response.data;
+  },
+  getArchive: async (page = 1, limit = 50, search?: string) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (search) params.set('search', search);
+    const response = await api.get(`/tracking/archive?${params.toString()}`);
+    return response.data;
+  },
+  compactReportPdf: async (dataDa: string, dataA: string) => {
+    const response = await api.post('/tracking/compact-report-pdf', { dataDa, dataA });
+    return response.data;
+  },
 };
 
 // Settings API

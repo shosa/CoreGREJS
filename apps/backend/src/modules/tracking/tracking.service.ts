@@ -714,4 +714,232 @@ export class TrackingService {
       cartelliDetails,
     };
   }
+
+  // ==================== ARCHIVIO & COMPATTAMENTO ====================
+
+  async compactLinks(dataDa: Date, dataA: Date) {
+    const endOfDay = new Date(dataA);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const links = await this.prisma.trackLink.findMany({
+      where: { timestamp: { gte: dataDa, lte: endOfDay } },
+      include: { type: true },
+    });
+
+    if (links.length === 0) {
+      return { archivedCount: 0, dataDa, dataA };
+    }
+
+    // Raccoglie chiavi per join satellite
+    const cartelIds = [...new Set(links.map(l => l.cartel))];
+    const lotKeys   = [...new Set(links.map(l => l.lot))];
+
+    // Fetch denormalizzato: CoreData, TrackLotInfo, TrackSku, TrackOrderInfo
+    const [coreRows, lotInfoRows, skuRows] = await Promise.all([
+      this.prisma.coreData.findMany({
+        where: { cartel: { in: cartelIds } },
+        select: { cartel: true, commessaCli: true, articolo: true, descrizioneArticolo: true, ragioneSociale: true, ordine: true },
+      }),
+      this.prisma.trackLotInfo.findMany({
+        where: { lot: { in: lotKeys } },
+        select: { lot: true, doc: true, date: true, note: true },
+      }),
+      this.prisma.trackSku.findMany({
+        where: { art: { in: [] } }, // popolato sotto dopo aver ottenuto gli articoli
+        select: { art: true, sku: true },
+      }),
+    ]);
+
+    const coreMap   = new Map(coreRows.map(r => [r.cartel, r]));
+    const lotMap    = new Map(lotInfoRows.map(r => [r.lot, r]));
+
+    // Recupera SKU in base agli articoli trovati nei CoreData
+    const articoliIds = [...new Set(coreRows.map(r => r.articolo).filter(Boolean))];
+    const skuRowsFull = articoliIds.length > 0
+      ? await this.prisma.trackSku.findMany({
+          where: { art: { in: articoliIds } },
+          select: { art: true, sku: true },
+        })
+      : [];
+    const skuMap = new Map(skuRowsFull.map(r => [r.art, r.sku]));
+
+    // Recupera OrderInfo tramite ordini dai CoreData
+    const ordiniIds = [...new Set(coreRows.map(r => r.ordine).filter(Boolean) as number[])];
+    const orderInfoRows = ordiniIds.length > 0
+      ? await this.prisma.trackOrderInfo.findMany({
+          where: { ordine: { in: ordiniIds.map(String) } },
+          select: { ordine: true, date: true },
+        })
+      : [];
+    const orderMap = new Map(orderInfoRows.map(r => [r.ordine, r.date]));
+
+    await this.prisma.$transaction([
+      this.prisma.trackLinkArchive.createMany({
+        data: links.map(l => {
+          const core   = coreMap.get(l.cartel);
+          const lotInf = lotMap.get(l.lot);
+          const sku    = core ? skuMap.get(core.articolo) : undefined;
+          const ordDate = core?.ordine ? orderMap.get(String(core.ordine)) : undefined;
+          return {
+            cartel:     l.cartel,
+            typeId:     l.typeId,
+            typeName:   l.type.name,
+            lot:        l.lot,
+            note:       l.note,
+            timestamp:  l.timestamp,
+            // snapshot CoreData
+            commessa:   core?.commessaCli   ?? null,
+            articolo:   core?.articolo      ?? null,
+            descrizione: core?.descrizioneArticolo ?? null,
+            ragioneSoc: core?.ragioneSociale ?? null,
+            ordine:     core?.ordine        ?? null,
+            // snapshot TrackLotInfo
+            lotDoc:     lotInf?.doc  ?? null,
+            lotDate:    lotInf?.date ?? null,
+            lotNote:    lotInf?.note ?? null,
+            // snapshot TrackOrderInfo
+            orderDate:  ordDate ?? null,
+            // snapshot TrackSku
+            sku:        sku ?? null,
+          };
+        }),
+      }),
+      this.prisma.trackLink.deleteMany({
+        where: { id: { in: links.map(l => l.id) } },
+      }),
+    ]);
+
+    await this.cache.invalidate('tracking:stats');
+
+    // ── Pulizia orfani ──
+    // Dopo il compattamento, elimina i record satellite che non sono più
+    // referenziati da nessun TrackLink attivo rimanente.
+    const orphanStats = await this.purgeOrphanSatellites();
+
+    return { archivedCount: links.length, dataDa, dataA, orphanStats };
+  }
+
+  /**
+   * Elimina dalle tabelle satellite i record non più referenziati
+   * da nessun TrackLink attivo. Da chiamare dopo compactLinks.
+   */
+  private async purgeOrphanSatellites() {
+    // Legge lo stato corrente dei TrackLink rimanenti
+    const activeLinks = await this.prisma.trackLink.findMany({
+      select: { lot: true, typeId: true, cartel: true },
+    });
+
+    const activeLots    = new Set(activeLinks.map(l => l.lot));
+    const activeTypeIds = new Set(activeLinks.map(l => l.typeId));
+
+    // Per TrackSku e TrackOrderInfo serve anche conoscere
+    // gli articoli e gli ordini referenziati dai cartel attivi
+    const activeCartelIds = [...new Set(activeLinks.map(l => l.cartel))];
+    const activeCoreRows  = activeCartelIds.length > 0
+      ? await this.prisma.coreData.findMany({
+          where: { cartel: { in: activeCartelIds } },
+          select: { articolo: true, ordine: true },
+        })
+      : [];
+    const activeArticoli = new Set(activeCoreRows.map(r => r.articolo).filter(Boolean));
+    const activeOrdini   = new Set(
+      activeCoreRows.map(r => r.ordine).filter(Boolean).map(String),
+    );
+
+    // 1. TrackLotInfo — elimina lotti non più in nessun TrackLink attivo
+    const allLotInfo = await this.prisma.trackLotInfo.findMany({ select: { lot: true } });
+    const orphanLots = allLotInfo.map(r => r.lot).filter(lot => !activeLots.has(lot));
+    let deletedLots = 0;
+    if (orphanLots.length > 0) {
+      const res = await this.prisma.trackLotInfo.deleteMany({ where: { lot: { in: orphanLots } } });
+      deletedLots = res.count;
+    }
+
+    // 2. TrackOrderInfo — elimina ordini non più referenziati da cartel attivi
+    const allOrderInfo = await this.prisma.trackOrderInfo.findMany({ select: { ordine: true } });
+    const orphanOrders = allOrderInfo.map(r => r.ordine).filter(o => !activeOrdini.has(o));
+    let deletedOrders = 0;
+    if (orphanOrders.length > 0) {
+      const res = await this.prisma.trackOrderInfo.deleteMany({ where: { ordine: { in: orphanOrders } } });
+      deletedOrders = res.count;
+    }
+
+    // 3. TrackSku — elimina articoli non più referenziati da cartel attivi
+    const allSku = await this.prisma.trackSku.findMany({ select: { art: true } });
+    const orphanSku = allSku.map(r => r.art).filter(art => !activeArticoli.has(art));
+    let deletedSku = 0;
+    if (orphanSku.length > 0) {
+      const res = await this.prisma.trackSku.deleteMany({ where: { art: { in: orphanSku } } });
+      deletedSku = res.count;
+    }
+
+    // 4. TrackType — elimina tipi non più usati da nessun TrackLink attivo
+    const allTypes = await this.prisma.trackType.findMany({ select: { id: true } });
+    const orphanTypeIds = allTypes.map(r => r.id).filter(id => !activeTypeIds.has(id));
+    let deletedTypes = 0;
+    if (orphanTypeIds.length > 0) {
+      const res = await this.prisma.trackType.deleteMany({ where: { id: { in: orphanTypeIds } } });
+      deletedTypes = res.count;
+    }
+
+    return { deletedLots, deletedOrders, deletedSku, deletedTypes };
+  }
+
+  async getArchive(page = 1, limit = 50, search?: string) {
+    const where = search
+      ? {
+          OR: [
+            { lot: { contains: search } },
+            { cartel: isNaN(Number(search)) ? undefined : Number(search) },
+          ],
+        }
+      : {};
+
+    const [data, total] = await Promise.all([
+      this.prisma.trackLinkArchive.findMany({
+        where,
+        orderBy: [{ cartel: 'asc' }, { timestamp: 'asc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.trackLinkArchive.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getCompactReportData(dataDa: Date, dataA: Date) {
+    const endOfDay = new Date(dataA);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const records = await this.prisma.trackLinkArchive.findMany({
+      where: { timestamp: { gte: dataDa, lte: endOfDay } },
+      orderBy: [{ cartel: 'asc' }, { timestamp: 'asc' }],
+    });
+
+    // Tutti i dati sono già denormalizzati nell'archivio, nessun join necessario
+    return records.map(r => ({
+      cartel:      r.cartel,
+      typeName:    r.typeName,
+      lot:         r.lot,
+      note:        r.note,
+      timestamp:   r.timestamp,
+      archivedAt:  r.archivedAt,
+      commessa:    r.commessa    ?? '',
+      articolo:    r.articolo    ?? '',
+      descrizione: r.descrizione ?? '',
+      ragioneSoc:  r.ragioneSoc  ?? '',
+      ordine:      r.ordine,
+      lotDoc:      r.lotDoc,
+      lotDate:     r.lotDate,
+      orderDate:   r.orderDate,
+      sku:         r.sku,
+    }));
+  }
 }

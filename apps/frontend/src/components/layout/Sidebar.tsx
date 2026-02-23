@@ -111,6 +111,7 @@ const menuItems: MenuItem[] = [
       { name: 'Ricerca Multipla', href: '/tracking/multi-search', icon: 'fa-search-plus' },
       { name: 'Inserimento Manuale', href: '/tracking/order-search', icon: 'fa-keyboard' },
       { name: 'Albero Dettagli', href: '/tracking/tree-view', icon: 'fa-sitemap' },
+      { name: 'Archivio', href: '/tracking/archive', icon: 'fa-archive' },
     ]
   },
   {

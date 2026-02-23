@@ -19,6 +19,7 @@ import { RequirePermissions } from '../../common/decorators/permissions.decorato
 import { LogActivity } from '../../common/decorators/log-activity.decorator';
 import { TrackingService } from './tracking.service';
 import { JobsQueueService } from '../jobs/jobs.queue';
+import { CompactDto } from './compact.dto';
 
 @ApiTags('Tracking')
 @ApiBearerAuth()
@@ -317,6 +318,45 @@ export class TrackingController {
   async reportFichesPdf(@Body() body: { cartelli: number[] }, @Req() req: any) {
     const userId = req.user?.userId;
     const job = await this.jobsQueueService.enqueue('track.report-fiches-pdf', { cartelli: body.cartelli }, userId);
+    return { jobId: job.id, status: job.status };
+  }
+
+  // ==================== ARCHIVIO & COMPATTAMENTO ====================
+
+  @ApiOperation({ summary: 'Compatta TrackLink di un periodo in archivio storico' })
+  @LogActivity({ module: 'tracking', action: 'compact', entity: 'TrackLink', description: 'Compattamento dati tracking in archivio storico' })
+  @Post('compact')
+  async compact(@Body() dto: CompactDto) {
+    return this.trackingService.compactLinks(new Date(dto.dataDa), new Date(dto.dataA));
+  }
+
+  @ApiOperation({ summary: 'Lista record archiviati con paginazione e ricerca' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @Get('archive')
+  async getArchive(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.trackingService.getArchive(
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 50,
+      search,
+    );
+  }
+
+  @ApiOperation({ summary: 'Genera mastrino PDF ASCII per periodo (da archivio)' })
+  @LogActivity({ module: 'tracking', action: 'generate_pdf', entity: 'TrackLinkArchive', description: 'Generazione mastrino PDF tracking' })
+  @Post('compact-report-pdf')
+  async compactReportPdf(@Body() dto: CompactDto, @Req() req: any) {
+    const userId = req.user?.userId;
+    const job = await this.jobsQueueService.enqueue(
+      'track.compact-report-pdf',
+      { dataDa: dto.dataDa, dataA: dto.dataA } as any,
+      userId,
+    );
     return { jobId: job.id, status: job.status };
   }
 }

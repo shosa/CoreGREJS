@@ -675,6 +675,41 @@ model TrackSku {
   @@map("track_sku")
 }
 
+// Archivio storico collegamenti (compattamento)
+// Denormalizzato: porta con sé tutti i dati da CoreData, TrackLotInfo, TrackOrderInfo, TrackSku
+model TrackLinkArchive {
+  id          Int      @id @default(autoincrement())
+  // dati originali TrackLink
+  cartel      Int
+  typeId      Int      @map("type_id")
+  typeName    String   @db.VarChar(255)
+  lot         String   @db.VarChar(255)
+  note        String?  @db.VarChar(255)
+  timestamp   DateTime
+  // da CoreData (snapshot al momento del compattamento)
+  commessa    String?  @db.VarChar(20)
+  articolo    String?  @db.VarChar(255)
+  descrizione String?  @db.VarChar(255)
+  ragioneSoc  String?  @map("ragione_soc") @db.VarChar(35)
+  ordine      Int?
+  // da TrackLotInfo
+  lotDoc      String?  @map("lot_doc") @db.VarChar(255)
+  lotDate     DateTime? @map("lot_date") @db.Date
+  lotNote     String?  @map("lot_note") @db.VarChar(255)
+  // da TrackOrderInfo
+  orderDate   DateTime? @map("order_date") @db.Date
+  // da TrackSku
+  sku         String?  @db.VarChar(255)
+  // metadato archivio
+  archivedAt  DateTime @default(now()) @map("archived_at")
+
+  @@index([cartel])
+  @@index([lot])
+  @@index([timestamp])
+  @@index([commessa])
+  @@map("track_links_archive")
+}
+
 // ==================== PRODUCTION ====================
 
 // Fase di produzione (Montaggio, Orlatura, Taglio, etc.)

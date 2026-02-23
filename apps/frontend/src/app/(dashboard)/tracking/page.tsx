@@ -229,6 +229,26 @@ export default function TrackingPage() {
               </div>
             </Link>
           </motion.div>
+
+          {/* 6. Archivio & Compattamento - SMALL CARD */}
+          <motion.div variants={itemVariants}>
+            <Link href="/tracking/archive">
+              <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 dark:border-gray-700 dark:bg-gray-800">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-indigo-50 opacity-50 dark:from-purple-900/20 dark:to-indigo-900/20"></div>
+                <div className="relative">
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-600 shadow-lg transition-transform group-hover:scale-110">
+                    <i className="fas fa-archive text-lg text-white"></i>
+                  </div>
+                  <h3 className="mb-1 text-lg font-bold text-gray-900 dark:text-white">
+                    Archivio & Compattamento
+                  </h3>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Storicizzazione dati e mastrino PDF
+                  </p>
+                </div>
+              </div>
+            </Link>
+          </motion.div>
         </div>
       </div>
     </motion.div>
