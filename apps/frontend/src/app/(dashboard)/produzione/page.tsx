@@ -171,6 +171,61 @@ export default function ProduzioneDashboard() {
         </motion.div>
       </div>
 
+      {/* Widget: Produzione Recente */}
+      {recentRecords.length > 0 && (() => {
+        const grouped: Record<string, number> = {};
+        recentRecords.forEach(r => {
+          const day = new Date(r.productionDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+          grouped[day] = (grouped[day] || 0) + r.total;
+        });
+        const days = Object.entries(grouped).slice(-7);
+        const maxVal = days.reduce((m, [, v]) => Math.max(m, v), 1);
+        const totalPezzi = days.reduce((s, [, v]) => s + v, 0);
+        const media = Math.round(totalPezzi / days.length);
+        const picco = maxVal;
+        return (
+          <motion.div variants={itemVariants} className="mb-8">
+            <div className="rounded-2xl bg-gradient-to-r from-yellow-500 to-orange-500 p-6 shadow-xl text-white overflow-hidden relative">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15)_0%,_transparent_60%)]" />
+              <div className="relative">
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <p className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1">Produzione Recente</p>
+                    <h3 className="text-2xl font-extrabold">Pezzi per Giorno</h3>
+                  </div>
+                  <div className="flex gap-6 text-right">
+                    <div>
+                      <p className="text-white/60 text-xs uppercase tracking-wide">Media</p>
+                      <p className="text-xl font-bold">{media.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-white/60 text-xs uppercase tracking-wide">Picco</p>
+                      <p className="text-xl font-bold">{picco.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-end gap-2 h-24">
+                  {days.map(([day, val]) => {
+                    const pct = Math.round((val / maxVal) * 100);
+                    return (
+                      <div key={day} className="flex-1 flex flex-col items-center gap-1">
+                        <div className="w-full flex flex-col justify-end" style={{ height: '80px' }}>
+                          <div
+                            className="w-full bg-white rounded-t-md transition-all duration-500"
+                            style={{ height: `${pct}%`, minHeight: '4px', opacity: 0.9 }}
+                          />
+                        </div>
+                        <span className="text-white/70 text-[10px] font-medium">{day}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        );
+      })()}
+
       {/* Navigation + Support layout */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Colonna 1-2: Cards principali */}
@@ -246,31 +301,6 @@ export default function ProduzioneDashboard() {
             </div>
           </Link>
 
-          <Link
-            href="/produzione/config"
-            className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/10 dark:to-green-800/10"></div>
-            <div className="relative p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
-                  <i className="fas fa-cog text-white text-xl"></i>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-                    Configurazione
-                  </h3>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    Impostazioni reparti e fasi
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center text-emerald-600 dark:text-emerald-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-300">
-                Apri <i className="fas fa-arrow-right ml-2"></i>
-              </div>
-            </div>
-          </Link>
-          
           <Link
             href="/produzione/csv"
             className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40"

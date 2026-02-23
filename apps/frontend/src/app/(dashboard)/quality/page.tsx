@@ -152,6 +152,75 @@ export default function QualityDashboard() {
         </motion.div>
       </div>
 
+      {/* ── WIDGET QUALITÀ ── */}
+      {recentRecords.length > 0 && (() => {
+        const ok = recentRecords.filter(r => !r.haEccezioni).length;
+        const ko = recentRecords.filter(r => r.haEccezioni).length;
+        const tot = recentRecords.length;
+        const okPct = Math.round((ok / tot) * 100);
+        const koPct = 100 - okPct;
+        const byRep: Record<string, number> = {};
+        recentRecords.forEach(r => { const k = r.reparto || 'N/D'; byRep[k] = (byRep[k] || 0) + 1; });
+        const repList = Object.entries(byRep).sort((a, b) => b[1] - a[1]).slice(0, 4);
+        const maxRep = repList[0]?.[1] || 1;
+        return (
+          <motion.div variants={itemVariants} className="mb-8">
+            <div className="rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 p-6 shadow-xl text-white overflow-hidden relative">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.12)_0%,_transparent_60%)]" />
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+                    <i className="fas fa-shield-alt text-white text-base"></i>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-green-100 uppercase tracking-widest">Qualità in cifre</p>
+                    <p className="text-lg font-bold text-white leading-tight">Tasso OK / KO — ultimi {tot} controlli</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left: OK/KO bars */}
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-semibold text-white">OK — Senza eccezioni</span>
+                        <span className="text-sm font-bold text-white">{ok} <span className="text-green-200 font-normal">({okPct}%)</span></span>
+                      </div>
+                      <div className="w-full bg-white/20 rounded-full h-3">
+                        <div className="bg-white h-3 rounded-full transition-all duration-700" style={{ width: `${okPct}%` }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-semibold text-white">KO — Con eccezioni</span>
+                        <span className="text-sm font-bold text-white">{ko} <span className="text-green-200 font-normal">({koPct}%)</span></span>
+                      </div>
+                      <div className="w-full bg-white/20 rounded-full h-3">
+                        <div className="bg-red-300 h-3 rounded-full transition-all duration-700" style={{ width: `${koPct}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Right: per reparto */}
+                  <div className="space-y-2.5">
+                    <p className="text-xs font-semibold text-green-100 uppercase tracking-widest mb-2">Controlli per reparto</p>
+                    {repList.map(([rep, cnt]) => (
+                      <div key={rep}>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-xs font-medium text-white truncate max-w-[70%]">{rep}</span>
+                          <span className="text-xs font-bold text-white">{cnt}</span>
+                        </div>
+                        <div className="w-full bg-white/20 rounded-full h-2">
+                          <div className="bg-white/80 h-2 rounded-full" style={{ width: `${Math.round((cnt / maxRep) * 100)}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        );
+      })()}
+
       {/* Navigation Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {/* 1. Ultimi Controlli */}
@@ -270,89 +339,30 @@ export default function QualityDashboard() {
           </div>
         </motion.div>
 
-        {/* 3 + 4 + 5 → colonna verticale più piccola */}
-        <div className="flex flex-col gap-6 scale-95">
-          {/* 3. Gestione Reparti */}
-          <motion.div variants={itemVariants}>
-            <Link href="/quality/reparti">
-              <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer h-full">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-800/10"></div>
-                <div className="relative p-6">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-purple-500 to-pink-600 shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
-                      <i className="fas fa-building text-white text-xl"></i>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-                        Gestione Reparti
-                      </h3>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        {stats.activeDepartments} reparti attivi
-                      </p>
-                    </div>
+        {/* 3. Reportistica */}
+        <motion.div variants={itemVariants}>
+          <Link href="/quality/reports">
+            <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer h-full">
+              <div className="absolute inset-0 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/10 dark:to-cyan-800/10"></div>
+              <div className="relative p-8">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-600 shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
+                    <i className="fas fa-chart-bar text-white text-xl"></i>
                   </div>
-                  <div className="flex items-center text-purple-600 dark:text-purple-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-300">
-                    Apri <i className="fas fa-arrow-right ml-2"></i>
-                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Reportistica
+                  </h3>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                  Genera report PDF con statistiche difetti, eccezioni per taglia e andamento per operatore e reparto.
+                </p>
+                <div className="flex items-center text-teal-600 dark:text-teal-400 font-medium group-hover:translate-x-2 transition-transform duration-300">
+                  Apri <i className="fas fa-arrow-right ml-2"></i>
                 </div>
               </div>
-            </Link>
-          </motion.div>
-
-          {/* 4. Tipi Difetti */}
-          <motion.div variants={itemVariants}>
-            <Link href="/quality/difetti">
-              <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer h-full">
-                <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/10 dark:to-amber-800/10"></div>
-                <div className="relative p-6">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-orange-500 to-amber-600 shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
-                      <i className="fas fa-exclamation-circle text-white text-xl"></i>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-                        Tipi Difetti
-                      </h3>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Gestisci tipologie difetti
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center text-orange-600 dark:text-orange-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-300">
-                    Apri <i className="fas fa-arrow-right ml-2"></i>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-
-          {/* 5. Reportistica */}
-          <motion.div variants={itemVariants}>
-            <Link href="/quality/reports">
-              <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer h-full">
-                <div className="absolute inset-0 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/10 dark:to-cyan-800/10"></div>
-                <div className="relative p-6">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-600 shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
-                      <i className="fas fa-chart-bar text-white text-xl"></i>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-                        Reportistica
-                      </h3>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Analisi e report PDF
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center text-teal-600 dark:text-teal-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-300">
-                    Apri <i className="fas fa-arrow-right ml-2"></i>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-        </div>
+            </div>
+          </Link>
+        </motion.div>
       </div>
     </motion.div>
   );

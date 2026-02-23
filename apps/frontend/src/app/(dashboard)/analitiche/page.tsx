@@ -150,6 +150,73 @@ export default function AnalitichePage() {
         </motion.div>
       </div>
 
+      {/* Widget: Breakdown per Tipo + Import Recenti */}
+      {(stats.recordsByTipo.length > 0 || recentImports.length > 0) && (() => {
+        const tipi = stats.recordsByTipo
+          .filter(t => t._count.id > 0)
+          .sort((a, b) => b._count.id - a._count.id)
+          .slice(0, 5);
+        const maxTipo = tipi[0]?._count.id || 1;
+        return (
+          <motion.div variants={itemVariants} className="mb-8">
+            <div className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 p-6 shadow-xl text-white overflow-hidden relative">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.12)_0%,_transparent_60%)]" />
+              <div className="relative grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Breakdown per tipo documento */}
+                <div>
+                  <p className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1">Analisi Dati</p>
+                  <h3 className="text-2xl font-extrabold mb-4">Tipo Documento</h3>
+                  {tipi.length > 0 ? (
+                    <div className="space-y-2.5">
+                      {tipi.map(t => {
+                        const label = t.tipoDocumento || 'Non specificato';
+                        const pct = Math.round((t._count.id / maxTipo) * 100);
+                        return (
+                          <div key={label}>
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-white/80 text-sm font-medium truncate max-w-[180px]">{label}</span>
+                              <span className="text-white font-bold text-sm ml-2">{t._count.id.toLocaleString()}</span>
+                            </div>
+                            <div className="w-full bg-white/20 rounded-full h-2.5">
+                              <div className="bg-white h-2.5 rounded-full transition-all duration-700" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-white/50 text-sm">Nessun dato disponibile</p>
+                  )}
+                </div>
+                {/* Mini timeline import */}
+                <div>
+                  <p className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1">Attività Recente</p>
+                  <h3 className="text-2xl font-extrabold mb-4">Ultimi Import</h3>
+                  {recentImports.length > 0 ? (
+                    <div className="space-y-2">
+                      {recentImports.slice(0, 4).map(imp => (
+                        <div key={imp.id} className="flex items-center gap-3 bg-white/10 rounded-lg px-3 py-2">
+                          <div className={`h-2 w-2 rounded-full flex-shrink-0 ${imp.stato === 'completato' ? 'bg-white' : imp.stato === 'errore' ? 'bg-red-300' : 'bg-yellow-300'}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-xs font-semibold truncate">{imp.fileName}</p>
+                            <p className="text-white/60 text-[10px]">{imp.recordsCount.toLocaleString()} record · {new Date(imp.createdAt).toLocaleDateString('it-IT')}</p>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${imp.stato === 'completato' ? 'bg-white/20 text-white' : imp.stato === 'errore' ? 'bg-red-200/30 text-red-200' : 'bg-yellow-200/30 text-yellow-200'}`}>
+                            {imp.stato}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-white/50 text-sm">Nessun import recente</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        );
+      })()}
+
       {/* Navigation Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* 1. Reportistica - Card principale */}
@@ -280,62 +347,28 @@ export default function AnalitichePage() {
           </div>
         </motion.div>
 
-        {/* Colonna con card più piccole */}
-        <div className="flex flex-col gap-6 scale-95">
-          {/* 4. Reparti */}
-          <motion.div variants={itemVariants}>
-            <Link href="/analitiche/reparti">
-              <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer h-full">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-800/10"></div>
-                <div className="relative p-6">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-purple-500 to-pink-600 shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
-                      <i className="fas fa-building text-white text-xl"></i>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-                        Gestione Reparti
-                      </h3>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Configura i reparti per l'analisi costi
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center text-purple-600 dark:text-purple-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-300">
-                    Apri <i className="fas fa-arrow-right ml-2"></i>
-                  </div>
+        {/* 4. Storico Import */}
+        <motion.div variants={itemVariants}>
+          <Link href="/analitiche/imports">
+            <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer h-full">
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/10 dark:to-amber-800/10"></div>
+              <div className="relative p-8">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-orange-500 to-amber-600 shadow-lg mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <i className="fas fa-history text-white text-xl"></i>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Storico Import
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  Cronologia delle importazioni Excel
+                </p>
+                <div className="flex items-center text-orange-600 dark:text-orange-400 font-medium mt-4 group-hover:translate-x-2 transition-transform duration-300">
+                  Apri <i className="fas fa-arrow-right ml-2"></i>
                 </div>
               </div>
-            </Link>
-          </motion.div>
-
-          {/* 5. Storico Import */}
-          <motion.div variants={itemVariants}>
-            <Link href="/analitiche/imports">
-              <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer h-full">
-                <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/10 dark:to-amber-800/10"></div>
-                <div className="relative p-6">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-orange-500 to-amber-600 shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
-                      <i className="fas fa-history text-white text-xl"></i>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-                        Storico Import
-                      </h3>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Cronologia delle importazioni Excel
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center text-orange-600 dark:text-orange-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-300">
-                    Apri <i className="fas fa-arrow-right ml-2"></i>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-        </div>
+            </div>
+          </Link>
+        </motion.div>
       </div>
     </motion.div>
   );

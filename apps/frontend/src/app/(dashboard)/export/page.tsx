@@ -178,6 +178,76 @@ export default function ExportPage() {
         </motion.div>
       </div>
 
+      {/* Widget: Distribuzione DDT */}
+      {stats.totalDocuments > 0 && (() => {
+        const openPct = Math.round((stats.openDocuments / stats.totalDocuments) * 100);
+        const closedPct = 100 - openPct;
+        // Top terzisti from recent documents
+        const terCount: Record<string, number> = {};
+        recentDocuments.forEach(d => {
+          const n = d.terzista.ragioneSociale;
+          terCount[n] = (terCount[n] || 0) + 1;
+        });
+        const topTer = Object.entries(terCount).sort((a, b) => b[1] - a[1]).slice(0, 4);
+        const maxTer = topTer[0]?.[1] || 1;
+        return (
+          <motion.div variants={itemVariants} className="mb-8">
+            <div className="rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 p-6 shadow-xl text-white overflow-hidden relative">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.12)_0%,_transparent_60%)]" />
+              <div className="relative grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Distribuzione DDT */}
+                <div>
+                  <p className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1">Distribuzione DDT</p>
+                  <h3 className="text-2xl font-extrabold mb-4">Aperti vs Chiusi</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-white/80 text-sm font-medium">Aperti</span>
+                        <span className="text-white font-bold text-sm">{stats.openDocuments} <span className="text-white/60 font-normal">({openPct}%)</span></span>
+                      </div>
+                      <div className="w-full bg-white/20 rounded-full h-3">
+                        <div className="bg-white h-3 rounded-full transition-all duration-700" style={{ width: `${openPct}%` }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-white/80 text-sm font-medium">Chiusi</span>
+                        <span className="text-white font-bold text-sm">{stats.closedDocuments} <span className="text-white/60 font-normal">({closedPct}%)</span></span>
+                      </div>
+                      <div className="w-full bg-white/20 rounded-full h-3">
+                        <div className="bg-white/60 h-3 rounded-full transition-all duration-700" style={{ width: `${closedPct}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Top terzisti */}
+                <div>
+                  <p className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1">Terzisti Attivi</p>
+                  <h3 className="text-2xl font-extrabold mb-4">Top Fornitori</h3>
+                  {topTer.length > 0 ? (
+                    <div className="space-y-2">
+                      {topTer.map(([nome, cnt]) => (
+                        <div key={nome}>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-white/80 text-xs font-medium truncate max-w-[160px]">{nome}</span>
+                            <span className="text-white font-bold text-xs ml-2">{cnt} DDT</span>
+                          </div>
+                          <div className="w-full bg-white/20 rounded-full h-2">
+                            <div className="bg-white/80 h-2 rounded-full" style={{ width: `${Math.round((cnt / maxTer) * 100)}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-white/50 text-sm">Nessun dato disponibile</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        );
+      })()}
+
       {/* Navigation Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {/* 2. Nuovo DDT */}
@@ -292,89 +362,29 @@ export default function ExportPage() {
           </div>
         </motion.div>
 
-        {/* 4 + 5 → colonna verticale più piccola */}
-        <div className="flex flex-col gap-6 scale-95">
-          {/* 4. Terzisti */}
-          <motion.div variants={itemVariants}>
-            <Link href="/export/terzisti">
-              <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer h-full">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-800/10"></div>
-                <div className="relative p-6">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-purple-500 to-pink-600 shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
-                      <i className="fas fa-truck text-white text-xl"></i>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-                        Gestione Terzisti
-                      </h3>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Fornitori, indirizzi e autorizzazioni
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center text-purple-600 dark:text-purple-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-300">
-                    Apri <i className="fas fa-arrow-right ml-2"></i>
-                  </div>
+        {/* 3. Articoli Master */}
+        <motion.div variants={itemVariants}>
+          <Link href="/export/articles">
+            <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer h-full">
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/10 dark:to-amber-800/10"></div>
+              <div className="relative p-8">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-orange-500 to-amber-600 shadow-lg mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <i className="fas fa-box text-white text-xl"></i>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Articoli Master
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  Anagrafiche articoli, voci doganali, UM e prezzi
+                </p>
+                <div className="flex items-center text-orange-600 dark:text-orange-400 font-medium mt-4 group-hover:translate-x-2 transition-transform duration-300">
+                  Apri <i className="fas fa-arrow-right ml-2"></i>
                 </div>
               </div>
-            </Link>
-          </motion.div>
+            </div>
+          </Link>
+        </motion.div>
 
-          {/* 5. Articoli Master */}
-          <motion.div variants={itemVariants}>
-            <Link href="/export/articles">
-              <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer h-full">
-                <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/10 dark:to-amber-800/10"></div>
-                <div className="relative p-6">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-orange-500 to-amber-600 shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
-                      <i className="fas fa-box text-white text-xl"></i>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-                        Gestione Anagrafiche
-                      </h3>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Articoli, voci doganali, UM e prezzi
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center text-orange-600 dark:text-orange-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-300">
-                    Apri <i className="fas fa-arrow-right ml-2"></i>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-
-          {/* 6. Impostazioni DDT */}
-          <motion.div variants={itemVariants}>
-            <Link href="/export/impostazioni-ddt">
-              <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer h-full">
-                <div className="absolute inset-0 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/10 dark:to-cyan-800/10"></div>
-                <div className="relative p-6">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-600 shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
-                      <i className="fas fa-cog text-white text-xl"></i>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-                        Impostazioni DDT
-                      </h3>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Aspetto merce e vettori
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center text-teal-600 dark:text-teal-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-300">
-                    Apri <i className="fas fa-arrow-right ml-2"></i>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-        </div>
       </div>
     </motion.div>
   );

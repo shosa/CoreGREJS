@@ -3,6 +3,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { settingsApi } from '@/lib/api';
+import RiparazioniSettingsPanel from './components/modules/RiparazioniSettingsPanel';
+import QualitaSettingsPanel from './components/modules/QualitaSettingsPanel';
+import ProduzioneSettingsPanel from './components/modules/ProduzioneSettingsPanel';
+import ExportSettingsPanel from './components/modules/ExportSettingsPanel';
+import ScmSettingsPanel from './components/modules/ScmSettingsPanel';
+import AnaliticheSettingsPanel from './components/modules/AnaliticheSettingsPanel';
 import { showSuccess, showError } from '@/store/notifications';
 import { useModulesStore } from '@/store/modules';
 import { useAuthStore } from '@/store/auth';
@@ -319,11 +325,6 @@ export default function SettingsPage() {
   // Tab moduli (impostazioni / jobs)
   const [modTab, setModTab] = useState<'impostazioni' | 'jobs'>('impostazioni');
 
-  // Riparazioni state
-  const [riparazioniConfig, setRiparazioniConfig] = useState<{ layoutStampa: string }>({ layoutStampa: 'nuovo' });
-  const [riparazioniLoading, setRiparazioniLoading] = useState(false);
-  const [riparazioniSaving, setRiparazioniSaving] = useState(false);
-
   // Cleanup interval on unmount
   useEffect(() => {
     return () => {
@@ -359,12 +360,11 @@ export default function SettingsPage() {
       loadCronJobs();
       loadCronEndpoints();
       loadCronLog(1);
-    } else if (activeSection === 'riparazioni') {
-      loadRiparazioniConfig();
     }
     // Reset tab moduli ad ogni cambio sezione
     setModTab('impostazioni');
   }, [activeSection]);
+
 
   const loadModules = async () => {
     setModulesLoading(true);
@@ -1086,30 +1086,6 @@ export default function SettingsPage() {
     setDragActive(false);
     const file = e.dataTransfer.files[0];
     if (file) handleFileSelect(file);
-  };
-
-  const loadRiparazioniConfig = async () => {
-    setRiparazioniLoading(true);
-    try {
-      const data = await settingsApi.getRiparazioniConfig();
-      setRiparazioniConfig(data);
-    } catch (error: any) {
-      showError(error.response?.data?.message || 'Errore caricamento impostazioni riparazioni');
-    } finally {
-      setRiparazioniLoading(false);
-    }
-  };
-
-  const saveRiparazioniConfig = async () => {
-    setRiparazioniSaving(true);
-    try {
-      await settingsApi.updateRiparazioniConfig(riparazioniConfig);
-      showSuccess('Impostazioni riparazioni salvate');
-    } catch (error: any) {
-      showError(error.response?.data?.message || 'Errore salvataggio impostazioni riparazioni');
-    } finally {
-      setRiparazioniSaving(false);
-    }
   };
 
   const sectionGroups = [
@@ -3248,51 +3224,21 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+          {/* ── SEZIONE RIPARAZIONI ── componente dedicato */}
+          {activeSection === 'riparazioni' && <RiparazioniSettingsPanel />}
+
+          {/* ── SEZIONI MODULI DEDICATI ── */}
+          {activeSection === 'qualita'       && <QualitaSettingsPanel />}
+          {activeSection === 'produzione-mod' && <ProduzioneSettingsPanel />}
+          {activeSection === 'export-mod'    && <ExportSettingsPanel />}
+          {activeSection === 'scm'           && <ScmSettingsPanel />}
+          {activeSection === 'analitiche'    && <AnaliticheSettingsPanel />}
+
           {/* ── SEZIONI MODULI (con tab Impostazioni / Jobs collegati) ── */}
-          {(['riparazioni', 'qualita', 'produzione-mod', 'export-mod', 'scm', 'analitiche', 'tracking', 'dbsql', 'log', 'inwork', 'file-manager', 'users-mod'] as readonly string[]).includes(activeSection) && (() => {
+          {(['tracking', 'dbsql', 'log', 'inwork', 'file-manager', 'users-mod'] as readonly string[]).includes(activeSection) && (() => {
             type ModuleTab = 'impostazioni' | 'jobs';
 
             const MOD_INFO: Record<string, { label: string; desc: string; icon: string; from: string; to: string; jobs: { key: string; label: string; desc: string; output: string }[] }> = {
-              'riparazioni': {
-                label: 'Riparazioni', desc: 'Configurazione del modulo riparazioni', icon: 'fa-hammer', from: 'from-blue-500', to: 'to-indigo-600',
-                jobs: [
-                  { key: 'riparazioni.cedola-pdf', label: 'Stampa Cedola', desc: 'Genera il PDF della cedola di riparazione. Usa il template impostato (originale A4 verticale o nuovo A4 landscape tecnico).', output: 'PDF' },
-                ],
-              },
-              'qualita': {
-                label: 'Controllo Qualità', desc: 'Configurazione del modulo qualità', icon: 'fa-check-circle', from: 'from-green-500', to: 'to-emerald-600',
-                jobs: [
-                  { key: 'quality.report-pdf', label: 'Report Qualità PDF', desc: 'Genera il report PDF del controllo qualità con statistiche difetti, eccezioni taglie e andamento per operatore/reparto.', output: 'PDF' },
-                ],
-              },
-              'produzione-mod': {
-                label: 'Produzione', desc: 'Configurazione del modulo produzione', icon: 'fa-calendar', from: 'from-yellow-500', to: 'to-amber-600',
-                jobs: [
-                  { key: 'prod.report-pdf', label: 'Report Produzione PDF', desc: 'Genera il report PDF giornaliero/periodico con i dati di produzione per fase (Montaggio, Orlatura, Taglio) e relativi trend.', output: 'PDF' },
-                  { key: 'prod.csv-report-pdf', label: 'Report CSV Produzione PDF', desc: 'Genera un PDF a partire dai dati CSV di produzione, con layout tabellare compatto per la condivisione via email.', output: 'PDF' },
-                ],
-              },
-              'export-mod': {
-                label: 'Export / DDT', desc: 'Configurazione del modulo export e DDT', icon: 'fa-globe-europe', from: 'from-indigo-500', to: 'to-violet-600',
-                jobs: [
-                  { key: 'export.segnacolli-pdf', label: 'Segnacolli PDF', desc: 'Genera le etichette segnacolli in PDF per i colli del lotto di esportazione, con barcode e dati spedizione.', output: 'PDF' },
-                  { key: 'export.griglia-materiali-pdf', label: 'Griglia Materiali PDF', desc: 'Genera la griglia materiali in PDF con l\'elenco dettagliato dei materiali per terzista e commessa.', output: 'PDF' },
-                  { key: 'export.ddt-completo-pdf', label: 'DDT Completo PDF', desc: 'Genera il Documento di Trasporto completo in PDF con intestazione azienda, articoli, quantità e dati del vettore.', output: 'PDF' },
-                  { key: 'export.ddt-excel', label: 'DDT Excel', desc: 'Esporta i dati del DDT in formato Excel per elaborazioni successive o archiviazione.', output: 'XLSX' },
-                  { key: 'export.download-excel', label: 'Download Dati Excel', desc: 'Esporta i dati grezzi di esportazione in formato Excel con tutti i campi disponibili.', output: 'XLSX' },
-                ],
-              },
-              'scm': {
-                label: 'SCM', desc: 'Configurazione del modulo supply chain', icon: 'fa-network-wired', from: 'from-orange-500', to: 'to-amber-600',
-                jobs: [],
-              },
-              'analitiche': {
-                label: 'Analitiche', desc: 'Configurazione del modulo analitiche', icon: 'fa-chart-bar', from: 'from-purple-500', to: 'to-violet-600',
-                jobs: [
-                  { key: 'analitiche.report-pdf', label: 'Report Analitiche PDF', desc: 'Genera il report PDF con le analisi statistiche sui dati storici, grafici di produzione e indicatori chiave per periodo selezionato.', output: 'PDF' },
-                  { key: 'analitiche.report-excel', label: 'Report Analitiche Excel', desc: 'Esporta i dati analitici in formato Excel con tabelle pivot e dati grezzi per elaborazioni personalizzate.', output: 'XLSX' },
-                ],
-              },
               'tracking': {
                 label: 'Tracking', desc: 'Configurazione del modulo tracciabilità', icon: 'fa-map-marker-alt', from: 'from-pink-500', to: 'to-rose-600',
                 jobs: [
@@ -3351,117 +3297,69 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* Tab bar */}
-                  <div className="flex border-b border-gray-200 dark:border-gray-700">
-                    {(['impostazioni', 'jobs'] as ModuleTab[]).map((tab) => (
-                      <button
-                        key={tab}
-                        onClick={() => setModTab(tab)}
-                        className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition -mb-px ${
-                          modTab === tab
-                            ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                        }`}
-                      >
-                        <i className={`fas ${tab === 'impostazioni' ? 'fa-sliders-h' : 'fa-cogs'} text-xs`}></i>
-                        {tab === 'impostazioni' ? 'Impostazioni' : 'Jobs collegati'}
-                        {tab === 'jobs' && m.jobs.length > 0 && (
-                          <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                            {m.jobs.length}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                  {/* Tab bar — solo se ci sono jobs */}
+                  {m.jobs.length > 0 && (
+                    <div className="flex border-b border-gray-200 dark:border-gray-700">
+                      {[
+                        { id: 'impostazioni', icon: 'fa-sliders-h', label: 'Impostazioni' },
+                        { id: 'jobs',         icon: 'fa-cogs',      label: 'Jobs collegati' },
+                      ].map((tab) => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setModTab(tab.id as typeof modTab)}
+                          className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition -mb-px ${
+                            modTab === tab.id
+                              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                          }`}
+                        >
+                          <i className={`fas ${tab.icon} text-xs`}></i>
+                          {tab.label}
+                          {tab.id === 'jobs' && (
+                            <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                              {m.jobs.length}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Tab content */}
                   <div className="p-6">
+
+                    {/* ── IMPOSTAZIONI ── */}
                     {modTab === 'impostazioni' && (
-                      activeSection === 'riparazioni' ? (
-                        riparazioniLoading ? (
-                          <div className="text-center py-10">
-                            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="mx-auto h-12 w-12 rounded-full border-4 border-blue-500 border-t-transparent mb-3" />
-                            <p className="text-blue-600 font-medium">Caricamento...</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-6">
-                            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-5">
-                              <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Layout stampa cedola</h4>
-                              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Scegli il template usato alla stampa della cedola di riparazione.</p>
-                              <div className="grid grid-cols-2 gap-3">
-                                {[
-                                  { val: 'originale', label: 'ORIGINALE', sub: 'A4 verticale, classico',    icon: 'fa-file-alt',     active: 'border-blue-500 bg-blue-50 dark:bg-blue-900/20',   iconBg: 'bg-blue-500',   txt: 'text-blue-700 dark:text-blue-300',   dot: 'bg-blue-500' },
-                                  { val: 'nuovo',     label: 'NUOVO',     sub: 'A4 orizzontale, tecnico', icon: 'fa-file-invoice', active: 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20', iconBg: 'bg-indigo-500', txt: 'text-indigo-700 dark:text-indigo-300', dot: 'bg-indigo-500' },
-                                ].map((opt) => (
-                                  <button key={opt.val} onClick={() => setRiparazioniConfig({ layoutStampa: opt.val })}
-                                    className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-5 transition cursor-pointer ${riparazioniConfig.layoutStampa === opt.val ? opt.active : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 bg-white dark:bg-gray-800'}`}>
-                                    <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${riparazioniConfig.layoutStampa === opt.val ? opt.iconBg : 'bg-gray-100 dark:bg-gray-700'}`}>
-                                      <i className={`fas ${opt.icon} text-xl ${riparazioniConfig.layoutStampa === opt.val ? 'text-white' : 'text-gray-500 dark:text-gray-400'}`}></i>
-                                    </div>
-                                    <div className="text-center">
-                                      <p className={`font-semibold text-sm ${riparazioniConfig.layoutStampa === opt.val ? opt.txt : 'text-gray-700 dark:text-gray-300'}`}>{opt.label}</p>
-                                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{opt.sub}</p>
-                                    </div>
-                                    {riparazioniConfig.layoutStampa === opt.val && (
-                                      <div className={`absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full ${opt.dot}`}>
-                                        <i className="fas fa-check text-white text-xs"></i>
-                                      </div>
-                                    )}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <div className="flex justify-end">
-                              <button onClick={saveRiparazioniConfig} disabled={riparazioniSaving}
-                                className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 font-medium">
-                                {riparazioniSaving
-                                  ? <><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="h-4 w-4 rounded-full border-2 border-white border-t-transparent" />Salvataggio...</>
-                                  : <><i className="fas fa-save"></i>Salva impostazioni</>}
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-12 text-center">
-                          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 mb-3">
-                            <i className="fas fa-sliders-h text-2xl text-gray-400 dark:text-gray-500"></i>
-                          </div>
-                          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Nessuna impostazione configurata</p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-xs">Le impostazioni per questo modulo verranno aggiunte in futuro.</p>
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 mb-3">
+                          <i className="fas fa-sliders-h text-2xl text-gray-400 dark:text-gray-500"></i>
                         </div>
-                      )
+                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Nessuna impostazione configurata</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-xs">Le impostazioni per questo modulo verranno aggiunte in futuro.</p>
+                      </div>
                     )}
 
-                    {modTab === 'jobs' && (
-                      m.jobs.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-center">
-                          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 mb-3">
-                            <i className="fas fa-cogs text-2xl text-gray-400 dark:text-gray-500"></i>
-                          </div>
-                          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Nessun job collegato</p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Questo modulo non ha job in background associati.</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {m.jobs.map((job) => (
-                            <div key={job.key} className="flex items-start gap-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/40">
-                              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
-                                <i className="fas fa-cog text-gray-400 dark:text-gray-500"></i>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{job.label}</p>
-                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${outputBadge[job.output] || outputBadge['PDF']}`}>
-                                    {job.output}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{job.desc}</p>
-                                <p className="text-xs font-mono text-gray-400 dark:text-gray-600 mt-1">{job.key}</p>
-                              </div>
+                    {/* ── JOBS ── */}
+                    {modTab === 'jobs' && m.jobs.length > 0 && (
+                      <div className="space-y-3">
+                        {m.jobs.map((job) => (
+                          <div key={job.key} className="flex items-start gap-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/40">
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+                              <i className="fas fa-cog text-gray-400 dark:text-gray-500"></i>
                             </div>
-                          ))}
-                        </div>
-                      )
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{job.label}</p>
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${outputBadge[job.output] || outputBadge['PDF']}`}>
+                                  {job.output}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{job.desc}</p>
+                              <p className="text-xs font-mono text-gray-400 dark:text-gray-600 mt-1">{job.key}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>

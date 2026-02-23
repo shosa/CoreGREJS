@@ -91,6 +91,13 @@ export default function CreateRiparazionePage() {
   const [creating, setCreating] = useState(false);
   const [autoPrint, setAutoPrint] = useState(true); // Checkbox for auto-print, enabled by default
 
+  // Modal numerata mancante (fallback inline — non si redirige più alla pagina numerate)
+  const [showNumerataModal, setShowNumerataModal] = useState(false);
+  const [numerataModalId, setNumerataModalId] = useState('');
+  const [numerataModalTaglie, setNumerataModalTaglie] = useState<Record<string, string>>({});
+  const [numerataModalSaving, setNumerataModalSaving] = useState(false);
+  const [pendingCartellinoData, setPendingCartellinoData] = useState<any>(null);
+
   useEffect(() => {
     fetchSupportData();
   }, []);
@@ -105,6 +112,54 @@ export default function CreateRiparazionePage() {
       setReparti(repData);
     } catch (error) {
       showError('Errore nel caricamento dei dati');
+    }
+  };
+
+  // Crea la numerata dal modal inline e riprende il flusso di creazione
+  const handleNumerataModalCreate = async () => {
+    if (!numerataModalId.trim() || !pendingCartellinoData) return;
+    setNumerataModalSaving(true);
+    try {
+      const created = await riparazioniApi.createNumerata({
+        idNumerata: numerataModalId.toUpperCase(),
+        ...numerataModalTaglie,
+      });
+      setShowNumerataModal(false);
+
+      // Riprende il flusso: imposta numerata e dati articolo
+      setNumerata(created);
+      setArticleData({
+        codiceArticolo: pendingCartellinoData.codiceArticolo,
+        descrizione: pendingCartellinoData.descrizione,
+        cartellino: pendingCartellinoData.cartellino,
+        commessa: pendingCartellinoData.commessa,
+        ragioneSociale: pendingCartellinoData.ragioneSociale,
+        totale: pendingCartellinoData.totale,
+        numerataId: created.id,
+        nu: pendingCartellinoData.nu,
+      });
+
+      const qtaCartellino: Record<string, number> = {};
+      for (let i = 1; i <= 20; i++) {
+        const field = `p${String(i).padStart(2, '0')}`;
+        qtaCartellino[field] = pendingCartellinoData[field] || 0;
+      }
+      setTaglieCartellino(qtaCartellino);
+
+      const initialTaglie: Record<string, number> = {};
+      for (let i = 1; i <= 20; i++) {
+        const field = `p${String(i).padStart(2, '0')}`;
+        initialTaglie[field] = 0;
+      }
+      setTaglie(initialTaglie);
+
+      setPendingCartellinoData(null);
+      setStep(2);
+      showSuccess('Numerata creata, procedi con la riparazione');
+    } catch (e: any) {
+      showError(e.response?.data?.message || 'Errore nella creazione della numerata');
+    } finally {
+      setNumerataModalSaving(false);
     }
   };
 
@@ -133,16 +188,15 @@ export default function CreateRiparazionePage() {
 
       setArticleData(articleData);
 
-      // If no numerataId in core_dati, redirect to numerata page with NU value
+      // Se non c'è numerataId nel cartellino, apri modal inline per crearla
       if (!articleData.numerataId) {
         setSearching(false);
-        showError('Nessuna numerata associata. Creane una prima di procedere.');
-        // Redirect to numerate page with create modal params
-        if (articleData.nu) {
-          router.push(`/riparazioni/numerate?create=true&id_numerata=${articleData.nu}`);
-        } else {
-          router.push('/riparazioni/numerate?create=true');
-        }
+        const initTaglie: Record<string, string> = {};
+        for (let i = 1; i <= 20; i++) initTaglie[`n${String(i).padStart(2, '0')}`] = '';
+        setPendingCartellinoData(cartellinoData);
+        setNumerataModalId(String(articleData.nu || '').toUpperCase());
+        setNumerataModalTaglie(initTaglie);
+        setShowNumerataModal(true);
         return;
       }
 
@@ -151,17 +205,17 @@ export default function CreateRiparazionePage() {
         numerataData = await riparazioniApi.getNumerata(cartellinoData.numerataId);
         setNumerata(numerataData);
       } catch (error: any) {
-        // Numerata doesn't exist - redirect to create it
         const statusCode = error.response?.status || error.status;
-
         if (statusCode === 404) {
           setSearching(false);
-          showError('Numerata non trovata. Creane una prima di procedere.');
-          router.push(`/riparazioni/numerate?create=true&id_numerata=${cartellinoData.numerataId}`);
+          const initTaglie: Record<string, string> = {};
+          for (let i = 1; i <= 20; i++) initTaglie[`n${String(i).padStart(2, '0')}`] = '';
+          setPendingCartellinoData(cartellinoData);
+          setNumerataModalId(String(cartellinoData.numerataId || '').toUpperCase());
+          setNumerataModalTaglie(initTaglie);
+          setShowNumerataModal(true);
           return;
         }
-
-        // For other errors, re-throw to be handled by outer catch
         throw error;
       }
 
@@ -649,6 +703,91 @@ export default function CreateRiparazionePage() {
           </div>
         </div>
       </Footer>
+
+      {/* Modal inline: numerata non trovata / non associata */}
+      {showNumerataModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl dark:bg-gray-800 max-h-[90vh] flex flex-col"
+          >
+            {/* Header */}
+            <div className="flex items-center gap-3 p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/30">
+                <i className="fas fa-ruler text-xl text-amber-600 dark:text-amber-400"></i>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Numerata non configurata</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Completa la numerata per procedere con la riparazione
+                </p>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ID Numerata *</label>
+                <input
+                  type="text"
+                  value={numerataModalId}
+                  onChange={(e) => setNumerataModalId(e.target.value.toUpperCase())}
+                  placeholder="Es. T15"
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono uppercase"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Taglie (N01–N20) — lascia vuoto le posizioni non usate
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {Array.from({ length: 20 }, (_, i) => {
+                    const k = `n${String(i + 1).padStart(2, '0')}`;
+                    return (
+                      <div key={k}>
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">{k.toUpperCase()}</label>
+                        <input
+                          type="text"
+                          value={numerataModalTaglie[k] || ''}
+                          onChange={(e) => setNumerataModalTaglie((prev) => ({ ...prev, [k]: e.target.value }))}
+                          placeholder={`T${i + 1}`}
+                          className="w-full px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => { setShowNumerataModal(false); setPendingCartellinoData(null); }}
+                disabled={numerataModalSaving}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 disabled:opacity-50"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handleNumerataModalCreate}
+                disabled={numerataModalSaving || !numerataModalId.trim()}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {numerataModalSaving ? (
+                  <>
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="h-4 w-4 rounded-full border-2 border-white border-t-transparent" />
+                    Creazione...
+                  </>
+                ) : (
+                  <><i className="fas fa-check-circle"></i>Crea e continua</>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }

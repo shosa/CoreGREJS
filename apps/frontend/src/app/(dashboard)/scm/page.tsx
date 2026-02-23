@@ -121,7 +121,7 @@ export default function ScmDashboardPage() {
 
       {/* Quick Actions */}
       <motion.div variants={itemVariants} className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link href="/scm/launches/new">
             <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer">
               <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/10 dark:to-red-800/10"></div>
@@ -164,47 +164,6 @@ export default function ScmDashboardPage() {
             </div>
           </Link>
 
-          <Link href="/scm/laboratories">
-            <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-800/10"></div>
-              <div className="relative p-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-purple-500 to-pink-600 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                    <i className="fas fa-industry text-white text-xl"></i>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-                      Laboratori
-                    </h3>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      Gestione terzisti
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Link>
-
-          <Link href="/scm/standard-phases">
-            <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm hover:-translate-y-1 cursor-pointer">
-              <div className="absolute inset-0 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/10 dark:to-cyan-800/10"></div>
-              <div className="relative p-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-600 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                    <i className="fas fa-layer-group text-white text-xl"></i>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-                      Fasi
-                    </h3>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      Fasi standard
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Link>
         </div>
       </motion.div>
 
@@ -314,6 +273,80 @@ export default function ScmDashboardPage() {
           </div>
         </motion.div>
       )}
+
+      {/* Widget: Stato Lanci */}
+      {statistics && statistics.totalLaunches > 0 && (() => {
+        const stati = [
+          { label: 'In Preparazione', count: statistics.byStatus.inPreparation.count, pairs: statistics.byStatus.inPreparation.pairs },
+          { label: 'In Lavorazione', count: statistics.byStatus.inProgress.count, pairs: statistics.byStatus.inProgress.pairs },
+          { label: 'Completati', count: statistics.byStatus.completed.count, pairs: statistics.byStatus.completed.pairs },
+          { label: 'Bloccati', count: statistics.byStatus.blocked.count, pairs: statistics.byStatus.blocked.pairs },
+        ];
+        const maxCount = stati.reduce((m, s) => Math.max(m, s.count), 1);
+        // Lanci con scadenza nei prossimi 7 giorni
+        const oggi = new Date();
+        const tra7gg = new Date(oggi.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const inScadenza = recentLaunches.filter(l => {
+          if (!l.dataConsegna) return false;
+          const d = new Date(l.dataConsegna);
+          return d >= oggi && d <= tra7gg;
+        });
+        return (
+          <motion.div variants={itemVariants} className="mb-6">
+            <div className="rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 p-6 shadow-xl text-white overflow-hidden relative">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.12)_0%,_transparent_60%)]" />
+              <div className="relative grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Distribuzione stati */}
+                <div>
+                  <p className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1">Pipeline Lanci</p>
+                  <h3 className="text-2xl font-extrabold mb-4">Distribuzione Stati</h3>
+                  <div className="space-y-2.5">
+                    {stati.map(s => (
+                      <div key={s.label}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-white/80 text-sm font-medium">{s.label}</span>
+                          <span className="text-white font-bold text-sm">{s.count} <span className="text-white/60 text-xs font-normal">({s.pairs.toLocaleString()} paia)</span></span>
+                        </div>
+                        <div className="w-full bg-white/20 rounded-full h-2.5">
+                          <div className="bg-white h-2.5 rounded-full" style={{ width: `${Math.round((s.count / maxCount) * 100)}%`, opacity: s.count > 0 ? 1 : 0.2 }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Scadenze imminenti */}
+                <div>
+                  <p className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1">Prossimi 7 giorni</p>
+                  <h3 className="text-2xl font-extrabold mb-4">Scadenze Imminenti</h3>
+                  {inScadenza.length > 0 ? (
+                    <div className="space-y-2">
+                      {inScadenza.slice(0, 4).map(l => {
+                        const daysLeft = Math.ceil((new Date(l.dataConsegna!).getTime() - oggi.getTime()) / (1000 * 60 * 60 * 24));
+                        return (
+                          <div key={l.id} className="flex items-center justify-between bg-white/10 rounded-lg px-3 py-2">
+                            <div>
+                              <span className="text-white font-bold text-sm">{l.numero}</span>
+                              <span className="text-white/60 text-xs ml-2">{l.laboratory.nome}</span>
+                            </div>
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${daysLeft <= 2 ? 'bg-red-200 text-red-800' : 'bg-white/20 text-white'}`}>
+                              {daysLeft === 0 ? 'Oggi' : daysLeft === 1 ? 'Domani' : `${daysLeft}gg`}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 bg-white/10 rounded-xl p-4">
+                      <i className="fas fa-check-circle text-white/60 text-2xl"></i>
+                      <p className="text-white/70 text-sm">Nessuna scadenza nei prossimi 7 giorni</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        );
+      })()}
 
       {/* Recent Launches */}
       <motion.div

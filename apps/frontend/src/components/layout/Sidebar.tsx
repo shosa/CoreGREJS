@@ -57,8 +57,6 @@ const menuItems: MenuItem[] = [
       { name: 'Dashboard', href: '/quality', icon: 'fa-home' },
       { name: 'Consulto Record', href: '/quality/records', icon: 'fa-list' },
       { name: 'Report', href: '/quality/reports', icon: 'fa-file-alt' },
-      { name: 'Reparti', href: '/quality/reparti', icon: 'fa-building' },
-      { name: 'Tipi Difetti', href: '/quality/difetti', icon: 'fa-circle-exclamation' },
     ]
   },
   {
@@ -87,9 +85,6 @@ const menuItems: MenuItem[] = [
       { name: 'Dashboard', href: '/export', icon: 'fa-home' },
       { name: 'Nuovo DDT', href: '/export/create', icon: 'fa-plus-circle' },
       { name: 'Elenco', href: '/export/archive', icon: 'fa-archive' },
-      { name: 'Terzisti', href: '/export/terzisti', icon: 'fa-user-check' },
-      { name: 'Articoli', href: '/export/articles', icon: 'fa-box' },
-      { name: 'Opzioni', href: '/export/impostazioni-ddt', icon: 'fa-cog' },
     ]
   },
   {
@@ -102,8 +97,6 @@ const menuItems: MenuItem[] = [
     children: [
       { name: 'Dashboard', href: '/scm', icon: 'fa-home' },
       { name: 'Lanci', href: '/scm/launches', icon: 'fa-rocket' },
-      { name: 'Laboratori', href: '/scm/laboratories', icon: 'fa-industry' },
-      { name: 'Fasi Standard', href: '/scm/standard-phases', icon: 'fa-layer-group' },
     ]
   },
   {
@@ -131,7 +124,6 @@ const menuItems: MenuItem[] = [
       { name: 'Dashboard', href: '/analitiche', icon: 'fa-home' },
       { name: 'Carica Dati', href: '/analitiche/upload', icon: 'fa-file-upload' },
       { name: 'Elenco Record', href: '/analitiche/records', icon: 'fa-list' },
-      { name: 'Reparti', href: '/analitiche/reparti', icon: 'fa-building' },
       { name: 'Storico Import', href: '/analitiche/imports', icon: 'fa-history' },
     ]
   },
