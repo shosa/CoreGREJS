@@ -92,66 +92,6 @@ export default function QualityDashboard() {
         ]}
       />
 
-      {/* 3 Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <motion.div
-          variants={itemVariants}
-          className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
-        >
-          <div className="flex items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 shadow-lg">
-              <i className="fas fa-check-circle text-white"></i>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Controlli Oggi
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {stats.recordsToday.toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          variants={itemVariants}
-          className="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-lg dark:border-red-800 dark:bg-red-900/20 backdrop-blur-sm"
-        >
-          <div className="flex items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-red-500 to-rose-500 shadow-lg">
-              <i className="fas fa-exclamation-triangle text-white"></i>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-red-700 dark:text-red-400">
-                Eccezioni Mese
-              </p>
-              <p className="text-2xl font-bold text-red-800 dark:text-red-300">
-                {stats.exceptionsThisMonth.toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          variants={itemVariants}
-          className="rounded-2xl border border-green-200 bg-green-50 p-6 shadow-lg dark:border-green-800 dark:bg-green-900/20 backdrop-blur-sm"
-        >
-          <div className="flex items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 shadow-lg">
-              <i className="fas fa-calendar-week text-white"></i>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-green-700 dark:text-green-400">
-                Controlli Settimana
-              </p>
-              <p className="text-2xl font-bold text-green-800 dark:text-green-300">
-                {stats.recordsThisWeek.toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
       {/* ── WIDGET QUALITÀ ── */}
       {recentRecords.length > 0 && (() => {
         const ok = recentRecords.filter(r => !r.haEccezioni).length;

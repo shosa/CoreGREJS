@@ -90,66 +90,6 @@ export default function AnalitichePage() {
         ]}
       />
 
-      {/* 3 Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <motion.div
-          variants={itemVariants}
-          className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
-        >
-          <div className="flex items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 shadow-lg">
-              <i className="fas fa-database text-white"></i>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Record Totali
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {stats.totalRecords.toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          variants={itemVariants}
-          className="rounded-2xl border border-blue-200 bg-blue-50 p-6 shadow-lg dark:border-blue-800 dark:bg-blue-900/20 backdrop-blur-sm"
-        >
-          <div className="flex items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 shadow-lg">
-              <i className="fas fa-file-import text-white"></i>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-blue-700 dark:text-blue-400">
-                Import Effettuati
-              </p>
-              <p className="text-2xl font-bold text-blue-800 dark:text-blue-300">
-                {stats.totalImports.toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          variants={itemVariants}
-          className="rounded-2xl border border-purple-200 bg-purple-50 p-6 shadow-lg dark:border-purple-700 dark:bg-purple-800/20 backdrop-blur-sm"
-        >
-          <div className="flex items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 shadow-lg">
-              <i className="fas fa-building text-white"></i>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-purple-700 dark:text-purple-400">
-                Reparti Attivi
-              </p>
-              <p className="text-2xl font-bold text-purple-800 dark:text-purple-300">
-                {stats.repartiCount.toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
       {/* Widget: Breakdown per Tipo + Import Recenti */}
       {(stats.recordsByTipo.length > 0 || recentImports.length > 0) && (() => {
         const tipi = stats.recordsByTipo

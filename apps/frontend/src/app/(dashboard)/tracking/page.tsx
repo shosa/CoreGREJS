@@ -76,76 +76,49 @@ export default function TrackingPage() {
         ]}
       />
 
-      {/* Stats Cards */}
-      <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <motion.div
-          variants={itemVariants}
-          className="group rounded-2xl border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-sm transition-all hover:shadow-lg dark:border-gray-700 dark:from-blue-900/20 dark:to-indigo-900/20"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Collegamenti Totali</p>
-              <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                {stats.totalLinks.toLocaleString()}
-              </p>
+      {/* Widget: Panoramica Tracking */}
+      {stats.totalLinks > 0 && (() => {
+        const kpis = [
+          { label: 'Lotti senza DDT', value: stats.lotsWithoutDdt, icon: 'fa-file-invoice', warn: stats.lotsWithoutDdt > 0 },
+          { label: 'Ordini senza Date', value: stats.ordersWithoutDate, icon: 'fa-calendar-times', warn: stats.ordersWithoutDate > 0 },
+          { label: 'Articoli senza SKU', value: stats.articlesWithoutSku, icon: 'fa-barcode', warn: stats.articlesWithoutSku > 0 },
+        ];
+        const anomalie = stats.lotsWithoutDdt + stats.ordersWithoutDate + stats.articlesWithoutSku;
+        return (
+          <motion.div variants={itemVariants} className="mb-8">
+            <div className="rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 p-6 shadow-xl text-white overflow-hidden relative">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.12)_0%,_transparent_60%)]" />
+              <div className="relative grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                {/* Totale collegamenti + anomalie */}
+                <div>
+                  <p className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1">Stato Tracciabilità</p>
+                  <h3 className="text-2xl font-extrabold mb-3">Panoramica Lotti</h3>
+                  <div className="flex items-end gap-4 mb-4">
+                    <span className="text-5xl font-black">{stats.totalLinks.toLocaleString()}</span>
+                    <span className="text-white/60 text-sm mb-2">collegamenti totali</span>
+                  </div>
+                  <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold ${anomalie === 0 ? 'bg-white/20 text-white' : 'bg-white text-rose-600'}`}>
+                    <i className={`fas ${anomalie === 0 ? 'fa-check-circle' : 'fa-exclamation-triangle'}`}></i>
+                    {anomalie === 0 ? 'Nessuna anomalia' : `${anomalie} anomalie da risolvere`}
+                  </div>
+                </div>
+                {/* KPI anomalie */}
+                <div className="grid grid-cols-1 gap-3">
+                  {kpis.map(k => (
+                    <div key={k.label} className={`flex items-center justify-between rounded-xl px-4 py-3 ${k.warn ? 'bg-white/20' : 'bg-white/10'}`}>
+                      <div className="flex items-center gap-3">
+                        <i className={`fas ${k.icon} text-white/70 text-sm w-4`}></i>
+                        <span className="text-white/80 text-sm font-medium">{k.label}</span>
+                      </div>
+                      <span className={`text-lg font-black ${k.warn ? 'text-white' : 'text-white/40'}`}>{k.value.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg transition-transform group-hover:scale-110">
-              <i className="fas fa-link text-xl text-white"></i>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          variants={itemVariants}
-          className="group rounded-2xl border border-yellow-200 bg-gradient-to-br from-yellow-50 to-orange-50 p-6 shadow-sm transition-all hover:shadow-lg dark:border-yellow-800 dark:from-yellow-900/20 dark:to-orange-900/20"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">Lotti senza DDT</p>
-              <p className="mt-2 text-3xl font-bold text-yellow-800 dark:text-yellow-300">
-                {stats.lotsWithoutDdt.toLocaleString()}
-              </p>
-            </div>
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-yellow-500 to-orange-500 shadow-lg transition-transform group-hover:scale-110">
-              <i className="fas fa-file-invoice text-xl text-white"></i>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          variants={itemVariants}
-          className="group rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-red-50 p-6 shadow-sm transition-all hover:shadow-lg dark:border-orange-800 dark:from-orange-900/20 dark:to-red-900/20"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-orange-700 dark:text-orange-400">Ordini senza Date</p>
-              <p className="mt-2 text-3xl font-bold text-orange-800 dark:text-orange-300">
-                {stats.ordersWithoutDate.toLocaleString()}
-              </p>
-            </div>
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 shadow-lg transition-transform group-hover:scale-110">
-              <i className="fas fa-calendar-times text-xl text-white"></i>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          variants={itemVariants}
-          className="group rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 to-pink-50 p-6 shadow-sm transition-all hover:shadow-lg dark:border-red-800 dark:from-red-900/20 dark:to-pink-900/20"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-red-700 dark:text-red-400">Articoli senza SKU</p>
-              <p className="mt-2 text-3xl font-bold text-red-800 dark:text-red-300">
-                {stats.articlesWithoutSku.toLocaleString()}
-              </p>
-            </div>
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-pink-500 shadow-lg transition-transform group-hover:scale-110">
-              <i className="fas fa-barcode text-xl text-white"></i>
-            </div>
-          </div>
-        </motion.div>
-      </div>
+          </motion.div>
+        );
+      })()}
 
       {/* Navigation Cards - Layout: 2 Large Side-by-Side + 3 Small Stacked */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">

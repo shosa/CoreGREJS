@@ -111,66 +111,6 @@ export default function ProduzioneDashboard() {
         ]}
       />
 
-      {/* 3 Stats Cards */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3 mb-8">
-        <motion.div
-          variants={itemVariants}
-          className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-800/40 backdrop-blur-sm"
-        >
-          <div className="flex items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 shadow-lg">
-              <i className="fas fa-calendar-day text-white"></i>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Registrazioni Oggi
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {stats.registrazioniOggi?.toLocaleString() || 0}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          variants={itemVariants}
-          className="rounded-2xl border border-green-200 bg-green-50 p-6 shadow-lg dark:border-green-800 dark:bg-green-900/20 backdrop-blur-sm"
-        >
-          <div className="flex items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 shadow-lg">
-              <i className="fas fa-industry text-white"></i>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-green-700 dark:text-green-400">
-                Reparti Attivi
-              </p>
-              <p className="text-2xl font-bold text-green-800 dark:text-green-300">
-                {stats.repartiAttivi?.toLocaleString() || 0}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          variants={itemVariants}
-          className="rounded-2xl border border-gray-200 bg-gray-50 p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800/20 backdrop-blur-sm"
-        >
-          <div className="flex items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-gray-500 to-gray-600 shadow-lg">
-              <i className="fas fa-calendar-alt text-white"></i>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
-                Registrazioni Mese
-              </p>
-              <p className="text-2xl font-bold text-gray-800 dark:text-gray-300">
-                {stats.registrazioniMese?.toLocaleString() || 0}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
       {/* Widget: Produzione Recente */}
       {recentRecords.length > 0 && (() => {
         const grouped: Record<string, number> = {};
