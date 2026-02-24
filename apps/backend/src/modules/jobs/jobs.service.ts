@@ -99,4 +99,36 @@ export class JobsService {
       },
     });
   }
+
+  /**
+   * Admin: lista tutti i job di tutti gli utenti
+   */
+  async listAllJobs(status?: JobStatus, limit = 200) {
+    return this.prisma.job.findMany({
+      where: status ? { status } : {},
+      include: {
+        user: { select: { id: true, userName: true, nome: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
+
+  /**
+   * Admin: get job senza verifica ownership
+   */
+  async getJobAdmin(id: string) {
+    const job = await this.prisma.job.findUnique({ where: { id } });
+    if (!job) throw new NotFoundException('Job non trovato');
+    return job;
+  }
+
+  /**
+   * Admin: elimina un job senza verifica ownership
+   */
+  async deleteJobAdmin(id: string) {
+    const job = await this.prisma.job.findUnique({ where: { id } });
+    if (!job) throw new NotFoundException('Job non trovato');
+    return this.prisma.job.delete({ where: { id } });
+  }
 }

@@ -100,11 +100,6 @@ export class DataManagementService {
       displayName: 'Dipartimenti Qualità',
       searchFields: ['nome', 'codice', 'descrizione'],
     },
-    qualityOperator: {
-      model: 'qualityOperator',
-      displayName: 'Operatori Qualità',
-      searchFields: ['nome', 'cognome', 'matricola'],
-    },
     qualityDefectType: {
       model: 'qualityDefectType',
       displayName: 'Tipi Difetto',
@@ -182,6 +177,11 @@ export class DataManagementService {
       searchFields: ['art', 'sku'],
       primaryKey: 'art', // PK è 'art' non 'id'
       idType: 'string',
+    },
+    trackLinkArchive: {
+      model: 'trackLinkArchive',
+      displayName: 'Archivio Storico',
+      searchFields: ['lot', 'commessa', 'articolo', 'ragioneSoc', 'typeName'],
     },
 
     // Produzione Module (prod_)

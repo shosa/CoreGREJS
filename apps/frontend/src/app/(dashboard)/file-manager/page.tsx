@@ -1,17 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
 import api from '@/lib/api';
 import PageHeader from '@/components/layout/PageHeader';
-import Pagination from '@/components/ui/Pagination';
-import Offcanvas from '@/components/ui/Offcanvas';
-import Modal from '@/components/ui/Modal';
-import Footer from '@/components/layout/Footer';
 import Breadcrumb from '@/components/layout/Breadcrumb';
+import Offcanvas from '@/components/ui/Offcanvas';
 import { showError, showSuccess } from '@/store/notifications';
 import { formatBytes, formatDate } from '@/lib/utils';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.07 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0 },
+};
 
 interface MinioFile {
   id: number;
@@ -24,12 +29,7 @@ interface MinioFile {
   jobId: string | null;
   uploadedAt: string;
   lastAccess: string;
-  metadata?: {
-    type?: string;
-    jobId?: string;
-    progressivo?: string;
-    cartellino?: string;
-  } | null;
+  metadata?: { type?: string; jobId?: string } | null;
   user?: { id: number; userName: string; nome: string };
   job?: { id: string; type: string; status: string };
 }
@@ -41,671 +41,696 @@ interface FileStats {
   filesByType: Array<{ mimeType: string; count: number; size: number }>;
 }
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 },
-  },
-};
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 },
-};
+function getFileIcon(mimeType: string | null): string {
+  if (!mimeType) return 'fa-file';
+  if (mimeType.includes('pdf')) return 'fa-file-pdf';
+  if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'fa-file-excel';
+  if (mimeType.includes('word') || mimeType.includes('document')) return 'fa-file-word';
+  if (mimeType.includes('image')) return 'fa-file-image';
+  if (mimeType.includes('zip') || mimeType.includes('compressed')) return 'fa-file-archive';
+  if (mimeType.includes('text') || mimeType.includes('csv')) return 'fa-file-alt';
+  return 'fa-file';
+}
+
+function getFileIconColor(mimeType: string | null): string {
+  if (!mimeType) return 'text-gray-400';
+  if (mimeType.includes('pdf')) return 'text-red-500';
+  if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'text-green-600';
+  if (mimeType.includes('image')) return 'text-blue-500';
+  if (mimeType.includes('zip')) return 'text-amber-500';
+  if (mimeType.includes('text') || mimeType.includes('csv')) return 'text-gray-500';
+  return 'text-gray-400';
+}
+
+function jobTypeLabel(job?: MinioFile['job']): string {
+  if (!job) return '—';
+  const labels: Record<string, string> = {
+    COMPACT_REPORT_PDF: 'PDF Compattamento',
+    EXPORT_PDF: 'Export PDF',
+    REPORT: 'Report',
+  };
+  return labels[job.type] || job.type;
+}
+
+function jobStatusBadge(status?: string) {
+  if (!status) return null;
+  const map: Record<string, string> = {
+    completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    failed: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    running: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  };
+  return (
+    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${map[status] || 'bg-gray-100 text-gray-500'}`}>
+      {status}
+    </span>
+  );
+}
+
+// ─── Main ──────────────────────────────────────────────────────────────────────
 
 export default function FileManagerPage() {
+  // Data
   const [files, setFiles] = useState<MinioFile[]>([]);
   const [stats, setStats] = useState<FileStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [syncing, setSyncing] = useState(false);
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const LIMIT = 30;
+
+  // Filters
+  const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [mimeFilter, setMimeFilter] = useState('');
+
+  // Selection
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
   // Detail offcanvas
-  const [detailOpen, setDetailOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<MinioFile | null>(null);
+
+  // Delete confirm
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null); // single id
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   // Cleanup modal
   const [cleanupOpen, setCleanupOpen] = useState(false);
-  const [cleanupFilters, setCleanupFilters] = useState({
-    userId: '',
-    dateFrom: '',
-    dateTo: '',
-    mimeType: '',
-  });
+  const [cleanupFrom, setCleanupFrom] = useState('');
+  const [cleanupTo, setCleanupTo] = useState('');
+  const [cleanupMime, setCleanupMime] = useState('');
 
-  // Filtri
-  const [filters, setFilters] = useState({
-    search: '',
-    userId: '',
-    dateFrom: '',
-    dateTo: '',
-    mimeType: '',
-  });
+  // ── Load ──
 
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 25,
-    total: 0,
-    pages: 0,
-  });
-
-  useEffect(() => {
-    loadFiles();
-    loadStats();
-  }, [pagination.page, filters]);
-
-  const loadFiles = async () => {
+  const loadFiles = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
-        ...(filters.search && { search: filters.search }),
-        ...(filters.userId && { userId: filters.userId }),
-        ...(filters.dateFrom && { dateFrom: filters.dateFrom }),
-        ...(filters.dateTo && { dateTo: filters.dateTo }),
-        ...(filters.mimeType && { mimeType: filters.mimeType }),
-      });
-
-      const response = await api.get(`/files?${params}`);
-      setFiles(response.data.files);
-      setPagination(response.data.pagination);
-    } catch (error: any) {
+      const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
+      if (search) params.set('search', search);
+      if (dateFrom) params.set('dateFrom', dateFrom);
+      if (dateTo) params.set('dateTo', dateTo);
+      if (mimeFilter) params.set('mimeType', mimeFilter);
+      const res = await api.get(`/files?${params}`);
+      setFiles(res.data.files || []);
+      setTotal(res.data.pagination?.total || 0);
+      setTotalPages(res.data.pagination?.pages || 1);
+    } catch {
       showError('Errore caricamento file');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search, dateFrom, dateTo, mimeFilter]);
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
-      const response = await api.get('/files/stats');
-      setStats(response.data);
-    } catch (error) {
-      console.error('Failed to load stats');
-    }
-  };
+      const res = await api.get('/files/stats');
+      setStats(res.data);
+    } catch {}
+  }, []);
+
+  useEffect(() => { loadFiles(); }, [loadFiles]);
+  useEffect(() => { loadStats(); }, [loadStats]);
+
+  // Reset page on filter change
+  useEffect(() => { setPage(1); }, [search, dateFrom, dateTo, mimeFilter]);
+
+  // ── Actions ──
 
   const handleDownload = async (fileId: number, fileName?: string) => {
     try {
-      const response = await api.get(`/files/${fileId}/download`, { responseType: 'blob' });
-      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/octet-stream' });
+      const res = await api.get(`/files/${fileId}/download`, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: res.headers['content-type'] || 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName || 'download';
-      a.click();
+      a.href = url; a.download = fileName || 'download'; a.click();
       URL.revokeObjectURL(url);
-    } catch (error) {
-      showError('Errore download file');
-    }
+    } catch { showError('Errore download'); }
   };
 
-  const handleDelete = async (fileId: number) => {
-    if (!confirm('Sei sicuro di voler eliminare questo file?')) return;
+  const confirmDelete = (id: number) => setDeleteTarget(id);
 
+  const executeDelete = async () => {
+    if (deleteTarget === null) return;
     try {
-      await api.delete(`/files/${fileId}`);
+      await api.delete(`/files/${deleteTarget}`);
       showSuccess('File eliminato');
-      loadFiles();
-      loadStats();
-    } catch (error) {
-      showError('Errore eliminazione file');
-    }
+      if (selectedFile?.id === deleteTarget) setSelectedFile(null);
+      setDeleteTarget(null);
+      loadFiles(); loadStats();
+    } catch { showError('Errore eliminazione'); }
   };
 
-  const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) {
-      showError('Nessun file selezionato');
-      return;
-    }
-
-    if (!confirm(`Eliminare ${selectedIds.length} file?`)) return;
-
+  const executeBulkDelete = async () => {
     try {
-      for (const fileId of selectedIds) {
-        await api.delete(`/files/${fileId}`);
-      }
+      for (const id of selectedIds) await api.delete(`/files/${id}`);
       showSuccess(`${selectedIds.length} file eliminati`);
       setSelectedIds([]);
-      loadFiles();
-      loadStats();
-    } catch (error) {
-      showError('Errore eliminazione multipla');
-    }
+      setBulkDeleteConfirm(false);
+      loadFiles(); loadStats();
+    } catch { showError('Errore eliminazione multipla'); }
   };
 
   const handleSync = async () => {
+    setSyncing(true);
     try {
-      setSyncing(true);
-      const response = await api.get('/files/sync/minio');
-      showSuccess(`Sincronizzati ${response.data.synced} file`);
-      loadFiles();
-      loadStats();
-    } catch (error) {
-      showError('Errore sincronizzazione');
-    } finally {
-      setSyncing(false);
-    }
+      const res = await api.get('/files/sync/minio');
+      showSuccess(`Sincronizzati ${res.data.synced} file`);
+      loadFiles(); loadStats();
+    } catch { showError('Errore sincronizzazione'); }
+    finally { setSyncing(false); }
   };
 
   const handleCleanup = async () => {
     try {
-      const params = new URLSearchParams({
-        ...(cleanupFilters.userId && { userId: cleanupFilters.userId }),
-        ...(cleanupFilters.dateFrom && { dateFrom: cleanupFilters.dateFrom }),
-        ...(cleanupFilters.dateTo && { dateTo: cleanupFilters.dateTo }),
-        ...(cleanupFilters.mimeType && { mimeType: cleanupFilters.mimeType }),
-      });
-
-      const response = await api.delete(`/files?${params}`);
-      showSuccess(`Eliminati ${response.data.deleted} file (${formatBytes(response.data.size)})`);
+      const params = new URLSearchParams();
+      if (cleanupFrom) params.set('dateFrom', cleanupFrom);
+      if (cleanupTo) params.set('dateTo', cleanupTo);
+      if (cleanupMime) params.set('mimeType', cleanupMime);
+      const res = await api.delete(`/files?${params}`);
+      showSuccess(`Eliminati ${res.data.deleted} file (${formatBytes(res.data.size)})`);
       setCleanupOpen(false);
-      setCleanupFilters({ userId: '', dateFrom: '', dateTo: '', mimeType: '' });
-      loadFiles();
-      loadStats();
-    } catch (error) {
-      showError('Errore pulizia file');
-    }
+      loadFiles(); loadStats();
+    } catch { showError('Errore pulizia'); }
   };
 
-  const toggleSelect = (id: number) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  };
+  const toggleSelect = (id: number) =>
+    setSelectedIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
 
-  const toggleSelectAll = () => {
-    if (selectedIds.length === files.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(files.map((f) => f.id));
-    }
-  };
+  const toggleAll = () =>
+    setSelectedIds(selectedIds.length === files.length && files.length > 0 ? [] : files.map(f => f.id));
 
-  const getFileIcon = (mimeType: string | null) => {
-    if (!mimeType) return 'fa-file';
-    if (mimeType.includes('pdf')) return 'fa-file-pdf';
-    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'fa-file-excel';
-    if (mimeType.includes('word') || mimeType.includes('document')) return 'fa-file-word';
-    if (mimeType.includes('image')) return 'fa-file-image';
-    if (mimeType.includes('zip') || mimeType.includes('compressed')) return 'fa-file-archive';
-    if (mimeType.includes('text')) return 'fa-file-alt';
-    return 'fa-file';
-  };
+  // ─── Unique mime types from stats ──
+  const mimeOptions = stats?.filesByType?.map(t => t.mimeType) ?? [];
 
-  const getFileInfo = (file: MinioFile): string => {
-    if (!file.metadata) return '-';
-    const meta = file.metadata as any;
-
-    if (meta.type === 'job' && meta.jobId) {
-      return `Job: ${meta.jobId.substring(0, 8)}...`;
-    } else if (meta.type === 'export' && meta.progressivo) {
-      return `DDT: ${meta.progressivo}`;
-    } else if (meta.type === 'quality' && meta.cartellino) {
-      return `CQ: ${meta.cartellino}`;
-    }
-    return '-';
-  };
-
-  if (loading && files.length === 0) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="h-12 w-12 rounded-full border-4 border-solid border-blue-500 border-t-transparent"
-        />
-      </div>
-    );
-  }
+  // ─── Top users from stats ──
+  const topUsers = stats?.filesByUser?.sort((a, b) => b.size - a.size).slice(0, 5) ?? [];
 
   return (
-    <motion.div initial="hidden" animate="visible" variants={containerVariants}>
-      {/* Header */}
-      <PageHeader
-        title="File Manager"
-        subtitle="Gestione file su MinIO"
-      />
-
-      {/* Breadcrumb */}
-      <Breadcrumb
-        items={[
-          { label: 'Dashboard', href: '/', icon: 'fa-home' },
-          { label: 'File Manager' },
-        ]}
-      />
-
-      {/* Stats Cards */}
-      {stats && (
-        <motion.div variants={containerVariants} className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <motion.div
-            variants={itemVariants}
-            whileHover={{ scale: 1.02 }}
-            className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-          >
-            <div className="flex items-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 shadow-lg">
-                <i className="fas fa-file text-white"></i>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">File Totali</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalFiles}</p>
-              </div>
+    <motion.div initial="hidden" animate="visible" variants={containerVariants} className="flex flex-col h-full overflow-hidden">
+      {/* Breadcrumb + Header */}
+      <motion.div variants={itemVariants} className="shrink-0">
+        <PageHeader
+          title="File Manager"
+          subtitle="Jobs · bucket MinIO"
+          actions={
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50"
+              >
+                <i className={`fas fa-sync text-[10px] ${syncing ? 'animate-spin' : ''}`}></i>
+                Sync MinIO
+              </button>
+              <button
+                onClick={() => setCleanupOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition"
+              >
+                <i className="fas fa-broom text-[10px]"></i>
+                Pulizia
+              </button>
+              {selectedIds.length > 0 && (
+                <button
+                  onClick={() => setBulkDeleteConfirm(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition"
+                >
+                  <i className="fas fa-trash text-[10px]"></i>
+                  Elimina ({selectedIds.length})
+                </button>
+              )}
             </div>
-          </motion.div>
-
-          <motion.div
-            variants={itemVariants}
-            whileHover={{ scale: 1.02 }}
-            className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-          >
-            <div className="flex items-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-green-500 to-green-600 shadow-lg">
-                <i className="fas fa-database text-white"></i>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Spazio Totale</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatBytes(stats.totalSize)}</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            variants={itemVariants}
-            whileHover={{ scale: 1.02 }}
-            className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-          >
-            <div className="flex items-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 shadow-lg">
-                <i className="fas fa-users text-white"></i>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Utenti</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.filesByUser.length}</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            variants={itemVariants}
-            whileHover={{ scale: 1.02 }}
-            className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-          >
-            <div className="flex items-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 shadow-lg">
-                <i className="fas fa-layer-group text-white"></i>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Tipi File</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.filesByType.length}</p>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-
-      {/* Files Table */}
-      <motion.div
-        variants={itemVariants}
-        className="rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 overflow-hidden"
-      >
-        {/* Table Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-            <i className="fas fa-folder-open mr-3 text-blue-500"></i>
-            Lista File
-          </h3>
-          <div className="flex items-center space-x-3">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={selectedIds.length === files.length && files.length > 0}
-                onChange={toggleSelectAll}
-                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Seleziona tutto</span>
-            </label>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="p-6 bg-gray-50 dark:bg-gray-900/20 border-b border-gray-200 dark:border-gray-700">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <input
-              type="text"
-              placeholder="Cerca file..."
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setFilters({ search: '', userId: '', dateFrom: '', dateTo: '', mimeType: '' })}
-              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium"
-            >
-              <i className="fas fa-redo mr-2"></i>
-              Reset Filtri
-            </motion.button>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-900">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  <input type="checkbox" className="h-4 w-4 opacity-0" />
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">File</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Dimensione</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Info</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Utente</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Data</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              <AnimatePresence>
-                {files.map((file) => (
-                  <motion.tr
-                    key={file.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    whileHover={{ backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
-                    className="transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(file.id)}
-                        onChange={() => toggleSelect(file.id)}
-                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <i className={`fas ${getFileIcon(file.mimeType)} text-2xl text-gray-400`}></i>
-                        <div>
-                          <div className="font-medium text-gray-900 dark:text-white">{file.fileName}</div>
-                          <div className="text-xs text-gray-500">{file.mimeType || 'N/D'}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                      {formatBytes(file.fileSize)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                      {getFileInfo(file)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                      {file.user?.nome || 'Sistema'}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                      {formatDate(file.uploadedAt)}
-                    </td>
-                      <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => {
-                            setSelectedFile(file);
-                            setDetailOpen(true);
-                          }}
-                          className="px-3 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
-                          title="Dettagli"
-                        >
-                          <i className="fas fa-info-circle"></i>
-                        </button>
-                        <button
-                          onClick={() => handleDownload(file.id, file.fileName)}
-                          className="px-3 py-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40 transition-colors"
-                          title="Download"
-                        >
-                          <i className="fas fa-download"></i>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(file.id)}
-                          className="px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
-                          title="Elimina"
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </AnimatePresence>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.pages}
-          onPageChange={(page) => setPagination({ ...pagination, page })}
-          itemsPerPage={pagination.limit}
-          totalItems={pagination.total}
-          onItemsPerPageChange={(limit) => setPagination({ ...pagination, limit })}
+          }
+        />
+        <Breadcrumb
+          items={[
+            { label: 'Dashboard', href: '/', icon: 'fa-home' },
+            { label: 'File Manager' },
+          ]}
         />
       </motion.div>
 
-      {/* Detail Offcanvas */}
-      <Offcanvas
-        open={detailOpen}
-        onClose={() => setDetailOpen(false)}
-        title="Dettagli File"
-        icon="fa-info-circle"
-        iconColor="text-blue-500"
-        width="lg"
-      >
-        {selectedFile && (
-          <div className="px-6 space-y-6">
-            <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
-              <i className={`fas ${getFileIcon(selectedFile.mimeType)} text-4xl text-gray-400`}></i>
-              <div>
-                <h4 className="font-semibold text-gray-900 dark:text-white text-lg">{selectedFile.fileName}</h4>
-                <p className="text-sm text-gray-500">{selectedFile.mimeType || 'Tipo sconosciuto'}</p>
+      <motion.div variants={itemVariants} className="flex flex-1 gap-4 overflow-hidden min-h-0">
+
+        {/* ── Sidebar Stats + Filtri ── */}
+        <aside className="w-64 shrink-0 flex flex-col gap-3 overflow-y-auto">
+
+          {/* Stats */}
+          <div className="rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow p-4">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Statistiche</div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500 dark:text-gray-400">File totali</span>
+                <span className="text-xs font-semibold text-gray-800 dark:text-white">{stats?.totalFiles ?? '—'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Spazio usato</span>
+                <span className="text-xs font-semibold text-gray-800 dark:text-white">{stats ? formatBytes(stats.totalSize) : '—'}</span>
               </div>
             </div>
 
+            {/* Top types */}
+            {stats && stats.filesByType.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Tipi file</div>
+                <div className="space-y-1.5">
+                  {stats.filesByType.slice(0, 4).map(t => (
+                    <div key={t.mimeType} className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 truncate max-w-[120px]" title={t.mimeType}>
+                        {t.mimeType.split('/').pop() || t.mimeType}
+                      </span>
+                      <span className="text-xs font-mono text-gray-400">{t.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Top users */}
+            {topUsers.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Utenti</div>
+                <div className="space-y-1.5">
+                  {topUsers.map(u => (
+                    <div key={u.userId} className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 truncate max-w-[120px]">{u.userName}</span>
+                      <span className="text-xs font-mono text-gray-400">{u.count} · {formatBytes(u.size)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Filtri */}
+          <div className="rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow p-4">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Filtri</div>
             <div className="space-y-3">
-              <DetailRow label="ID File" value={selectedFile.id.toString()} />
-              <DetailRow label="Bucket" value={selectedFile.bucket} />
-              <DetailRow label="Percorso Completo" value={selectedFile.objectKey} mono />
-              <DetailRow label="Dimensione" value={formatBytes(selectedFile.fileSize)} />
-              <DetailRow label="Caricato il" value={formatDate(selectedFile.uploadedAt)} />
-              <DetailRow label="Ultimo Accesso" value={formatDate(selectedFile.lastAccess)} />
-              <DetailRow label="Utente" value={selectedFile.user?.nome || 'Sistema'} />
-              <DetailRow label="Info" value={getFileInfo(selectedFile)} />
-              {selectedFile.metadata && (
-                <DetailRow label="Metadata" value={JSON.stringify(selectedFile.metadata, null, 2)} mono />
+              <div className="relative">
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Cerca nome file..."
+                  className="w-full pl-8 pr-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-400 dark:text-white"
+                />
+                <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Da data</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-400 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">A data</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-400 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Tipo MIME</label>
+                <select
+                  value={mimeFilter}
+                  onChange={e => setMimeFilter(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-400 dark:text-white"
+                >
+                  <option value="">Tutti</option>
+                  <option value="pdf">PDF</option>
+                  <option value="excel">Excel</option>
+                  <option value="image">Immagini</option>
+                  <option value="text">Testo / CSV</option>
+                </select>
+              </div>
+
+              {(search || dateFrom || dateTo || mimeFilter) && (
+                <button
+                  onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); setMimeFilter(''); }}
+                  className="w-full text-xs text-gray-500 hover:text-cyan-600 transition flex items-center justify-center gap-1.5"
+                >
+                  <i className="fas fa-redo text-xs"></i>Reset filtri
+                </button>
               )}
             </div>
+          </div>
+        </aside>
 
-            <div className="flex gap-3 pt-4">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleDownload(selectedFile.id, selectedFile.fileName)}
-                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
-              >
-                <i className="fas fa-download mr-2"></i>
-                Download
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  handleDelete(selectedFile.id);
-                  setDetailOpen(false);
-                }}
-                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium"
-              >
-                <i className="fas fa-trash mr-2"></i>
-                Elimina
-              </motion.button>
+        {/* ── Tabella ── */}
+        <div className="flex flex-col flex-1 min-w-0 rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+
+          {/* Toolbar */}
+          <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 shrink-0">
+            <input
+              type="checkbox"
+              checked={selectedIds.length === files.length && files.length > 0}
+              onChange={toggleAll}
+              className="h-4 w-4 rounded text-cyan-600 border-gray-300 focus:ring-cyan-400"
+            />
+            <span className="text-sm text-gray-500 dark:text-gray-400">{total} file</span>
+            {selectedIds.length > 0 && (
+              <span className="text-sm text-cyan-600 dark:text-cyan-400">{selectedIds.length} selezionati</span>
+            )}
+            <div className="flex-1"></div>
+            <button
+              onClick={loadFiles}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+              title="Ricarica"
+            >
+              <i className={`fas fa-sync-alt text-sm ${loading ? 'animate-spin' : ''}`}></i>
+            </button>
+          </div>
+
+          {/* Table */}
+          <div className="flex-1 overflow-auto">
+            {loading && files.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <i className="fas fa-spinner fa-spin text-2xl text-cyan-500"></i>
+              </div>
+            ) : files.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                <i className="fas fa-folder-open text-4xl mb-3"></i>
+                <p className="text-sm">Nessun file trovato</p>
+                <p className="text-[11px] mt-1 text-gray-300">La cartella jobs/ è vuota o i filtri non corrispondono</p>
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0 z-10">
+                  <tr>
+                    <th className="w-8 pl-4 py-3"></th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs">File</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs">Dimensione</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs">Job</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs">Utente</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs">Caricato</th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs">Azioni</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                  {files.map(file => {
+                    const isSelected = selectedIds.includes(file.id);
+                    const isActive = selectedFile?.id === file.id;
+                    return (
+                      <tr
+                        key={file.id}
+                        onClick={() => setSelectedFile(isActive ? null : file)}
+                        className={`cursor-pointer transition-colors ${
+                          isActive
+                            ? 'bg-cyan-50 dark:bg-cyan-900/20'
+                            : isSelected
+                            ? 'bg-indigo-50/50 dark:bg-indigo-900/10'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
+                        }`}
+                      >
+                        {/* Checkbox */}
+                        <td className="pl-4 py-3 w-8" onClick={e => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(file.id)}
+                            className="h-4 w-4 rounded text-cyan-600 border-gray-300 focus:ring-cyan-400"
+                          />
+                        </td>
+
+                        {/* File */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <i className={`fas ${getFileIcon(file.mimeType)} text-lg ${getFileIconColor(file.mimeType)} shrink-0`}></i>
+                            <div className="min-w-0">
+                              <div className="font-medium text-gray-800 dark:text-white truncate max-w-[220px]" title={file.fileName}>
+                                {file.fileName}
+                              </div>
+                              <div className="text-xs font-mono text-gray-400 truncate max-w-[220px]" title={file.objectKey}>
+                                {file.objectKey}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Size */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="text-gray-600 dark:text-gray-400">{formatBytes(file.fileSize)}</span>
+                        </td>
+
+                        {/* Job */}
+                        <td className="px-4 py-3">
+                          {file.job ? (
+                            <div>
+                              <div className="text-gray-700 dark:text-gray-300">{jobTypeLabel(file.job)}</div>
+                              <div className="mt-1">{jobStatusBadge(file.job.status)}</div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+
+                        {/* User */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-400 to-indigo-500 flex items-center justify-center shrink-0">
+                              <span className="text-[10px] font-bold text-white">
+                                {(file.user?.nome || file.user?.userName || 'S').charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <span className="text-gray-600 dark:text-gray-400">
+                              {file.user?.nome || file.user?.userName || 'Sistema'}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Date */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="text-gray-500 dark:text-gray-400">{formatDate(file.uploadedAt)}</span>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => handleDownload(file.id, file.fileName)}
+                              className="p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 transition"
+                              title="Download"
+                            >
+                              <i className="fas fa-download text-sm"></i>
+                            </button>
+                            <button
+                              onClick={() => confirmDelete(file.id)}
+                              className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 transition"
+                              title="Elimina"
+                            >
+                              <i className="fas fa-trash text-sm"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Paginazione */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 dark:border-gray-700 shrink-0">
+              <span className="text-sm text-gray-500 dark:text-gray-400">Pag. {page} / {totalPages} · {total} file</span>
+              <div className="flex gap-1">
+                <button onClick={() => setPage(1)} disabled={page === 1} className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">«</button>
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">‹</button>
+                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">›</button>
+                <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">»</button>
+              </div>
             </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* ── Offcanvas Dettaglio File ── */}
+      <Offcanvas
+        open={!!selectedFile}
+        onClose={() => setSelectedFile(null)}
+        title={selectedFile?.fileName || 'Dettaglio file'}
+        icon={selectedFile ? getFileIcon(selectedFile.mimeType) : 'fa-file'}
+        iconColor={selectedFile ? getFileIconColor(selectedFile.mimeType) : 'text-gray-400'}
+        width="md"
+        footer={
+          selectedFile ? (
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleDownload(selectedFile.id, selectedFile.fileName)}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-semibold rounded-lg transition"
+              >
+                <i className="fas fa-download"></i> Download
+              </button>
+              <button
+                onClick={() => { confirmDelete(selectedFile.id); setSelectedFile(null); }}
+                className="px-4 py-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 text-xs font-semibold rounded-lg transition"
+              >
+                <i className="fas fa-trash"></i>
+              </button>
+            </div>
+          ) : undefined
+        }
+      >
+        {selectedFile && (
+          <div className="px-4 space-y-1">
+            <DetailField label="ID" value={String(selectedFile.id)} mono />
+            <DetailField label="Bucket" value={selectedFile.bucket} mono />
+            <DetailField label="Percorso" value={selectedFile.objectKey} mono />
+            <DetailField label="Dimensione" value={formatBytes(selectedFile.fileSize)} />
+            <DetailField label="Caricato" value={formatDate(selectedFile.uploadedAt)} />
+            <DetailField label="Ultimo accesso" value={formatDate(selectedFile.lastAccess)} />
+            <DetailField label="Utente" value={selectedFile.user?.nome || selectedFile.user?.userName || 'Sistema'} />
+            {selectedFile.job && (
+              <>
+                <div className="pt-3 pb-1">
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Job collegato</span>
+                </div>
+                <DetailField label="Job ID" value={selectedFile.job.id.substring(0, 16) + '...'} mono />
+                <DetailField label="Tipo" value={jobTypeLabel(selectedFile.job)} />
+                <div className="flex items-center gap-3 py-2 border-b border-gray-100 dark:border-gray-700/50">
+                  <span className="w-32 shrink-0 text-[11px] font-mono text-gray-400">Stato</span>
+                  <div>{jobStatusBadge(selectedFile.job.status)}</div>
+                </div>
+              </>
+            )}
+            {selectedFile.metadata && (
+              <>
+                <div className="pt-3 pb-1">
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Metadata</span>
+                </div>
+                <pre className="text-[10px] font-mono text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg whitespace-pre-wrap">
+                  {JSON.stringify(selectedFile.metadata, null, 2)}
+                </pre>
+              </>
+            )}
           </div>
         )}
       </Offcanvas>
 
-      {/* Cleanup Modal */}
-      <Modal
-        open={cleanupOpen}
-        onClose={() => setCleanupOpen(false)}
-        title="Pulizia File Filtrata"
-        icon="fa-broom"
-        iconColor="text-orange-500"
-        size="lg"
-        footer={
-          <>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setCleanupOpen(false)}
-              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium"
+      {/* ── Delete confirm ── */}
+      <AnimatePresence>
+        {(deleteTarget !== null || bulkDeleteConfirm) && (
+          <motion.div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div
+              initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 30, opacity: 0 }}
+              className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl p-6"
             >
-              Annulla
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleCleanup}
-              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:shadow-lg font-medium"
-            >
-              <i className="fas fa-broom mr-2"></i>
-              Avvia Pulizia
-            </motion.button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <p className="text-gray-600 dark:text-gray-400">
-            Seleziona i filtri per eliminare i file. <strong>Attenzione:</strong> questa operazione è irreversibile!
-          </p>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <i className="fas fa-trash text-red-600 dark:text-red-400"></i>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {bulkDeleteConfirm ? `Elimina ${selectedIds.length} file` : 'Elimina file'}
+                  </h3>
+                  <p className="text-xs text-gray-500">Operazione irreversibile</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-5">
+                {bulkDeleteConfirm
+                  ? `Eliminare i ${selectedIds.length} file selezionati da MinIO?`
+                  : 'Eliminare questo file da MinIO?'}
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => { setDeleteTarget(null); setBulkDeleteConfirm(false); }}
+                  className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+                >
+                  Annulla
+                </button>
+                <button
+                  onClick={bulkDeleteConfirm ? executeBulkDelete : executeDelete}
+                  className="px-4 py-2 text-sm font-semibold bg-red-600 hover:bg-red-700 text-white rounded-lg transition"
+                >
+                  <i className="fas fa-trash mr-2"></i>Elimina
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Da Data
-              </label>
-              <input
-                type="date"
-                value={cleanupFilters.dateFrom}
-                onChange={(e) => setCleanupFilters({ ...cleanupFilters, dateFrom: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                A Data
-              </label>
-              <input
-                type="date"
-                value={cleanupFilters.dateTo}
-                onChange={(e) => setCleanupFilters({ ...cleanupFilters, dateTo: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Tipo File
-              </label>
-              <select
-                value={cleanupFilters.mimeType}
-                onChange={(e) => setCleanupFilters({ ...cleanupFilters, mimeType: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              >
-                <option value="">Tutti i tipi</option>
-                <option value="pdf">PDF</option>
-                <option value="excel">Excel</option>
-                <option value="image">Immagini</option>
-                <option value="text">Testo</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Footer */}
-      <Footer show>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            {stats && (
-              <>
-                <i className="fas fa-database mr-2"></i>
-                {stats.totalFiles} file • {formatBytes(stats.totalSize)}
-              </>
-            )}
-          </div>
-          <div className="flex flex-wrap justify-end gap-3">
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="px-5 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium shadow-lg hover:shadow-xl transition disabled:opacity-50"
+      {/* ── Cleanup modal ── */}
+      <AnimatePresence>
+        {cleanupOpen && (
+          <motion.div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div
+              initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 30, opacity: 0 }}
+              className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl p-6"
             >
-              {syncing ? (
-                <>
-                  <i className="fas fa-spinner fa-spin mr-2"></i>
-                  Sincronizzazione...
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-sync mr-2"></i>
-                  Sincronizza da MinIO
-                </>
-              )}
-            </button>
-            <button
-              onClick={() => setCleanupOpen(true)}
-              className="px-5 py-3 rounded-lg border-2 border-orange-300 text-orange-700 dark:border-orange-700 dark:text-orange-300 font-medium hover:bg-orange-50 dark:hover:bg-orange-900/20 transition"
-            >
-              <i className="fas fa-broom mr-2"></i>
-              Pulizia Filtrata
-            </button>
-            <button
-              onClick={handleBulkDelete}
-              disabled={selectedIds.length === 0}
-              className="px-5 py-3 rounded-lg border-2 border-red-300 text-red-700 dark:border-red-700 dark:text-red-300 font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition disabled:opacity-50"
-            >
-              <i className="fas fa-trash mr-2"></i>
-              Elimina Selezionati ({selectedIds.length})
-            </button>
-          </div>
-        </div>
-      </Footer>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                  <i className="fas fa-broom text-amber-600 dark:text-amber-400"></i>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Pulizia file jobs/</h3>
+                  <p className="text-xs text-gray-500">Elimina file con filtri — irreversibile</p>
+                </div>
+              </div>
+              <div className="space-y-3 mb-5">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Da data</label>
+                  <input type="date" value={cleanupFrom} onChange={e => setCleanupFrom(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-amber-400 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">A data</label>
+                  <input type="date" value={cleanupTo} onChange={e => setCleanupTo(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-amber-400 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Tipo MIME</label>
+                  <select value={cleanupMime} onChange={e => setCleanupMime(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-amber-400 focus:outline-none"
+                  >
+                    <option value="">Tutti i tipi</option>
+                    <option value="pdf">PDF</option>
+                    <option value="excel">Excel</option>
+                    <option value="image">Immagini</option>
+                    <option value="text">Testo / CSV</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setCleanupOpen(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition">Annulla</button>
+                <button onClick={handleCleanup} className="px-4 py-2 text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition">
+                  <i className="fas fa-broom mr-2"></i>Avvia pulizia
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
 
-function DetailRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+// ─── Helper component ──────────────────────────────────────────────────────────
+
+function DetailField({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="flex flex-col gap-1">
-      <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{label}</span>
-      <span className={`text-sm text-gray-900 dark:text-white ${mono ? 'font-mono text-xs bg-gray-100 dark:bg-gray-900 p-2 rounded' : ''}`}>
-        {value}
-      </span>
+    <div className="flex items-start gap-3 py-2 border-b border-gray-100 dark:border-gray-700/50 last:border-0">
+      <span className="w-32 shrink-0 text-[11px] font-mono text-gray-400 pt-0.5">{label}</span>
+      <span className={`flex-1 text-xs text-gray-800 dark:text-gray-200 break-all ${mono ? 'font-mono' : ''}`}>{value}</span>
     </div>
   );
 }

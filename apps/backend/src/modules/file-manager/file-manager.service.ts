@@ -34,10 +34,13 @@ export class FileManagerService {
   }
 
   /**
-   * Lista file con filtri
+   * Lista file con filtri — solo cartella jobs/
    */
   async listFiles(filter: FileFilter = {}, page = 1, limit = 50) {
-    const where: any = { bucket: this.bucket };
+    const where: any = {
+      bucket: this.bucket,
+      objectKey: { startsWith: 'jobs/' }, // solo cartella jobs
+    };
 
     if (filter.userId) where.userId = filter.userId;
     if (filter.jobId) where.jobId = filter.jobId;
@@ -48,7 +51,10 @@ export class FileManagerService {
       if (filter.dateTo) where.uploadedAt.lte = filter.dateTo;
     }
     if (filter.search) {
-      where.fileName = { contains: filter.search };
+      where.OR = [
+        { fileName: { contains: filter.search } },
+        { objectKey: { contains: filter.search } },
+      ];
     }
 
     const [files, total] = await Promise.all([
@@ -80,11 +86,11 @@ export class FileManagerService {
   }
 
   /**
-   * Statistiche sui file
+   * Statistiche sui file — solo cartella jobs/
    */
   async getStats(): Promise<FileStats> {
     const files = await this.prisma.minioFile.findMany({
-      where: { bucket: this.bucket },
+      where: { bucket: this.bucket, objectKey: { startsWith: 'jobs/' } },
       include: { user: true },
     });
 
@@ -162,10 +168,10 @@ export class FileManagerService {
   }
 
   /**
-   * Elimina file con filtri
+   * Elimina file con filtri — solo cartella jobs/
    */
   async deleteFiles(filter: FileFilter): Promise<{ deleted: number; size: number }> {
-    const where: any = { bucket: this.bucket };
+    const where: any = { bucket: this.bucket, objectKey: { startsWith: 'jobs/' } };
 
     if (filter.userId) where.userId = filter.userId;
     if (filter.jobId) where.jobId = filter.jobId;
@@ -248,36 +254,29 @@ export class FileManagerService {
     let errors = 0;
 
     for (const obj of objects) {
+      // Gestisce solo file nella cartella jobs/
+      if (!obj.name.startsWith('jobs/')) continue;
+
       try {
         const existing = await this.prisma.minioFile.findFirst({
           where: { bucket: this.bucket, objectKey: obj.name },
         });
 
-        // Estrai userId e jobId dal path se possibile
-        // Formato: jobs/[userId]/[jobId]/filename.pdf
+        // Estrai userId e jobId dal path
+        // Formato atteso: jobs/[userId]/[jobId]/filename.pdf
         let userId: number | null = null;
         let jobId: string | null = null;
-
         const pathParts = obj.name.split('/');
         let metadata: any = {};
 
-        if (pathParts[0] === 'jobs' && pathParts.length >= 4) {
-          // jobs/[userId]/[jobId]/filename
+        if (pathParts.length >= 4) {
           userId = parseInt(pathParts[1]);
           jobId = pathParts[2];
           metadata = { type: 'job', jobId: pathParts[2] };
           this.logger.log(`  -> Job file: userId=${userId}, jobId=${jobId}`);
-        } else if (pathParts[0] === 'export' && pathParts.length >= 3) {
-          // export/[progressivo]/filename
-          metadata = { type: 'export', progressivo: pathParts[1] };
-          this.logger.log(`  -> Export file: progressivo=${pathParts[1]}`);
-        } else if (pathParts[0] === 'quality' && pathParts.length >= 4) {
-          // quality/cq_uploads/[cartellino]/filename
-          metadata = { type: 'quality', cartellino: pathParts[2] };
-          this.logger.log(`  -> Quality file: cartellino=${pathParts[2]}`);
         } else {
-          metadata = { type: 'unknown' };
-          this.logger.log(`  -> Unknown category: ${pathParts[0]}`);
+          metadata = { type: 'job' };
+          this.logger.log(`  -> Job file (path incompleto): ${obj.name}`);
         }
 
         if (!existing) {

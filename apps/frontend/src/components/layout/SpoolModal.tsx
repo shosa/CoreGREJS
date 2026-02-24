@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { jobsApi } from '@/lib/api';
+import { useAuthStore } from '@/store/auth';
 import { showError } from '@/store/notifications';
+import api from '@/lib/api';
 
 type JobStatus = 'queued' | 'running' | 'done' | 'failed';
 
@@ -18,6 +20,8 @@ interface JobItem {
   errorMessage?: string | null;
   createdAt: string;
   finishedAt?: string | null;
+  // campo extra per tab admin
+  user?: { id: number; userName: string; nome: string } | null;
 }
 
 interface Props {
@@ -26,12 +30,17 @@ interface Props {
 }
 
 export default function SpoolModal({ open, onClose }: Props) {
+  const { hasPermission } = useAuthStore();
+  const isAdmin = hasPermission('system-admin');
+
   const [jobs, setJobs] = useState<JobItem[]>([]);
+  const [adminJobs, setAdminJobs] = useState<JobItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'files' | 'inqueue' | 'history'>('files');
+  const [activeTab, setActiveTab] = useState<'files' | 'inqueue' | 'history' | 'admin'>('files');
   const [refreshing, setRefreshing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
+  const [adminStatusFilter, setAdminStatusFilter] = useState<string>('');
 
   // Reset selezione quando cambio tab
   useEffect(() => {
@@ -52,6 +61,11 @@ export default function SpoolModal({ open, onClose }: Props) {
     [jobs]
   );
 
+  const adminFiltered = useMemo(() =>
+    adminStatusFilter ? adminJobs.filter(j => j.status === adminStatusFilter) : adminJobs,
+    [adminJobs, adminStatusFilter]
+  );
+
   const fetchJobs = async (silent = false) => {
     if (!silent) setLoading(true);
     else setRefreshing(true);
@@ -66,12 +80,23 @@ export default function SpoolModal({ open, onClose }: Props) {
     }
   };
 
+  const fetchAdminJobs = async () => {
+    try {
+      const res = await api.get('/jobs/admin/all');
+      setAdminJobs(res.data || []);
+    } catch {}
+  };
+
   useEffect(() => {
     if (!open) return;
     fetchJobs();
     const interval = setInterval(() => fetchJobs(true), 5000);
     return () => clearInterval(interval);
   }, [open]);
+
+  useEffect(() => {
+    if (open && activeTab === 'admin' && isAdmin) fetchAdminJobs();
+  }, [open, activeTab, isAdmin]);
 
   const handleDownload = async (job: JobItem) => {
     try {
@@ -84,8 +109,6 @@ export default function SpoolModal({ open, onClose }: Props) {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
-      // When responseType is 'blob', error.response.data is also a blob
-      // We need to read it as text to get the actual error message
       if (err?.response?.data instanceof Blob) {
         try {
           const text = await err.response.data.text();
@@ -106,6 +129,15 @@ export default function SpoolModal({ open, onClose }: Props) {
       fetchJobs();
     } catch (err: any) {
       showError(err?.response?.data?.message || 'Errore nella cancellazione');
+    }
+  };
+
+  const handleAdminDelete = async (id: string) => {
+    try {
+      await api.delete(`/jobs/admin/${id}`);
+      fetchAdminJobs();
+    } catch (err: any) {
+      showError(err?.response?.data?.message || 'Errore cancellazione admin');
     }
   };
 
@@ -150,73 +182,41 @@ export default function SpoolModal({ open, onClose }: Props) {
   };
 
   const openBlobInNewTab = (blob: Blob, filename: string) => {
-    // Crea un nuovo blob con il type corretto per assicurare che il browser lo riconosca
     const properBlob = new Blob([blob], { type: blob.type || 'application/pdf' });
     const url = URL.createObjectURL(properBlob);
-
-    // Apri in una nuova finestra
     const win = window.open(url, '_blank');
     if (!win) {
       showError('Popup bloccato: consenti le nuove schede per aprire il PDF');
       URL.revokeObjectURL(url);
       return;
     }
-
-    // Il browser userà il MIME type per determinare come aprire il file
-    // Per PDF, lo aprirà nel visualizzatore integrato
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const handleOpenSelected = async (idsOverride?: string[]) => {
     const ids = idsOverride ?? Array.from(selectedIds);
-
-    if (!ids.length) {
-      showError('Nessun file selezionato');
-      return;
-    }
-
+    if (!ids.length) { showError('Nessun file selezionato'); return; }
     try {
       const list = getCurrentList();
       const selectedJobs = list.filter(j => ids.includes(j.id));
-
-      if (selectedJobs.length === 0) {
-        showError('File non trovati');
-        return;
-      }
-
-      // tutti devono essere PDF
+      if (selectedJobs.length === 0) { showError('File non trovati'); return; }
       if (!selectedJobs.every(j => (j.outputMime || '').toLowerCase().includes('pdf'))) {
-        showError('Apri funziona solo con PDF');
-        return;
+        showError('Apri funziona solo con PDF'); return;
       }
-
       if (selectedJobs.length === 1) {
         const job = selectedJobs[0];
         const response = await jobsApi.download(job.id);
         const blob = new Blob([response.data], { type: job.outputMime || 'application/pdf' });
-        const filename = job.outputName || 'document.pdf';
-        openBlobInNewTab(blob, filename);
+        openBlobInNewTab(blob, job.outputName || 'document.pdf');
         return;
       }
-
-      // multipli: merge server-side
-      console.log('Merging PDFs with IDs:', selectedJobs.map(j => j.id));
       const response = await jobsApi.mergePdf(selectedJobs.map(j => j.id));
-      console.log('Merge response:', response);
-      console.log('Response data type:', typeof response.data);
-      console.log('Response data size:', response.data?.size || response.data?.byteLength || 'unknown');
-
       if (!response.data || (response.data.size === 0 && response.data.byteLength === 0)) {
-        showError('Risposta vuota dal server');
-        return;
+        showError('Risposta vuota dal server'); return;
       }
-
       const blob = new Blob([response.data], { type: 'application/pdf' });
-      console.log('Created blob:', blob.size, 'bytes');
-      const mergedFilename = `merged_${Date.now()}.pdf`;
-      openBlobInNewTab(blob, mergedFilename);
+      openBlobInNewTab(blob, `merged_${Date.now()}.pdf`);
     } catch (err: any) {
-      console.error('Error opening PDFs:', err);
       showError(err?.response?.data?.message || err?.message || 'Errore apertura PDF');
     }
   };
@@ -231,26 +231,17 @@ export default function SpoolModal({ open, onClose }: Props) {
     const list = getCurrentList();
     const newSelected = new Set(selectedIds);
     const isSelected = newSelected.has(jobId);
-
     if (event.shiftKey && lastSelectedIndex !== null) {
       const start = Math.min(lastSelectedIndex, rowIndex);
       const end = Math.max(lastSelectedIndex, rowIndex);
-      for (let i = start; i <= end; i++) {
-        newSelected.add(list[i].id);
-      }
+      for (let i = start; i <= end; i++) newSelected.add(list[i].id);
     } else if (event.ctrlKey || event.metaKey) {
       if (isSelected) newSelected.delete(jobId);
       else newSelected.add(jobId);
       setLastSelectedIndex(rowIndex);
     } else {
-      if (isSelected && selectedIds.size === 1) {
-        newSelected.clear();
-        setLastSelectedIndex(null);
-      } else {
-        newSelected.clear();
-        newSelected.add(jobId);
-        setLastSelectedIndex(rowIndex);
-      }
+      if (isSelected && selectedIds.size === 1) { newSelected.clear(); setLastSelectedIndex(null); }
+      else { newSelected.clear(); newSelected.add(jobId); setLastSelectedIndex(rowIndex); }
     }
     setSelectedIds(newSelected);
   };
@@ -263,6 +254,16 @@ export default function SpoolModal({ open, onClose }: Props) {
       failed: 'bg-red-100 text-red-700',
     };
     return map[status] || 'bg-gray-100 text-gray-700';
+  };
+
+  const statusLabel = (status: JobStatus) => {
+    const map: Record<JobStatus, string> = {
+      queued: 'IN CODA',
+      running: 'IN CORSO',
+      done: 'OK',
+      failed: 'FALLITO',
+    };
+    return map[status] || status;
   };
 
   return (
@@ -280,12 +281,12 @@ export default function SpoolModal({ open, onClose }: Props) {
             exit={{ y: 40, opacity: 0 }}
             className="w-full max-w-6xl h-[80vh] rounded-2xl bg-white shadow-2xl dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
           >
-              <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4 select-none" onContextMenu={(e) => e.preventDefault()}>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Spool lavori</h3>
-                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                    <span>Code e documenti generati per il tuo utente</span>
-                    {refreshing && <i className="fas fa-spinner fa-spin text-xs" aria-label="aggiornamento in corso"></i>}
+            <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4 select-none" onContextMenu={(e) => e.preventDefault()}>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Spool lavori</h3>
+                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                  <span>Code e documenti generati per il tuo utente</span>
+                  {refreshing && <i className="fas fa-spinner fa-spin text-xs" aria-label="aggiornamento in corso"></i>}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -306,40 +307,54 @@ export default function SpoolModal({ open, onClose }: Props) {
               </div>
             </div>
 
-              <div className="px-6 pt-4 flex flex-col h-[calc(80vh-120px)] overflow-hidden select-none" onContextMenu={(e) => e.preventDefault()}>
+            <div className="px-6 pt-4 flex flex-col h-[calc(80vh-120px)] overflow-hidden select-none" onContextMenu={(e) => e.preventDefault()}>
               <div className="mb-4 flex flex-wrap gap-2 items-center justify-between">
                 <div className="flex gap-2">
-                <button
-                  onClick={() => setActiveTab('files')}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                    activeTab === 'files'
-                      ? 'bg-blue-600 text-white shadow'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  FILE
-                </button>
-                <button
-                  onClick={() => setActiveTab('inqueue')}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                    activeTab === 'inqueue'
-                      ? 'bg-blue-600 text-white shadow'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  IN CODA
-                </button>
-                <button
-                  onClick={() => setActiveTab('history')}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                    activeTab === 'history'
-                      ? 'bg-blue-600 text-white shadow'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  COMPLETI
-                </button>
+                  <button
+                    onClick={() => setActiveTab('files')}
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      activeTab === 'files'
+                        ? 'bg-blue-600 text-white shadow'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    FILE
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('inqueue')}
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      activeTab === 'inqueue'
+                        ? 'bg-blue-600 text-white shadow'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    IN CODA
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('history')}
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      activeTab === 'history'
+                        ? 'bg-blue-600 text-white shadow'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    COMPLETI
+                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => setActiveTab('admin')}
+                      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                        activeTab === 'admin'
+                          ? 'bg-purple-600 text-white shadow'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      ADMIN
+                    </button>
+                  )}
                 </div>
+
+                {/* Toolbar azioni (solo tab utente) */}
                 {activeTab === 'files' && (
                   <div className="flex items-center gap-2">
                     <button
@@ -375,6 +390,30 @@ export default function SpoolModal({ open, onClose }: Props) {
                     </button>
                   </div>
                 )}
+
+                {/* Toolbar admin */}
+                {activeTab === 'admin' && (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={adminStatusFilter}
+                      onChange={e => setAdminStatusFilter(e.target.value)}
+                      className="h-9 px-3 text-sm bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full focus:outline-none dark:text-white"
+                    >
+                      <option value="">Tutti gli stati</option>
+                      <option value="queued">In coda</option>
+                      <option value="running">In corso</option>
+                      <option value="done">Completati</option>
+                      <option value="failed">Falliti</option>
+                    </select>
+                    <button
+                      onClick={fetchAdminJobs}
+                      className="h-9 w-9 rounded-full border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
+                      title="Aggiorna"
+                    >
+                      <i className="fas fa-sync text-gray-600 dark:text-gray-300"></i>
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="flex-1 overflow-y-auto border border-gray-200 dark:border-gray-800 rounded-lg select-none" style={{ userSelect: 'none' }} onContextMenu={(e) => e.preventDefault()}>
@@ -384,6 +423,7 @@ export default function SpoolModal({ open, onClose }: Props) {
                   </div>
                 ) : (
                   <>
+                    {/* ─── FILE ─── */}
                     {activeTab === 'files' && (
                       <table className="min-w-full text-sm">
                         <thead className="sticky top-0 z-10 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200">
@@ -401,39 +441,40 @@ export default function SpoolModal({ open, onClose }: Props) {
                                 Nessun file disponibile
                               </td>
                             </tr>
-                                ) : (
-                                  files.map((job, idx) => (
-                                    <tr
-                                      key={job.id}
-                                      onClick={(e) => toggleSelect(job.id, idx, e)}
-                                      onDoubleClick={async () => {
-                                        if (job.outputMime === 'application/pdf') {
-                                          await handleOpenSelected([job.id]);
-                                        } else {
-                                          await handleDownload(job);
-                                        }
-                                      }}
-                                      className={`cursor-pointer border-t border-gray-200 dark:border-gray-800 ${
-                                        selectedIds.has(job.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                                      }`}
-                                    >
-                                      <td className="px-4 py-3 text-gray-900 dark:text-white">{job.outputName || '-'}</td>
+                          ) : (
+                            files.map((job, idx) => (
+                              <tr
+                                key={job.id}
+                                onClick={(e) => toggleSelect(job.id, idx, e)}
+                                onDoubleClick={async () => {
+                                  if (job.outputMime === 'application/pdf') {
+                                    await handleOpenSelected([job.id]);
+                                  } else {
+                                    await handleDownload(job);
+                                  }
+                                }}
+                                className={`cursor-pointer border-t border-gray-200 dark:border-gray-800 ${
+                                  selectedIds.has(job.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                                }`}
+                              >
+                                <td className="px-4 py-3 text-gray-900 dark:text-white">{job.outputName || '-'}</td>
                                 <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
                                   {job.outputName ? (job.outputName.split('.').pop() || '').toUpperCase() : '-'}
                                 </td>
                                 <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
                                   {job.outputSize && job.outputSize > 0 ? `${(job.outputSize / 1024).toFixed(1)} KB` : '-'}
                                 </td>
-                                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                                        {new Date(job.createdAt).toLocaleString('it-IT')}
-                                      </td>
-                                    </tr>
+                                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                                  {new Date(job.createdAt).toLocaleString('it-IT')}
+                                </td>
+                              </tr>
                             ))
                           )}
                         </tbody>
                       </table>
                     )}
 
+                    {/* ─── IN CODA ─── */}
                     {activeTab === 'inqueue' && (
                       <table className="min-w-full text-sm">
                         <thead className="sticky top-0 z-10 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200">
@@ -477,6 +518,7 @@ export default function SpoolModal({ open, onClose }: Props) {
                       </table>
                     )}
 
+                    {/* ─── COMPLETI ─── */}
                     {activeTab === 'history' && (
                       <table className="min-w-full text-sm">
                         <thead className="sticky top-0 z-10 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200">
@@ -523,11 +565,71 @@ export default function SpoolModal({ open, onClose }: Props) {
                         </tbody>
                       </table>
                     )}
+
+                    {/* ─── ADMIN ─── */}
+                    {activeTab === 'admin' && isAdmin && (
+                      <table className="min-w-full text-sm">
+                        <thead className="sticky top-0 z-10 bg-purple-50 dark:bg-purple-900/20 text-gray-700 dark:text-gray-200">
+                          <tr>
+                            <th className="px-4 py-3 text-left">UTENTE</th>
+                            <th className="px-4 py-3 text-left">NOME JOB</th>
+                            <th className="px-4 py-3 text-left">ID</th>
+                            <th className="px-4 py-3 text-left">CREATO</th>
+                            <th className="px-4 py-3 text-left">TERMINATO</th>
+                            <th className="px-4 py-3 text-left">STATO</th>
+                            <th className="px-4 py-3 text-left">FILE</th>
+                            <th className="px-4 py-3 text-left">AZIONI</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {adminFiltered.length === 0 ? (
+                            <tr>
+                              <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                                Nessun job trovato
+                              </td>
+                            </tr>
+                          ) : (
+                            adminFiltered.map(job => (
+                              <tr key={job.id} className="border-t border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                                  <div className="font-medium">{job.user?.nome || '—'}</div>
+                                  <div className="text-xs text-gray-400 font-mono">{job.user?.userName || '—'}</div>
+                                </td>
+                                <td className="px-4 py-3 text-gray-900 dark:text-white">{job.type}</td>
+                                <td className="px-4 py-3 text-gray-700 dark:text-gray-300 font-mono text-xs">{job.id.substring(0, 12)}…</td>
+                                <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                  {new Date(job.createdAt).toLocaleString('it-IT')}
+                                </td>
+                                <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                  {job.finishedAt ? new Date(job.finishedAt).toLocaleString('it-IT') : '-'}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusBadge(job.status)}`}>
+                                    {statusLabel(job.status)}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-gray-600 dark:text-gray-400 text-xs">
+                                  {job.outputName || '—'}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <button
+                                    onClick={() => handleAdminDelete(job.id)}
+                                    className="h-8 w-8 rounded-full border border-red-200 dark:border-red-700 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-900/20"
+                                    title="Elimina job (admin)"
+                                  >
+                                    <i className="fas fa-trash text-red-600 dark:text-red-400 text-xs"></i>
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    )}
                   </>
                 )}
               </div>
             </div>
-
           </motion.div>
         </motion.div>
       )}

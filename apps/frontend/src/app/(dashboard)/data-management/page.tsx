@@ -5,7 +5,18 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { showSuccess, showError } from '@/store/notifications';
 import PageHeader from '@/components/layout/PageHeader';
+import Breadcrumb from '@/components/layout/Breadcrumb';
+import Offcanvas from '@/components/ui/Offcanvas';
 import api from '@/lib/api';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.07 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0 },
+};
 
 // ─── Metadata tabelle (lato client) ───────────────────────────────────────────
 
@@ -60,7 +71,6 @@ const MODULES: ModuleMeta[] = [
     tables: [
       { model: 'qualityRecord', label: 'Record', tableName: 'cq_records', icon: 'fa-clipboard-check', previewCols: ['id', 'cartellino', 'commessa', 'modello', 'createdAt'] },
       { model: 'qualityDepartment', label: 'Dipartimenti', tableName: 'cq_departments', icon: 'fa-sitemap', previewCols: ['id', 'nome', 'codice', 'attivo'] },
-      { model: 'qualityOperator', label: 'Operatori', tableName: 'cq_operators', icon: 'fa-user-check', previewCols: ['id', 'nome', 'cognome', 'matricola'] },
       { model: 'qualityDefectType', label: 'Tipi Difetto', tableName: 'cq_deftypes', icon: 'fa-exclamation-triangle', previewCols: ['id', 'nome', 'codice', 'categoria'] },
     ],
   },
@@ -382,9 +392,10 @@ export default function DataManagementPage() {
   const NON_EDITABLE = ['id', 'createdAt', 'updatedAt', 'archivedAt'];
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden">
-      {/* Header */}
-      <div className="shrink-0 mb-3">
+    <>
+    <motion.div initial="hidden" animate="visible" variants={containerVariants} className="flex flex-col h-full overflow-hidden">
+      {/* Breadcrumb + Header */}
+      <motion.div variants={itemVariants} className="shrink-0">
         <PageHeader
           title="Gestione Dati"
           subtitle="Database browser · SQL Console · Schema inspector"
@@ -412,21 +423,27 @@ export default function DataManagementPage() {
             </div>
           }
         />
-      </div>
+        <Breadcrumb
+          items={[
+            { label: 'Dashboard', href: '/', icon: 'fa-home' },
+            { label: 'Gestione Dati' },
+          ]}
+        />
+      </motion.div>
 
-      <div className="flex flex-1 gap-4 overflow-hidden min-h-0">
+      <motion.div variants={itemVariants} className="flex flex-1 gap-4 overflow-hidden min-h-0">
 
         {/* ── Sidebar ── */}
-        <aside className="w-56 shrink-0 flex flex-col bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="p-2 border-b border-gray-100 dark:border-gray-700">
+        <aside className="w-64 shrink-0 flex flex-col rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
             <div className="relative">
               <input
                 value={sidebarSearch}
                 onChange={e => setSidebarSearch(e.target.value)}
                 placeholder="Cerca tabella..."
-                className="w-full pl-7 pr-2 py-1.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-400 dark:text-white"
+                className="w-full pl-8 pr-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-400 dark:text-white"
               />
-              <i className="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]"></i>
+              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
             </div>
           </div>
           <nav className="flex-1 overflow-y-auto py-1">
@@ -441,12 +458,12 @@ export default function DataManagementPage() {
                       next.has(mod.key) ? next.delete(mod.key) : next.add(mod.key);
                       return next;
                     })}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   >
                     <span className={`w-2 h-2 rounded-full shrink-0 ${colors.dot}`}></span>
-                    <i className={`fas ${mod.icon} text-[10px] text-gray-400 w-3`}></i>
-                    <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex-1 text-left truncate">{mod.label}</span>
-                    <i className={`fas fa-chevron-${isExpanded ? 'down' : 'right'} text-[9px] text-gray-300`}></i>
+                    <i className={`fas ${mod.icon} text-xs text-gray-400 w-3`}></i>
+                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex-1 text-left truncate">{mod.label}</span>
+                    <i className={`fas fa-chevron-${isExpanded ? 'down' : 'right'} text-xs text-gray-300`}></i>
                   </button>
                   {isExpanded && mod.tables.map(tbl => {
                     const isActive = activeModel === tbl.model;
@@ -454,18 +471,18 @@ export default function DataManagementPage() {
                       <button
                         key={tbl.model}
                         onClick={() => navigate({ table: tbl.model, tab: 'table' })}
-                        className={`w-full flex items-center gap-2 pl-6 pr-2 py-1 text-left transition-colors ${
+                        className={`w-full flex items-center gap-2 pl-7 pr-3 py-1.5 text-left transition-colors ${
                           isActive
                             ? colors.activeBg + ' dark:bg-cyan-900/20'
                             : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
                         }`}
                       >
-                        <i className={`fas ${tbl.icon} text-[10px] ${isActive ? 'text-cyan-600' : 'text-gray-400'} w-3`}></i>
+                        <i className={`fas ${tbl.icon} text-xs ${isActive ? 'text-cyan-600' : 'text-gray-400'} w-3`}></i>
                         <div className="flex-1 min-w-0">
-                          <div className={`text-[11px] font-medium truncate ${isActive ? 'text-cyan-700 dark:text-cyan-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                          <div className={`text-xs font-medium truncate ${isActive ? 'text-cyan-700 dark:text-cyan-400' : 'text-gray-600 dark:text-gray-400'}`}>
                             {tbl.label}
                           </div>
-                          <div className="text-[9px] font-mono text-gray-400 truncate">{tbl.tableName}</div>
+                          <div className="text-[10px] font-mono text-gray-400 truncate">{tbl.tableName}</div>
                         </div>
                       </button>
                     );
@@ -492,27 +509,27 @@ export default function DataManagementPage() {
               ) : (
                 <div className="flex flex-1 gap-3 min-w-0 overflow-hidden">
                   {/* Tabella dati */}
-                  <div className="flex flex-col flex-1 min-w-0 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                  <div className="flex flex-col flex-1 min-w-0 rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
                     {/* Toolbar */}
-                    <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-700 shrink-0">
-                      <div className="flex items-center gap-1.5">
-                        <i className={`fas ${currentMeta?.icon} text-cyan-500 text-sm`}></i>
+                    <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <i className={`fas ${currentMeta?.icon} text-cyan-500 text-base`}></i>
                         <span className="text-sm font-semibold text-gray-800 dark:text-white">{currentMeta?.label}</span>
-                        <span className="text-[10px] font-mono text-gray-400 ml-1">{currentMeta?.tableName}</span>
+                        <span className="text-xs font-mono text-gray-400">{currentMeta?.tableName}</span>
                       </div>
-                      <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[11px] font-medium">{total} righe</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium">{total} righe</span>
                       <div className="flex-1"></div>
                       <div className="relative">
                         <input
                           value={search}
                           onChange={e => { setSearch(e.target.value); setPage(1); }}
                           placeholder="Cerca..."
-                          className="pl-7 pr-3 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-cyan-400 dark:text-white w-44"
+                          className="pl-8 pr-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-cyan-400 dark:text-white w-48"
                         />
-                        <i className="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]"></i>
+                        <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
                       </div>
-                      <button onClick={fetchTable} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
-                        <i className={`fas fa-sync-alt text-xs ${loading ? 'animate-spin' : ''}`}></i>
+                      <button onClick={fetchTable} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
+                        <i className={`fas fa-sync-alt text-sm ${loading ? 'animate-spin' : ''}`}></i>
                       </button>
                     </div>
 
@@ -527,14 +544,14 @@ export default function DataManagementPage() {
                           <div className="text-center"><i className="fas fa-inbox text-3xl mb-2"></i><p className="text-sm">Nessun record</p></div>
                         </div>
                       ) : (
-                        <table className="w-full text-xs">
+                        <table className="w-full text-sm">
                           <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0 z-10">
                             <tr>
                               {visibleCols.map(col => (
                                 <th
                                   key={col}
                                   onClick={() => toggleSort(col)}
-                                  className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 whitespace-nowrap"
+                                  className="px-4 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 whitespace-nowrap"
                                 >
                                   {col}
                                   {sortBy === col && (
@@ -559,7 +576,7 @@ export default function DataManagementPage() {
                                   }`}
                                 >
                                   {visibleCols.map(col => (
-                                    <td key={col} className="px-3 py-1.5 whitespace-nowrap max-w-[200px] overflow-hidden">
+                                    <td key={col} className="px-4 py-2.5 whitespace-nowrap max-w-[200px] overflow-hidden">
                                       <CellBadge value={rec[col]} />
                                     </td>
                                   ))}
@@ -573,13 +590,13 @@ export default function DataManagementPage() {
 
                     {/* Paginazione */}
                     {totalPages > 1 && (
-                      <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 dark:border-gray-700 shrink-0">
-                        <span className="text-[11px] text-gray-400">Pag. {page} / {totalPages}</span>
+                      <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-gray-700 shrink-0">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Pag. {page} / {totalPages}</span>
                         <div className="flex gap-1">
-                          <button onClick={() => setPage(1)} disabled={page === 1} className="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">«</button>
-                          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">‹</button>
-                          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">›</button>
-                          <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">»</button>
+                          <button onClick={() => setPage(1)} disabled={page === 1} className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">«</button>
+                          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">‹</button>
+                          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">›</button>
+                          <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">»</button>
                         </div>
                       </div>
                     )}
@@ -595,7 +612,7 @@ export default function DataManagementPage() {
           {activeTab === 'sql' && (
             <div className="flex-1 flex flex-col gap-3 min-w-0 overflow-hidden">
               {/* Editor */}
-              <div className="bg-gray-900 rounded-xl border border-gray-700 shadow-sm overflow-hidden shrink-0">
+              <div className="bg-gray-900 rounded-2xl border border-gray-700 shadow overflow-hidden shrink-0">
                 <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -625,31 +642,31 @@ export default function DataManagementPage() {
               </div>
 
               {/* Risultati */}
-              <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col min-h-0">
+              <div className="flex-1 rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow overflow-hidden flex flex-col min-h-0">
                 {sqlError && (
-                  <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800">
+                  <div className="px-5 py-3.5 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800">
                     <div className="flex items-start gap-2">
                       <i className="fas fa-exclamation-circle text-red-500 mt-0.5"></i>
-                      <pre className="text-xs text-red-700 dark:text-red-400 font-mono whitespace-pre-wrap">{sqlError}</pre>
+                      <pre className="text-sm text-red-700 dark:text-red-400 font-mono whitespace-pre-wrap">{sqlError}</pre>
                     </div>
                   </div>
                 )}
                 {sqlResult && (
                   <>
-                    <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-100 dark:border-gray-700 shrink-0">
-                      <span className="text-xs text-gray-500">{sqlResult.rowCount} righe</span>
-                      <span className="text-xs text-gray-400">·</span>
-                      <span className="text-xs text-gray-500">{sqlResult.duration}ms</span>
+                    <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 shrink-0">
+                      <span className="text-sm text-gray-500">{sqlResult.rowCount} righe</span>
+                      <span className="text-sm text-gray-400">·</span>
+                      <span className="text-sm text-gray-500">{sqlResult.duration}ms</span>
                     </div>
                     <div className="overflow-auto flex-1">
                       {sqlResult.columns.length === 0 ? (
                         <div className="p-8 text-center text-gray-400 text-sm">Nessun risultato</div>
                       ) : (
-                        <table className="w-full text-xs">
+                        <table className="w-full text-sm">
                           <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
                             <tr>
                               {sqlResult.columns.map(c => (
-                                <th key={c} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">{c}</th>
+                                <th key={c} className="px-4 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs whitespace-nowrap">{c}</th>
                               ))}
                             </tr>
                           </thead>
@@ -685,16 +702,16 @@ export default function DataManagementPage() {
           {activeTab === 'schema' && (
             <div className="flex-1 flex gap-3 min-w-0 overflow-hidden">
               {/* Lista tabelle DB */}
-              <div className="w-64 shrink-0 flex flex-col bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700 shrink-0">
+              <div className="w-64 shrink-0 flex flex-col bg-white dark:bg-gray-800/40 rounded-2xl border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 shrink-0">
                   <div className="relative">
                     <input
                       value={schemaSearch}
                       onChange={e => setSchemaSearch(e.target.value)}
                       placeholder="Cerca tabella DB..."
-                      className="w-full pl-7 pr-2 py-1.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-400 dark:text-white"
+                      className="w-full pl-8 pr-2 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-400 dark:text-white"
                     />
-                    <i className="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]"></i>
+                    <i className="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
@@ -702,29 +719,29 @@ export default function DataManagementPage() {
                     <button
                       key={t.table}
                       onClick={() => loadColumns(t.table)}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30 ${
+                      className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30 ${
                         schemaTable === t.table ? 'bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400' : 'text-gray-600 dark:text-gray-400'
                       }`}
                     >
                       <div>
                         <div className="font-mono font-medium">{t.table}</div>
-                        <div className="text-[10px] text-gray-400">{t.rows.toLocaleString()} righe · {t.size}</div>
+                        <div className="text-xs text-gray-400">{t.rows.toLocaleString()} righe · {t.size}</div>
                       </div>
-                      <i className="fas fa-chevron-right text-[9px] text-gray-300"></i>
+                      <i className="fas fa-chevron-right text-xs text-gray-300"></i>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Colonne tabella selezionata */}
-              <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col min-w-0">
+              <div className="flex-1 bg-white dark:bg-gray-800/40 rounded-2xl border border-gray-200 dark:border-gray-700 shadow overflow-hidden flex flex-col min-w-0">
                 {!schemaTable ? (
                   <div className="flex-1 flex items-center justify-center text-gray-400">
                     <div className="text-center"><i className="fas fa-project-diagram text-3xl mb-2"></i><p className="text-sm">Seleziona una tabella</p></div>
                   </div>
                 ) : (
                   <>
-                    <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700 shrink-0">
+                    <div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 shrink-0">
                       <span className="text-sm font-semibold font-mono text-gray-800 dark:text-white">{schemaTable}</span>
                       <span className="ml-2 text-xs text-gray-400">DESCRIBE</span>
                     </div>
@@ -732,34 +749,34 @@ export default function DataManagementPage() {
                       {schemaLoading ? (
                         <div className="flex items-center justify-center h-full"><i className="fas fa-spinner fa-spin text-cyan-500"></i></div>
                       ) : (
-                        <table className="w-full text-xs">
+                        <table className="w-full text-sm">
                           <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
                             <tr>
                               {['Field', 'Type', 'Null', 'Key', 'Default', 'Extra'].map(h => (
-                                <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                <th key={h} className="px-4 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs whitespace-nowrap">{h}</th>
                               ))}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
                             {schemaColumns.map((col, i) => (
                               <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                                <td className="px-3 py-1.5 font-mono font-semibold text-gray-800 dark:text-white whitespace-nowrap">
-                                  {col.key === 'PRI' && <i className="fas fa-key text-amber-500 mr-1.5 text-[10px]"></i>}
-                                  {col.key === 'MUL' && <i className="fas fa-link text-blue-400 mr-1.5 text-[10px]"></i>}
+                                <td className="px-4 py-2.5 font-mono font-semibold text-gray-800 dark:text-white whitespace-nowrap">
+                                  {col.key === 'PRI' && <i className="fas fa-key text-amber-500 mr-1.5 text-xs"></i>}
+                                  {col.key === 'MUL' && <i className="fas fa-link text-blue-400 mr-1.5 text-xs"></i>}
                                   {col.field}
                                 </td>
-                                <td className="px-3 py-1.5 font-mono text-purple-600 dark:text-purple-400 whitespace-nowrap">{col.type}</td>
-                                <td className="px-3 py-1.5">{col.null === 'YES'
-                                  ? <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-500">NULL</span>
-                                  : <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-50 text-red-600">NOT NULL</span>}
+                                <td className="px-4 py-2.5 font-mono text-purple-600 dark:text-purple-400 whitespace-nowrap">{col.type}</td>
+                                <td className="px-4 py-2.5">{col.null === 'YES'
+                                  ? <span className="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-500">NULL</span>
+                                  : <span className="px-1.5 py-0.5 rounded text-xs bg-red-50 text-red-600">NOT NULL</span>}
                                 </td>
-                                <td className="px-3 py-1.5">
-                                  {col.key === 'PRI' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-700 font-semibold">PRI</span>}
-                                  {col.key === 'MUL' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-700">IDX</span>}
-                                  {col.key === 'UNI' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-700">UNI</span>}
+                                <td className="px-4 py-2.5">
+                                  {col.key === 'PRI' && <span className="px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700 font-semibold">PRI</span>}
+                                  {col.key === 'MUL' && <span className="px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-700">IDX</span>}
+                                  {col.key === 'UNI' && <span className="px-1.5 py-0.5 rounded text-xs bg-indigo-100 text-indigo-700">UNI</span>}
                                 </td>
-                                <td className="px-3 py-1.5 font-mono text-gray-400 text-[10px]">{col.default ?? '—'}</td>
-                                <td className="px-3 py-1.5 text-gray-400 text-[10px]">{col.extra || '—'}</td>
+                                <td className="px-4 py-2.5 font-mono text-gray-400 text-xs">{col.default ?? '—'}</td>
+                                <td className="px-4 py-2.5 text-gray-400 text-xs">{col.extra || '—'}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -772,90 +789,72 @@ export default function DataManagementPage() {
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
+    </motion.div>
 
       {/* ── Offcanvas Dettaglio Record ── */}
-      <AnimatePresence>
-        {selectedRecord && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              className="fixed inset-0 z-[9990] bg-black/20"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => { setSelectedRecord(null); setPendingEdits({}); }}
-            />
-            {/* Drawer */}
-            <motion.div
-              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="fixed right-0 top-0 bottom-0 z-[9991] w-[420px] flex flex-col bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-2xl"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 shrink-0 bg-gray-50 dark:bg-gray-800">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <i className={`fas ${currentMeta?.icon || 'fa-circle'} text-cyan-500 text-sm`}></i>
-                    <span className="text-sm font-semibold text-gray-800 dark:text-white">{currentMeta?.label}</span>
-                  </div>
-                  <div className="text-[10px] font-mono text-gray-400 mt-0.5">
-                    {currentMeta?.primaryKey || 'id'}: <span className="text-cyan-600 dark:text-cyan-400">{selectedRecord[currentMeta?.primaryKey || 'id']}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {Object.keys(pendingEdits).length > 0 && (
-                    <button
-                      onClick={saveRecord}
-                      disabled={saving}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50 transition-colors"
-                    >
-                      {saving
-                        ? <i className="fas fa-spinner fa-spin"></i>
-                        : <><i className="fas fa-save"></i> Salva ({Object.keys(pendingEdits).length})</>
-                      }
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setDeleteConfirm(true)}
-                    className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
-                    title="Elimina record"
-                  >
-                    <i className="fas fa-trash text-xs"></i>
-                  </button>
-                  <button
-                    onClick={() => { setSelectedRecord(null); setPendingEdits({}); }}
-                    className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 transition-colors"
-                  >
-                    <i className="fas fa-times text-sm"></i>
-                  </button>
-                </div>
-              </div>
-
-              {/* Pending edits bar */}
+      <Offcanvas
+        open={!!selectedRecord}
+        onClose={() => { setSelectedRecord(null); setPendingEdits({}); }}
+        title={currentMeta?.label || 'Record'}
+        icon={currentMeta?.icon || 'fa-circle'}
+        iconColor="text-cyan-500"
+        width="lg"
+        footer={
+          selectedRecord ? (
+            <div className="flex items-center gap-2">
               {Object.keys(pendingEdits).length > 0 && (
-                <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/10 border-b border-amber-100 dark:border-amber-800 shrink-0">
-                  <p className="text-[11px] text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                    <i className="fas fa-pencil-alt text-[9px]"></i>
-                    {Object.keys(pendingEdits).length} campo/i modificato/i — clicca Salva per confermare
-                  </p>
-                </div>
+                <button
+                  onClick={saveRecord}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50 transition-colors"
+                >
+                  {saving
+                    ? <i className="fas fa-spinner fa-spin"></i>
+                    : <><i className="fas fa-save"></i> Salva ({Object.keys(pendingEdits).length})</>
+                  }
+                </button>
               )}
+              <button
+                onClick={() => setDeleteConfirm(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+              >
+                <i className="fas fa-trash text-xs"></i> Elimina
+              </button>
+            </div>
+          ) : undefined
+        }
+      >
+        {selectedRecord && (
+          <div className="px-4">
+            {/* ID info */}
+            <div className="mb-3 text-[10px] font-mono text-gray-400">
+              {currentMeta?.primaryKey || 'id'}: <span className="text-cyan-600 dark:text-cyan-400">{selectedRecord[currentMeta?.primaryKey || 'id']}</span>
+            </div>
 
-              {/* Campi */}
-              <div className="flex-1 overflow-y-auto px-4 py-3">
-                {allCols.map(field => (
-                  <FieldRow
-                    key={field}
-                    label={field}
-                    value={selectedRecord[field]}
-                    editable={!NON_EDITABLE.includes(field)}
-                    onEdit={v => handleFieldEdit(field, v)}
-                  />
-                ))}
+            {/* Pending edits bar */}
+            {Object.keys(pendingEdits).length > 0 && (
+              <div className="mb-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800 rounded-lg">
+                <p className="text-[11px] text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                  <i className="fas fa-pencil-alt text-[9px]"></i>
+                  {Object.keys(pendingEdits).length} campo/i modificato/i — clicca Salva per confermare
+                </p>
               </div>
-            </motion.div>
-          </>
+            )}
+
+            {/* Campi */}
+            {allCols.map(field => (
+              <FieldRow
+                key={field}
+                label={field}
+                value={selectedRecord[field]}
+                editable={!NON_EDITABLE.includes(field)}
+                onEdit={v => handleFieldEdit(field, v)}
+              />
+            ))}
+          </div>
         )}
-      </AnimatePresence>
+      </Offcanvas>
 
       {/* ── Delete confirm modal ── */}
       <AnimatePresence>
@@ -890,6 +889,6 @@ export default function DataManagementPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 }

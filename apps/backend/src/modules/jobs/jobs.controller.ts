@@ -135,6 +135,25 @@ export class JobsController {
     res.end(Buffer.from(mergedBytes));
   }
 
+  // ── ADMIN endpoints ────────────────────────────────────────────────────────
+
+  @Get('admin/all')
+  @LogActivity({ module: 'jobs', action: 'admin_list', entity: 'Job', description: 'Lista admin: tutti i job' })
+  async adminListAll(@Query('status') status?: JobStatus) {
+    return this.jobsService.listAllJobs(status);
+  }
+
+  @Delete('admin/:id')
+  @LogActivity({ module: 'jobs', action: 'admin_delete', entity: 'Job', description: 'Eliminazione admin job' })
+  async adminDelete(@Param('id') id: string) {
+    const job = await this.jobsService.getJobAdmin(id);
+    if (job.outputPath) {
+      await this.storageService.deleteFile(job.outputPath).catch(() => {});
+    }
+    await this.jobsService.deleteJobAdmin(id);
+    return { deleted: true };
+  }
+
   @Post('zip')
   @LogActivity({ module: 'jobs', action: 'zip', entity: 'Job', description: 'Creazione ZIP da job multipli' })
   async zipFiles(@Body() body: { ids: string[] }, @Req() req: Request, @Res() res: Response) {
