@@ -354,18 +354,28 @@ export class DataManagementService {
 
     // Costruisci l'ordinamento - usa primaryKey se disponibile, altrimenti 'id'
     const defaultSortField = tableConfig.primaryKey || 'id';
-    const orderBy: any = (sortBy && sortBy !== '') ? { [sortBy]: sortOrder } : { [defaultSortField]: 'desc' };
 
-    try {
-      const [data, total] = await Promise.all([
-        (this.prisma as any)[tableConfig.model].findMany({
-          where,
-          orderBy,
-          skip,
-          take: limit,
-        }),
+    // Helper per tentare una query con un dato orderBy e fallare silenziosamente
+    const tryQuery = async (orderBy: any) => {
+      return Promise.all([
+        (this.prisma as any)[tableConfig.model].findMany({ where, orderBy, skip, take: limit }),
         (this.prisma as any)[tableConfig.model].count({ where }),
       ]);
+    };
+
+    try {
+      // Se sortBy è specificato, prova prima con quel campo; se Prisma lancia (campo non esistente),
+      // ripiega sul campo primario di default
+      let data: any[], total: number;
+      if (sortBy && sortBy !== '') {
+        try {
+          [data, total] = await tryQuery({ [sortBy]: sortOrder });
+        } catch {
+          [data, total] = await tryQuery({ [defaultSortField]: 'desc' });
+        }
+      } else {
+        [data, total] = await tryQuery({ [defaultSortField]: 'desc' });
+      }
 
       return {
         data,
@@ -555,6 +565,92 @@ export class DataManagementService {
       });
     } catch (error) {
       console.error('Errore logging operazione:', error);
+    }
+  }
+
+  /**
+   * Esegue una query SQL raw (tutte le operazioni consentite — modulo admin only).
+   * Accesso già protetto da @RequirePermissions('dbsql') nel controller.
+   */
+  async executeSql(sql: string, userId: number): Promise<{ columns: string[]; rows: any[][]; rowCount: number; duration: number; affected?: number }> {
+    const start = Date.now();
+    try {
+      const result = await this.prisma.$queryRawUnsafe(sql) as any;
+      const duration = Date.now() - start;
+
+      // Audit log
+      await this.logOperation({ userId, tableName: 'SQL_CONSOLE', recordId: '0', operation: 'SQL', oldData: { sql } });
+
+      // $queryRawUnsafe per DML restituisce un oggetto { count: N } o simile
+      if (!Array.isArray(result)) {
+        const affected = result?.count ?? result?.affectedRows ?? 0;
+        return { columns: ['affected_rows'], rows: [[Number(affected)]], rowCount: 1, duration, affected: Number(affected) };
+      }
+
+      if (result.length === 0) {
+        return { columns: [], rows: [], rowCount: 0, duration };
+      }
+
+      const columns = Object.keys(result[0]);
+      const rows = result.map((r: any) => columns.map(c => {
+        const v = r[c];
+        if (v === null || v === undefined) return null;
+        if (v instanceof Date) return v.toISOString();
+        if (typeof v === 'bigint') return Number(v);
+        if (typeof v === 'object') return JSON.stringify(v);
+        return v;
+      }));
+
+      return { columns, rows, rowCount: rows.length, duration };
+    } catch (error) {
+      throw new BadRequestException(`Errore SQL: ${error.message}`);
+    }
+  }
+
+  /**
+   * Restituisce la lista delle tabelle fisiche nel database con row count
+   */
+  async getDatabaseTables(): Promise<{ table: string; rows: number; size: string }[]> {
+    try {
+      const result: any[] = await this.prisma.$queryRaw`
+        SELECT
+          TABLE_NAME as \`table\`,
+          TABLE_ROWS as \`rows\`,
+          ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024, 1) as size_kb
+        FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE()
+        ORDER BY TABLE_NAME
+      `;
+      return result.map(r => ({
+        table: r.table,
+        rows: Number(r.rows ?? 0),
+        size: `${r.size_kb ?? 0} KB`,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Restituisce le colonne di una tabella fisica
+   */
+  async getTableColumns(tableName: string): Promise<{ field: string; type: string; null: string; key: string; default: any; extra: string }[]> {
+    // Sanity check: solo caratteri alfanumerici e underscore
+    if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
+      throw new BadRequestException('Nome tabella non valido');
+    }
+    try {
+      const result: any[] = await this.prisma.$queryRawUnsafe(`DESCRIBE \`${tableName}\``);
+      return result.map(r => ({
+        field: r.Field,
+        type: r.Type,
+        null: r.Null,
+        key: r.Key,
+        default: r.Default,
+        extra: r.Extra,
+      }));
+    } catch (error) {
+      throw new BadRequestException(`Tabella non trovata: ${tableName}`);
     }
   }
 

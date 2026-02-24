@@ -1,4 +1,5 @@
-import { Controller, Get, Delete, Query, Param, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Delete, Query, Param, UseGuards, ParseIntPipe, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FileManagerService } from './file-manager.service';
 import { FileFilterDto, DeleteFilesDto } from './dto/file-filter.dto';
@@ -37,9 +38,11 @@ export class FileManagerController {
   }
 
   @Get(':id/download')
-  async getDownloadUrl(@Param('id', ParseIntPipe) id: number) {
-    const url = await this.fileManager.getDownloadUrl(id);
-    return { url };
+  async downloadFile(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
+    const { stream, fileName, mimeType } = await this.fileManager.getFileStream(id);
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Type', mimeType || 'application/octet-stream');
+    stream.pipe(res);
   }
 
   @Delete(':id')

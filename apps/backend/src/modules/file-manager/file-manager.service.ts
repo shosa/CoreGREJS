@@ -135,21 +135,29 @@ export class FileManagerService {
   }
 
   /**
-   * Ottieni URL di download per un file
+   * Ottieni stream per il download diretto (proxy — nessun redirect a MinIO)
    */
-  async getDownloadUrl(fileId: number): Promise<string> {
-    const file = await this.prisma.minioFile.findUnique({
-      where: { id: fileId },
-    });
-
+  async getFileStream(fileId: number): Promise<{ stream: any; fileName: string; mimeType: string }> {
+    const file = await this.prisma.minioFile.findUnique({ where: { id: fileId } });
     if (!file) throw new Error('File not found');
 
-    // Aggiorna ultimo accesso
     await this.prisma.minioFile.update({
       where: { id: fileId },
       data: { lastAccess: new Date() },
     });
 
+    const stream = await this.minio.getFile(file.bucket, file.objectKey);
+    const fileName = file.fileName || file.objectKey.split('/').pop() || 'download';
+    return { stream, fileName, mimeType: file.mimeType || 'application/octet-stream' };
+  }
+
+  /**
+   * @deprecated Usa getFileStream per evitare redirect all'host interno MinIO
+   */
+  async getDownloadUrl(fileId: number): Promise<string> {
+    const file = await this.prisma.minioFile.findUnique({ where: { id: fileId } });
+    if (!file) throw new Error('File not found');
+    await this.prisma.minioFile.update({ where: { id: fileId }, data: { lastAccess: new Date() } });
     return await this.minio.getPresignedUrl(file.bucket, file.objectKey);
   }
 

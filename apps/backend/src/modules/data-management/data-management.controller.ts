@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { DataManagementService } from './data-management.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -69,6 +69,23 @@ export class DataManagementController {
     @Request() req,
   ) {
     return this.dataManagementService.deleteRecord(tableName, id, req.user.userId);
+  }
+
+  @Get('db/tables')
+  getDatabaseTables() {
+    return this.dataManagementService.getDatabaseTables();
+  }
+
+  @Get('db/tables/:tableName/columns')
+  getTableColumns(@Param('tableName') tableName: string) {
+    return this.dataManagementService.getTableColumns(tableName);
+  }
+
+  @Post('sql')
+  @LogActivity({ module: 'data-management', action: 'sql', entity: 'SQL', description: 'Esecuzione query SQL console' })
+  executeSql(@Body() body: { sql: string }, @Request() req) {
+    if (!body?.sql?.trim()) throw new BadRequestException('Query SQL mancante');
+    return this.dataManagementService.executeSql(body.sql, req.user.userId);
   }
 
   @Get('audit-log')

@@ -129,10 +129,16 @@ export default function FileManagerPage() {
     }
   };
 
-  const handleDownload = async (fileId: number) => {
+  const handleDownload = async (fileId: number, fileName?: string) => {
     try {
-      const response = await api.get(`/files/${fileId}/download`);
-      window.open(response.data.url, '_blank');
+      const response = await api.get(`/files/${fileId}/download`, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName || 'download';
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (error) {
       showError('Errore download file');
     }
@@ -469,7 +475,7 @@ export default function FileManagerPage() {
                           <i className="fas fa-info-circle"></i>
                         </button>
                         <button
-                          onClick={() => handleDownload(file.id)}
+                          onClick={() => handleDownload(file.id, file.fileName)}
                           className="px-3 py-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40 transition-colors"
                           title="Download"
                         >
@@ -539,7 +545,7 @@ export default function FileManagerPage() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => handleDownload(selectedFile.id)}
+                onClick={() => handleDownload(selectedFile.id, selectedFile.fileName)}
                 className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
               >
                 <i className="fas fa-download mr-2"></i>

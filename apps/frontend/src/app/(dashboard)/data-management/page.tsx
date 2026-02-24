@@ -1,816 +1,890 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { showSuccess, showError, showWarning } from '@/store/notifications';
+import { showSuccess, showError } from '@/store/notifications';
 import PageHeader from '@/components/layout/PageHeader';
-import Breadcrumb from '@/components/layout/Breadcrumb';
+import api from '@/lib/api';
 
-interface BreadcrumbItem {
-  label: string;
-  href?: string;
-  onClick?: () => void;
-  icon?: string;
-}
+// ─── Metadata tabelle (lato client) ───────────────────────────────────────────
 
-interface TableInfo {
-  name: string;
-  displayName: string;
+interface TableMeta {
   model: string;
-  tableName?: string;
+  label: string;
+  tableName: string;
   icon: string;
-  description: string;
-  relations?: string[];
+  primaryKey?: string;
+  idType?: 'string' | 'number';
+  previewCols: string[]; // colonne visibili in lista
 }
 
-interface ModuleInfo {
-  name: string;
-  displayName: string;
+interface ModuleMeta {
+  key: string;
+  label: string;
   icon: string;
   color: string;
-  description: string;
-  tables: TableInfo[];
+  tables: TableMeta[];
 }
 
-const modulesData: ModuleInfo[] = [
+const MODULES: ModuleMeta[] = [
   {
-    name: 'auth',
-    displayName: 'Autenticazione',
-    icon: 'fa-shield-alt',
-    color: 'indigo',
-    description: 'Gestisci utenti e autenticazione',
+    key: 'auth', label: 'Auth', icon: 'fa-shield-alt', color: 'indigo',
     tables: [
-      { name: 'users', displayName: 'Utenti', model: 'user', tableName: 'auth_users', icon: 'fa-users', description: 'Utenti sistema', relations: ['permissions', 'activityLogs'] },
-      { name: 'permissions', displayName: 'Permessi', model: 'permission', tableName: 'auth_permissions', icon: 'fa-key', description: 'Permessi utenti' },
-      { name: 'widget-config', displayName: 'Config Widget', model: 'authWidgetConfig', tableName: 'auth_widget_config', icon: 'fa-th', description: 'Configurazione widget utenti' },
+      { model: 'user', label: 'Utenti', tableName: 'auth_users', icon: 'fa-users', previewCols: ['id', 'userName', 'nome', 'mail', 'lastLogin'] },
+      { model: 'permission', label: 'Permessi', tableName: 'auth_permissions', icon: 'fa-key', previewCols: ['id', 'userId'] },
+      { model: 'authWidgetConfig', label: 'Config Widget', tableName: 'auth_widget_config', icon: 'fa-th', previewCols: ['id', 'userId', 'widgetId', 'visible'] },
     ],
   },
   {
-    name: 'core',
-    displayName: 'Core',
-    icon: 'fa-database',
-    color: 'orange',
-    description: 'Dati centrali e sistema',
+    key: 'core', label: 'Core', icon: 'fa-database', color: 'orange',
     tables: [
-      { name: 'activity-logs', displayName: 'Log Attività', model: 'activityLog', tableName: 'core_log', icon: 'fa-history', description: 'Log delle attività', relations: ['user'] },
-      { name: 'settings', displayName: 'Impostazioni', model: 'setting', tableName: 'core_settings', icon: 'fa-cog', description: 'Impostazioni sistema' },
-      { name: 'core-data', displayName: 'Dati Core (Legacy)', model: 'coreData', tableName: 'core_dati', icon: 'fa-table', description: 'Dati produzione legacy' },
-      { name: 'core-anagrafica', displayName: 'Anagrafica Core', model: 'coreAnagrafica', tableName: 'core_anag', icon: 'fa-address-book', description: 'Anagrafica generale' },
-      { name: 'jobs', displayName: 'Jobs', model: 'job', tableName: 'core_jobs', icon: 'fa-tasks', description: 'Job in coda e completati' },
+      { model: 'activityLog', label: 'Log Attività', tableName: 'core_log', icon: 'fa-history', previewCols: ['id', 'userId', 'module', 'action', 'entity', 'createdAt'] },
+      { model: 'setting', label: 'Impostazioni', tableName: 'core_settings', icon: 'fa-cog', previewCols: ['id', 'key', 'value', 'group', 'type'] },
+      { model: 'coreData', label: 'Core Data', tableName: 'core_dati', icon: 'fa-table', previewCols: ['id', 'cartel', 'commessaCli', 'articolo', 'descrizioneArticolo', 'ragioneSociale'] },
+      { model: 'coreAnagrafica', label: 'Anagrafica Core', tableName: 'core_anag', icon: 'fa-address-book', previewCols: ['id', 'codice', 'nome', 'tipo'] },
+      { model: 'job', label: 'Jobs', tableName: 'core_jobs', icon: 'fa-tasks', idType: 'string', previewCols: ['id', 'type', 'status', 'createdAt'] },
     ],
   },
   {
-    name: 'riparazioni',
-    displayName: 'Riparazioni',
-    icon: 'fa-tools',
-    color: 'blue',
-    description: 'Gestisci riparazioni esterne',
+    key: 'riparazioni', label: 'Riparazioni', icon: 'fa-tools', color: 'blue',
     tables: [
-      { name: 'riparazioni', displayName: 'Riparazioni', model: 'riparazione', tableName: 'rip_riparazioni', icon: 'fa-wrench', description: 'Ordini di riparazione', relations: ['reparto', 'laboratorio', 'numerata'] },
-      { name: 'reparti', displayName: 'Reparti', model: 'reparto', tableName: 'rip_reparti', icon: 'fa-building', description: 'Reparti aziendali' },
-      { name: 'laboratori', displayName: 'Laboratori', model: 'laboratorio', tableName: 'rip_laboratori', icon: 'fa-flask', description: 'Laboratori esterni' },
-      { name: 'numerate', displayName: 'Numerate (Taglie)', model: 'numerata', tableName: 'rip_idnumerate', icon: 'fa-th', description: 'Configurazioni taglie' },
+      { model: 'riparazione', label: 'Riparazioni', tableName: 'rip_riparazioni', icon: 'fa-wrench', previewCols: ['id', 'idRiparazione', 'cartellino', 'causale', 'createdAt'] },
+      { model: 'reparto', label: 'Reparti', tableName: 'rip_reparti', icon: 'fa-building', previewCols: ['id', 'nome', 'codice', 'attivo'] },
+      { model: 'laboratorio', label: 'Laboratori', tableName: 'rip_laboratori', icon: 'fa-flask', previewCols: ['id', 'nome', 'codice', 'attivo'] },
+      { model: 'numerata', label: 'Numerate', tableName: 'rip_idnumerate', icon: 'fa-th', previewCols: ['id', 'idNumerata'] },
     ],
   },
   {
-    name: 'quality',
-    displayName: 'Controllo Qualità',
-    icon: 'fa-check-circle',
-    color: 'green',
-    description: 'Gestisci controlli qualità',
+    key: 'quality', label: 'Qualità', icon: 'fa-check-circle', color: 'green',
     tables: [
-      { name: 'quality-records', displayName: 'Record Qualità', model: 'qualityRecord', tableName: 'cq_records', icon: 'fa-clipboard-check', description: 'Record controllo qualità', relations: ['department', 'operator', 'defectType'] },
-      { name: 'quality-departments', displayName: 'Dipartimenti', model: 'qualityDepartment', tableName: 'cq_departments', icon: 'fa-sitemap', description: 'Dipartimenti qualità' },
-      { name: 'quality-operators', displayName: 'Operatori', model: 'qualityOperator', tableName: 'cq_operators', icon: 'fa-user-check', description: 'Operatori qualità' },
-      { name: 'quality-defect-types', displayName: 'Tipi Difetto', model: 'qualityDefectType', tableName: 'cq_deftypes', icon: 'fa-exclamation-triangle', description: 'Tipologie di difetti' },
-      { name: 'quality-exceptions', displayName: 'Eccezioni', model: 'qualityException', tableName: 'cq_exceptions', icon: 'fa-shield-alt', description: 'Eccezioni qualità' },
+      { model: 'qualityRecord', label: 'Record', tableName: 'cq_records', icon: 'fa-clipboard-check', previewCols: ['id', 'cartellino', 'commessa', 'modello', 'createdAt'] },
+      { model: 'qualityDepartment', label: 'Dipartimenti', tableName: 'cq_departments', icon: 'fa-sitemap', previewCols: ['id', 'nome', 'codice', 'attivo'] },
+      { model: 'qualityOperator', label: 'Operatori', tableName: 'cq_operators', icon: 'fa-user-check', previewCols: ['id', 'nome', 'cognome', 'matricola'] },
+      { model: 'qualityDefectType', label: 'Tipi Difetto', tableName: 'cq_deftypes', icon: 'fa-exclamation-triangle', previewCols: ['id', 'nome', 'codice', 'categoria'] },
     ],
   },
   {
-    name: 'export',
-    displayName: 'Export/DDT',
-    icon: 'fa-file-export',
-    color: 'purple',
-    description: 'Gestisci documenti trasporto',
+    key: 'tracking', label: 'Tracking', icon: 'fa-route', color: 'pink',
     tables: [
-      { name: 'export-documents', displayName: 'Documenti DDT', model: 'exportDocument', tableName: 'exp_documenti', icon: 'fa-file-invoice', description: 'Documenti di trasporto', relations: ['items', 'terzista', 'piede'] },
-      { name: 'export-items', displayName: 'Righe DDT', model: 'exportDocumentItem', tableName: 'exp_righe_documento', icon: 'fa-list', description: 'Righe documento', relations: ['document', 'article'] },
-      { name: 'export-articles', displayName: 'Anagrafica Articoli', model: 'exportArticleMaster', tableName: 'exp_articoli_master', icon: 'fa-box', description: 'Anagrafica articoli' },
-      { name: 'export-terzisti', displayName: 'Terzisti', model: 'exportTerzista', tableName: 'exp_terzisti', icon: 'fa-handshake', description: 'Anagrafica terzisti' },
-      { name: 'export-footer', displayName: 'Piede Documenti', model: 'exportDocumentFooter', tableName: 'exp_piede_documenti', icon: 'fa-file-alt', description: 'Piede documenti DDT' },
-      { name: 'export-missing', displayName: 'Dati Mancanti', model: 'exportMissingData', tableName: 'exp_dati_mancanti', icon: 'fa-exclamation-circle', description: 'Merce non spedita' },
-      { name: 'export-launches', displayName: 'Lanci DDT', model: 'exportLaunchData', tableName: 'exp_dati_lanci_ddt', icon: 'fa-rocket', description: 'Lanci produzione DDT' },
+      { model: 'trackLink', label: 'Collegamenti', tableName: 'track_links', icon: 'fa-link', previewCols: ['id', 'cartel', 'typeId', 'lot', 'timestamp'] },
+      { model: 'trackType', label: 'Tipi', tableName: 'track_types', icon: 'fa-tags', previewCols: ['id', 'name', 'note'] },
+      { model: 'trackLotInfo', label: 'Info Lotti', tableName: 'track_lots_info', icon: 'fa-box', primaryKey: 'lot', idType: 'string', previewCols: ['lot', 'doc', 'date', 'note'] },
+      { model: 'trackOrderInfo', label: 'Info Ordini', tableName: 'track_order_info', icon: 'fa-shopping-cart', previewCols: ['id', 'ordine', 'date'] },
+      { model: 'trackSku', label: 'SKU', tableName: 'track_sku', icon: 'fa-barcode', primaryKey: 'art', idType: 'string', previewCols: ['art', 'sku'] },
+      { model: 'trackLinkArchive', label: 'Archivio Storico', tableName: 'track_links_archive', icon: 'fa-archive', previewCols: ['id', 'cartel', 'lot', 'typeName', 'commessa', 'archivedAt'] },
     ],
   },
   {
-    name: 'tracking',
-    displayName: 'Tracking',
-    icon: 'fa-route',
-    color: 'pink',
-    description: 'Tracking cartellini e lotti',
+    key: 'produzione', label: 'Produzione', icon: 'fa-industry', color: 'yellow',
     tables: [
-      { name: 'track-links', displayName: 'Collegamenti', model: 'trackLink', tableName: 'track_links', icon: 'fa-link', description: 'Collegamenti cartellini-lotti', relations: ['type'] },
-      { name: 'track-types', displayName: 'Tipi Tracking', model: 'trackType', tableName: 'track_types', icon: 'fa-tags', description: 'Tipi di tracking' },
-      { name: 'track-lot-info', displayName: 'Info Lotti', model: 'trackLotInfo', tableName: 'track_lots_info', icon: 'fa-box', description: 'Metadati lotti' },
-      { name: 'track-order-info', displayName: 'Info Ordini', model: 'trackOrderInfo', tableName: 'track_order_info', icon: 'fa-shopping-cart', description: 'Metadati ordini' },
-      { name: 'track-sku', displayName: 'SKU', model: 'trackSku', tableName: 'track_sku', icon: 'fa-barcode', description: 'Codici SKU' },
+      { model: 'productionPhase', label: 'Fasi', tableName: 'prod_phases', icon: 'fa-layer-group', previewCols: ['id', 'nome', 'codice', 'attivo'] },
+      { model: 'productionDepartment', label: 'Reparti', tableName: 'prod_departments', icon: 'fa-industry', previewCols: ['id', 'nome', 'codice', 'attivo'] },
+      { model: 'productionRecord', label: 'Record', tableName: 'prod_records', icon: 'fa-calendar-check', previewCols: ['id', 'date', 'departmentId', 'createdAt'] },
     ],
   },
   {
-    name: 'produzione',
-    displayName: 'Produzione',
-    icon: 'fa-industry',
-    color: 'yellow',
-    description: 'Monitoraggio produzione',
+    key: 'scm', label: 'SCM', icon: 'fa-truck', color: 'teal',
     tables: [
-      { name: 'production-phases', displayName: 'Fasi Produzione', model: 'productionPhase', tableName: 'prod_phases', icon: 'fa-layer-group', description: 'Fasi di produzione', relations: ['departments'] },
-      { name: 'production-departments', displayName: 'Reparti Produzione', model: 'productionDepartment', tableName: 'prod_departments', icon: 'fa-industry', description: 'Reparti produttivi', relations: ['phase'] },
-      { name: 'production-records', displayName: 'Record Produzione', model: 'productionRecord', tableName: 'prod_records', icon: 'fa-calendar-check', description: 'Record giornalieri' },
-      { name: 'production-values', displayName: 'Valori Produzione', model: 'productionValue', tableName: 'prod_values', icon: 'fa-chart-bar', description: 'Valori per reparto' },
+      { model: 'scmLaboratory', label: 'Laboratori', tableName: 'scm_laboratories', icon: 'fa-industry', previewCols: ['id', 'codice', 'nome', 'attivo'] },
+      { model: 'scmLaunch', label: 'Lanci', tableName: 'scm_launches', icon: 'fa-rocket', previewCols: ['id', 'numero', 'stato', 'dataConsegna'] },
+      { model: 'scmStandardPhase', label: 'Fasi Standard', tableName: 'scm_standard_phases', icon: 'fa-list-ol', previewCols: ['id', 'nome', 'codice'] },
     ],
   },
   {
-    name: 'scm',
-    displayName: 'SCM (Terzisti)',
-    icon: 'fa-truck',
-    color: 'teal',
-    description: 'Gestione terzisti e subfornitori',
+    key: 'analitiche', label: 'Analitiche', icon: 'fa-chart-pie', color: 'cyan',
     tables: [
-      { name: 'scm-laboratories', displayName: 'Laboratori', model: 'scmLaboratory', tableName: 'scm_laboratories', icon: 'fa-industry', description: 'Laboratori terzisti' },
-      { name: 'scm-launches', displayName: 'Lanci', model: 'scmLaunch', tableName: 'scm_launches', icon: 'fa-rocket', description: 'Lanci a terzisti', relations: ['laboratory', 'articles', 'phases'] },
-      { name: 'scm-launch-articles', displayName: 'Articoli Lanci', model: 'scmLaunchArticle', tableName: 'scm_launch_articles', icon: 'fa-box', description: 'Articoli per lancio' },
-      { name: 'scm-launch-phases', displayName: 'Fasi Lanci', model: 'scmLaunchPhase', tableName: 'scm_launch_phases', icon: 'fa-tasks', description: 'Fasi lavorazione' },
-      { name: 'scm-standard-phases', displayName: 'Fasi Standard', model: 'scmStandardPhase', tableName: 'scm_standard_phases', icon: 'fa-list-ol', description: 'Template fasi' },
-      { name: 'scm-progress', displayName: 'Progressi', model: 'scmProgressTracking', tableName: 'scm_progress_tracking', icon: 'fa-chart-line', description: 'Tracking progressi' },
-      { name: 'scm-settings', displayName: 'Impostazioni', model: 'scmSetting', tableName: 'scm_settings', icon: 'fa-cog', description: 'Impostazioni SCM' },
+      { model: 'analiticaRecord', label: 'Record', tableName: 'ana_records', icon: 'fa-file-invoice-dollar', previewCols: ['id', 'tipoDocumento', 'linea', 'articolo', 'importoTotale'] },
+      { model: 'analiticaReparto', label: 'Reparti', tableName: 'ana_reparti', icon: 'fa-building', previewCols: ['id', 'nome', 'codice'] },
+      { model: 'analiticaImport', label: 'Import', tableName: 'ana_imports', icon: 'fa-file-excel', previewCols: ['id', 'fileName', 'stato', 'createdAt'] },
     ],
   },
   {
-    name: 'analitiche',
-    displayName: 'Analitiche',
-    icon: 'fa-chart-pie',
-    color: 'cyan',
-    description: 'Analisi costi e importazioni ERP',
+    key: 'inwork', label: 'InWork', icon: 'fa-mobile-alt', color: 'lime',
     tables: [
-      { name: 'analitica-records', displayName: 'Record Analitiche', model: 'analiticaRecord', tableName: 'ana_records', icon: 'fa-file-invoice-dollar', description: 'Dati costi da ERP', relations: ['reparto', 'repartoFinale', 'import'] },
-      { name: 'analitica-reparti', displayName: 'Reparti Analitiche', model: 'analiticaReparto', tableName: 'ana_reparti', icon: 'fa-building', description: 'Centri di costo' },
-      { name: 'analitica-imports', displayName: 'Import Analitiche', model: 'analiticaImport', tableName: 'ana_imports', icon: 'fa-file-excel', description: 'Storico importazioni Excel', relations: ['records'] },
-    ],
-  },
-  {
-    name: 'cron',
-    displayName: 'Cron Jobs',
-    icon: 'fa-clock',
-    color: 'red',
-    description: 'Gestione job schedulati',
-    tables: [
-      { name: 'cron-logs', displayName: 'Log Cron', model: 'cronLog', tableName: 'cron_logs', icon: 'fa-history', description: 'Log esecuzioni cron' },
-    ],
-  },
-  {
-    name: 'inwork',
-    displayName: 'InWork',
-    icon: 'fa-mobile-alt',
-    color: 'lime',
-    description: 'App mobile operatori',
-    tables: [
-      { name: 'inwork-operators', displayName: 'Operatori', model: 'inworkOperator', tableName: 'inwork_operators', icon: 'fa-users', description: 'Operatori mobile', relations: ['modulePermissions'] },
-      { name: 'inwork-permissions', displayName: 'Permessi Moduli', model: 'inworkModulePermission', tableName: 'inwork_module_permissions', icon: 'fa-lock', description: 'Permessi accesso moduli', relations: ['operator'] },
-      { name: 'inwork-modules', displayName: 'Moduli Disponibili', model: 'inworkAvailableModule', tableName: 'inwork_available_modules', icon: 'fa-th-large', description: 'Moduli disponibili app' },
+      { model: 'inworkOperator', label: 'Operatori', tableName: 'inwork_operators', icon: 'fa-users', previewCols: ['id', 'nome', 'cognome', 'matricola', 'attivo'] },
+      { model: 'inworkAvailableModule', label: 'Moduli', tableName: 'inwork_available_modules', icon: 'fa-th-large', previewCols: ['id', 'moduleId', 'moduleName'] },
     ],
   },
 ];
 
-interface DataRecord {
-  id: number;
-  [key: string]: any;
+const COLOR_MAP: Record<string, { dot: string; badge: string; activeBg: string }> = {
+  indigo: { dot: 'bg-indigo-500', badge: 'bg-indigo-100 text-indigo-700', activeBg: 'bg-indigo-50 border-l-2 border-indigo-500' },
+  orange: { dot: 'bg-orange-500', badge: 'bg-orange-100 text-orange-700', activeBg: 'bg-orange-50 border-l-2 border-orange-500' },
+  blue:   { dot: 'bg-blue-500',   badge: 'bg-blue-100 text-blue-700',   activeBg: 'bg-blue-50 border-l-2 border-blue-500' },
+  green:  { dot: 'bg-green-500',  badge: 'bg-green-100 text-green-700',  activeBg: 'bg-green-50 border-l-2 border-green-500' },
+  pink:   { dot: 'bg-pink-500',   badge: 'bg-pink-100 text-pink-700',   activeBg: 'bg-pink-50 border-l-2 border-pink-500' },
+  yellow: { dot: 'bg-yellow-500', badge: 'bg-yellow-100 text-yellow-700', activeBg: 'bg-yellow-50 border-l-2 border-yellow-500' },
+  teal:   { dot: 'bg-teal-500',   badge: 'bg-teal-100 text-teal-700',   activeBg: 'bg-teal-50 border-l-2 border-teal-500' },
+  cyan:   { dot: 'bg-cyan-500',   badge: 'bg-cyan-100 text-cyan-700',   activeBg: 'bg-cyan-50 border-l-2 border-cyan-500' },
+  lime:   { dot: 'bg-lime-500',   badge: 'bg-lime-100 text-lime-700',   activeBg: 'bg-lime-50 border-l-2 border-lime-500' },
+  red:    { dot: 'bg-red-500',    badge: 'bg-red-100 text-red-700',    activeBg: 'bg-red-50 border-l-2 border-red-500' },
+};
+
+// ─── Helpers rendering ─────────────────────────────────────────────────────────
+
+function CellBadge({ value }: { value: any }) {
+  if (value === null || value === undefined) {
+    return <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500">NULL</span>;
+  }
+  if (typeof value === 'boolean') {
+    return value
+      ? <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">true</span>
+      : <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">false</span>;
+  }
+  const s = String(value);
+  // date ISO
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
+    return <span className="text-xs font-mono text-purple-600 dark:text-purple-400">{new Date(s).toLocaleString('it-IT')}</span>;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return <span className="text-xs font-mono text-purple-600 dark:text-purple-400">{s}</span>;
+  }
+  if (s.length > 80) {
+    return <span className="text-xs text-gray-600 dark:text-gray-400 truncate max-w-[200px] block" title={s}>{s.slice(0, 80)}…</span>;
+  }
+  return <span className="text-xs text-gray-800 dark:text-gray-200">{s}</span>;
 }
 
-export default function DataManagementPage() {
-  const [selectedModule, setSelectedModule] = useState<string | null>(null);
-  const [selectedTable, setSelectedTable] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [tableData, setTableData] = useState<DataRecord[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [editingCell, setEditingCell] = useState<{ row: number; field: string } | null>(null);
-  const [editValue, setEditValue] = useState('');
-  const [tableSearch, setTableSearch] = useState('');
-  const [sortBy, setSortBy] = useState<string>('id');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+function FieldRow({ label, value, editable, onEdit }: { label: string; value: any; editable: boolean; onEdit?: (v: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const filteredModules = modulesData.filter(module =>
-    module.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    module.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const startEdit = () => {
+    let initial: string;
+    if (value === null || value === undefined) initial = '';
+    else if (typeof value === 'object') initial = JSON.stringify(value, null, 2);
+    else initial = String(value);
+    setDraft(initial);
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  const save = () => {
+    onEdit?.(draft);
+    setEditing(false);
+  };
+
+  const isJson = typeof value === 'object' && value !== null;
+
+  return (
+    <div className="flex items-start gap-3 py-2 border-b border-gray-100 dark:border-gray-700/50 last:border-0">
+      <span className="w-40 shrink-0 text-[11px] font-mono text-gray-400 dark:text-gray-500 pt-0.5 truncate" title={label}>{label}</span>
+      <div className="flex-1 min-w-0">
+        {editing ? (
+          <div className="flex items-center gap-2">
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+              className="flex-1 px-2 py-1 text-xs border border-cyan-400 rounded focus:outline-none focus:ring-1 focus:ring-cyan-400 bg-white dark:bg-gray-800 dark:text-white font-mono"
+            />
+            <button onClick={save} className="text-green-600 hover:text-green-700 text-xs"><i className="fas fa-check"></i></button>
+            <button onClick={() => setEditing(false)} className="text-red-500 hover:text-red-600 text-xs"><i className="fas fa-times"></i></button>
+          </div>
+        ) : (
+          <div
+            className={`${editable ? 'cursor-pointer hover:bg-cyan-50 dark:hover:bg-cyan-900/10 rounded px-1 -mx-1 group' : ''}`}
+            onClick={editable ? startEdit : undefined}
+          >
+            {isJson
+              ? <pre className="text-[10px] font-mono text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{JSON.stringify(value, null, 2)}</pre>
+              : <CellBadge value={value} />
+            }
+            {editable && <i className="fas fa-pencil-alt text-[9px] text-gray-300 group-hover:text-cyan-400 ml-2 transition-colors"></i>}
+          </div>
+        )}
+      </div>
+    </div>
   );
+}
 
-  const currentModule = modulesData.find(m => m.name === selectedModule);
-  const currentTable = currentModule?.tables.find(t => t.name === selectedTable);
+// ─── Componente principale ─────────────────────────────────────────────────────
 
-  const fetchTableData = async () => {
-    if (!selectedTable || !currentTable) return;
+type Tab = 'table' | 'sql' | 'schema';
 
+export default function DataManagementPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const activeModel = searchParams.get('table') || null;
+  const activeTab   = (searchParams.get('tab') as Tab) || 'table';
+
+  const [sidebarSearch, setSidebarSearch] = useState('');
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set(MODULES.map(m => m.key)));
+
+  // Tabella
+  const [tableData, setTableData]     = useState<any[]>([]);
+  const [total, setTotal]             = useState(0);
+  const [totalPages, setTotalPages]   = useState(1);
+  const [page, setPage]               = useState(1);
+  const [search, setSearch]           = useState('');
+  const [sortBy, setSortBy]           = useState('');
+  const [sortOrder, setSortOrder]     = useState<'asc' | 'desc'>('desc');
+  const [loading, setLoading]         = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [pendingEdits, setPendingEdits]     = useState<Record<string, any>>({});
+  const [saving, setSaving]           = useState(false);
+  const [deleteConfirm, setDeleteConfirm]   = useState(false);
+
+  // SQL Console
+  const [sql, setSql]               = useState('SELECT * FROM track_links LIMIT 50;');
+  const [sqlResult, setSqlResult]   = useState<{ columns: string[]; rows: any[][]; rowCount: number; duration: number; affected?: number } | null>(null);
+  const [sqlError, setSqlError]     = useState('');
+  const [sqlLoading, setSqlLoading] = useState(false);
+  const sqlRef = useRef<HTMLTextAreaElement>(null);
+
+  // Schema
+  const [dbTables, setDbTables]         = useState<{ table: string; rows: number; size: string }[]>([]);
+  const [schemaTable, setSchemaTable]   = useState('');
+  const [schemaColumns, setSchemaColumns] = useState<any[]>([]);
+  const [schemaSearch, setSchemaSearch] = useState('');
+  const [schemaLoading, setSchemaLoading] = useState(false);
+
+  const currentMeta = MODULES.flatMap(m => m.tables).find(t => t.model === activeModel) || null;
+
+  const navigate = (params: Record<string, string | null>) => {
+    const sp = new URLSearchParams(searchParams.toString());
+    Object.entries(params).forEach(([k, v]) => {
+      if (v === null) sp.delete(k); else sp.set(k, v);
+    });
+    router.push(`/data-management?${sp.toString()}`);
+  };
+
+  // ── Fetch tabella ──
+  const fetchTable = useCallback(async () => {
+    if (!activeModel || activeTab !== 'table') return;
     setLoading(true);
+    setSelectedRecord(null);
     try {
-      const authStorage = localStorage.getItem('coregre-auth');
-      const token = authStorage ? JSON.parse(authStorage).state?.token : null;
-
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20',
-        sortBy,
-        sortOrder,
-      });
-
-      if (tableSearch) {
-        params.append('search', tableSearch);
-      }
-
-      const response = await fetch(`/api/data-management/tables/${currentTable.model}/data?${params}`, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setTableData(result.data || []);
-        setTotalPages(result.pagination?.totalPages || 1);
-        setTotal(result.pagination?.total || 0);
-      } else {
-        const errorData = await response.json().catch(() => ({ message: 'Errore durante il caricamento dei dati' }));
-        showError(errorData.message || 'Errore durante il caricamento dei dati');
-      }
-    } catch (error) {
-      console.error('Error fetching table data:', error);
-      showError('Errore di connessione durante il caricamento dei dati');
+      const params = new URLSearchParams({ page: String(page), limit: '25', sortOrder });
+      if (search) params.set('search', search);
+      if (sortBy) params.set('sortBy', sortBy);
+      const res = await api.get(`/data-management/tables/${activeModel}/data?${params}`);
+      setTableData(res.data.data || []);
+      setTotal(res.data.pagination?.total || 0);
+      setTotalPages(res.data.pagination?.totalPages || 1);
+    } catch (e: any) {
+      showError(e?.response?.data?.message || 'Errore caricamento');
     } finally {
       setLoading(false);
     }
+  }, [activeModel, page, search, sortBy, sortOrder, activeTab]);
+
+  useEffect(() => { fetchTable(); }, [fetchTable]);
+
+  // Reset page quando cambia tabella o search
+  useEffect(() => { setPage(1); setSortBy(''); setSearch(''); setSelectedRecord(null); }, [activeModel]);
+
+  // ── Colonne visibili ──
+  const visibleCols = (() => {
+    if (!currentMeta || tableData.length === 0) return [];
+    const preview = currentMeta.previewCols.filter(c => c in tableData[0]);
+    if (preview.length > 0) return preview;
+    return Object.keys(tableData[0]).slice(0, 7);
+  })();
+
+  const allCols = tableData.length > 0 ? Object.keys(tableData[0]).filter(k => !['password'].includes(k)) : [];
+
+  // ── Sort ──
+  const toggleSort = (col: string) => {
+    if (sortBy === col) setSortOrder(o => o === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(col); setSortOrder('asc'); }
+    setPage(1);
   };
 
-  useEffect(() => {
-    if (selectedTable) {
-      // Reset sorting quando cambia tabella (usa '' per lasciare che il backend scelga il default)
-      setSortBy('');
-      setPage(1);
-    }
-  }, [selectedTable]);
-
-  useEffect(() => {
-    if (selectedTable) {
-      fetchTableData();
-    }
-  }, [selectedTable, page, sortBy, sortOrder]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (selectedTable) {
-        setPage(1);
-        fetchTableData();
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [tableSearch]);
-
-  const handleCellEdit = (rowIndex: number, field: string, currentValue: any) => {
-    setEditingCell({ row: rowIndex, field });
-    setEditValue(currentValue?.toString() || '');
+  // ── Edit record ──
+  const handleFieldEdit = (field: string, value: string) => {
+    setPendingEdits(p => ({ ...p, [field]: value }));
+    setSelectedRecord((r: any) => ({ ...r, [field]: value }));
   };
 
-  const handleSaveCell = async (record: DataRecord, field: string) => {
-    if (!currentTable) return;
-
+  const saveRecord = async () => {
+    if (!currentMeta || !selectedRecord) return;
+    const pk = currentMeta.primaryKey || 'id';
+    const id = String(selectedRecord[pk]);
+    setSaving(true);
     try {
-      const authStorage = localStorage.getItem('coregre-auth');
-      const token = authStorage ? JSON.parse(authStorage).state?.token : null;
-
-      const response = await fetch(`/api/data-management/tables/${currentTable.model}/record/${record.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-        body: JSON.stringify({
-          ...record,
-          [field]: editValue,
-        }),
-      });
-
-      if (response.ok) {
-        fetchTableData();
-        setEditingCell(null);
-        showSuccess('Record aggiornato con successo');
-      } else {
-        const errorData = await response.json().catch(() => ({ message: 'Errore durante il salvataggio' }));
-        showError(errorData.message || 'Errore durante il salvataggio');
-      }
-    } catch (error) {
-      console.error('Error saving:', error);
-      showError('Errore di connessione durante il salvataggio');
+      await api.put(`/data-management/tables/${currentMeta.model}/record/${id}`, selectedRecord);
+      showSuccess('Record aggiornato');
+      setPendingEdits({});
+      fetchTable();
+    } catch (e: any) {
+      showError(e?.response?.data?.message || 'Errore salvataggio');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; recordId: number | null }>({
-    show: false,
-    recordId: null,
-  });
-
-  const handleDeleteRecord = async (id: number) => {
-    setDeleteConfirm({ show: true, recordId: id });
-  };
-
-  const confirmDelete = async () => {
-    const id = deleteConfirm.recordId;
-    if (!id || !currentTable) return;
-
+  const deleteRecord = async () => {
+    if (!currentMeta || !selectedRecord) return;
+    const pk = currentMeta.primaryKey || 'id';
+    const id = String(selectedRecord[pk]);
     try {
-      const authStorage = localStorage.getItem('coregre-auth');
-      const token = authStorage ? JSON.parse(authStorage).state?.token : null;
-
-      const response = await fetch(`/api/data-management/tables/${currentTable.model}/record/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-      });
-
-      if (response.ok) {
-        setDeleteConfirm({ show: false, recordId: null });
-        fetchTableData();
-        showSuccess('Record eliminato con successo');
-      } else {
-        const errorData = await response.json().catch(() => ({ message: 'Errore durante l\'eliminazione' }));
-        showError(errorData.message || 'Errore durante l\'eliminazione');
-        setDeleteConfirm({ show: false, recordId: null });
-      }
-    } catch (error) {
-      console.error('Error deleting:', error);
-      showError('Errore di connessione durante l\'eliminazione');
-      setDeleteConfirm({ show: false, recordId: null });
+      await api.delete(`/data-management/tables/${currentMeta.model}/record/${id}`);
+      showSuccess('Record eliminato');
+      setSelectedRecord(null);
+      setDeleteConfirm(false);
+      fetchTable();
+    } catch (e: any) {
+      showError(e?.response?.data?.message || 'Errore eliminazione');
     }
   };
 
-  const getColorClasses = (color: string) => {
-    const colors: Record<string, { gradient: string; bg: string; text: string; hover: string; border: string }> = {
-      blue: { gradient: 'from-blue-500 to-blue-600', bg: 'bg-blue-50', text: 'text-blue-600', hover: 'hover:bg-blue-100', border: 'border-blue-200' },
-      yellow: { gradient: 'from-yellow-500 to-yellow-600', bg: 'bg-yellow-50', text: 'text-yellow-600', hover: 'hover:bg-yellow-100', border: 'border-yellow-200' },
-      green: { gradient: 'from-green-500 to-green-600', bg: 'bg-green-50', text: 'text-green-600', hover: 'hover:bg-green-100', border: 'border-green-200' },
-      purple: { gradient: 'from-purple-500 to-purple-600', bg: 'bg-purple-50', text: 'text-purple-600', hover: 'hover:bg-purple-100', border: 'border-purple-200' },
-      pink: { gradient: 'from-pink-500 to-pink-600', bg: 'bg-pink-50', text: 'text-pink-600', hover: 'hover:bg-pink-100', border: 'border-pink-200' },
-      orange: { gradient: 'from-orange-500 to-orange-600', bg: 'bg-orange-50', text: 'text-orange-600', hover: 'hover:bg-orange-100', border: 'border-orange-200' },
-      gray: { gradient: 'from-gray-500 to-gray-600', bg: 'bg-gray-50', text: 'text-gray-600', hover: 'hover:bg-gray-100', border: 'border-gray-200' },
-      indigo: { gradient: 'from-indigo-500 to-indigo-600', bg: 'bg-indigo-50', text: 'text-indigo-600', hover: 'hover:bg-indigo-100', border: 'border-indigo-200' },
-      teal: { gradient: 'from-teal-500 to-teal-600', bg: 'bg-teal-50', text: 'text-teal-600', hover: 'hover:bg-teal-100', border: 'border-teal-200' },
-      cyan: { gradient: 'from-cyan-500 to-cyan-600', bg: 'bg-cyan-50', text: 'text-cyan-600', hover: 'hover:bg-cyan-100', border: 'border-cyan-200' },
-      lime: { gradient: 'from-lime-500 to-lime-600', bg: 'bg-lime-50', text: 'text-lime-600', hover: 'hover:bg-lime-100', border: 'border-lime-200' },
-      red: { gradient: 'from-red-500 to-red-600', bg: 'bg-red-50', text: 'text-red-600', hover: 'hover:bg-red-100', border: 'border-red-200' },
-    };
-    return colors[color] || colors.blue;
-  };
-
-  const renderCellValue = (value: any) => {
-    if (value === null || value === undefined) return '-';
-    if (typeof value === 'boolean') return value ? 'Sì' : 'No';
-    if (typeof value === 'object') return JSON.stringify(value);
-    if (typeof value === 'string' && value.length > 100) return value.substring(0, 100) + '...';
-    return value.toString();
-  };
-
-  const handleSort = (field: string) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
-      setSortOrder('asc');
+  // ── SQL ──
+  const runSql = async () => {
+    setSqlError('');
+    setSqlResult(null);
+    setSqlLoading(true);
+    try {
+      const res = await api.post('/data-management/sql', { sql });
+      setSqlResult(res.data);
+    } catch (e: any) {
+      setSqlError(e?.response?.data?.message || 'Errore SQL');
+    } finally {
+      setSqlLoading(false);
     }
   };
 
-  const getVisibleFields = (data: DataRecord[]) => {
-    if (data.length === 0) return [];
-    const firstRecord = data[0];
-    return Object.keys(firstRecord).filter(key =>
-      !['password', 'passwordHash', 'metadata'].includes(key)
-    );
+  const handleSqlKey = (e: React.KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runSql(); }
   };
 
-  // Build breadcrumb items with navigation
-  const handleBreadcrumbClick = (level: 'root' | 'module') => {
-    if (level === 'root') {
-      setSelectedModule(null);
-      setSelectedTable(null);
-      setTableData([]);
-    } else if (level === 'module') {
-      setSelectedTable(null);
-      setTableData([]);
-    }
+  // ── Schema ──
+  useEffect(() => {
+    if (activeTab !== 'schema') return;
+    api.get('/data-management/db/tables').then(r => setDbTables(r.data)).catch(() => {});
+  }, [activeTab]);
+
+  const loadColumns = async (tbl: string) => {
+    setSchemaTable(tbl);
+    setSchemaColumns([]);
+    setSchemaLoading(true);
+    try {
+      const r = await api.get(`/data-management/db/tables/${tbl}/columns`);
+      setSchemaColumns(r.data);
+    } catch { setSchemaColumns([]); }
+    finally { setSchemaLoading(false); }
   };
 
-  const breadcrumbItems: BreadcrumbItem[] = [
-    {
-      label: 'Home',
-      href: '/',
-      icon: 'fa-home'
-    }
-  ];
+  // ── Sidebar filter ──
+  const filteredModules = MODULES.map(m => ({
+    ...m,
+    tables: m.tables.filter(t =>
+      !sidebarSearch ||
+      t.label.toLowerCase().includes(sidebarSearch.toLowerCase()) ||
+      t.tableName.toLowerCase().includes(sidebarSearch.toLowerCase())
+    ),
+  })).filter(m => !sidebarSearch || m.tables.length > 0);
 
-  // Always show "Gestione Dati"
-  if (selectedModule || selectedTable) {
-    // If we're inside a module or table, make "Gestione Dati" clickable
-    breadcrumbItems.push({
-      label: 'Gestione Dati',
-      onClick: () => handleBreadcrumbClick('root')
-    });
-  } else {
-    // If we're at root level, it's the current page
-    breadcrumbItems.push({
-      label: 'Gestione Dati'
-    });
-  }
-
-  if (selectedModule && currentModule) {
-    if (selectedTable) {
-      // If a table is selected, make module clickable
-      breadcrumbItems.push({
-        label: currentModule.displayName,
-        onClick: () => handleBreadcrumbClick('module')
-      });
-    } else {
-      // If no table selected, module is current
-      breadcrumbItems.push({
-        label: currentModule.displayName
-      });
-    }
-  }
-
-  if (selectedTable && currentTable) {
-    breadcrumbItems.push({
-      label: currentTable.displayName
-    });
-  }
+  const NON_EDITABLE = ['id', 'createdAt', 'updatedAt', 'archivedAt'];
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden">
       {/* Header */}
-      <PageHeader
-        title="Gestione Dati"
-        subtitle="Strumento di manutenzione per correzioni, fix e operazioni sui dati"
-        actions={
-          <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-200 rounded-lg">
-            <i className="fas fa-exclamation-triangle text-orange-500"></i>
-            <span className="text-sm font-medium text-orange-700">Solo Admin</span>
-          </div>
-        }
-      />
+      <div className="shrink-0 mb-3">
+        <PageHeader
+          title="Gestione Dati"
+          subtitle="Database browser · SQL Console · Schema inspector"
+          actions={
+            <div className="flex items-center gap-2">
+              {/* Tab switcher */}
+              {(['table', 'sql', 'schema'] as Tab[]).map(t => (
+                <button
+                  key={t}
+                  onClick={() => navigate({ tab: t })}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    activeTab === t
+                      ? 'bg-cyan-600 text-white shadow'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300'
+                  }`}
+                >
+                  <i className={`fas ${t === 'table' ? 'fa-table' : t === 'sql' ? 'fa-terminal' : 'fa-project-diagram'} mr-1.5`}></i>
+                  {t === 'table' ? 'Browser' : t === 'sql' ? 'SQL' : 'Schema'}
+                </button>
+              ))}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
+                <i className="fas fa-exclamation-triangle text-amber-500 text-xs"></i>
+                <span className="text-xs font-medium text-amber-700">Admin only</span>
+              </div>
+            </div>
+          }
+        />
+      </div>
 
-      {/* Breadcrumb */}
-      <Breadcrumb items={breadcrumbItems} />
+      <div className="flex flex-1 gap-4 overflow-hidden min-h-0">
 
-      {!selectedModule ? (
-        <>
-          {/* Search Modules */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-xl shadow-md p-6"
-          >
+        {/* ── Sidebar ── */}
+        <aside className="w-56 shrink-0 flex flex-col bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div className="p-2 border-b border-gray-100 dark:border-gray-700">
             <div className="relative">
               <input
-                type="text"
-                placeholder="Cerca modulo..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                value={sidebarSearch}
+                onChange={e => setSidebarSearch(e.target.value)}
+                placeholder="Cerca tabella..."
+                className="w-full pl-7 pr-2 py-1.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-400 dark:text-white"
               />
-              <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+              <i className="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]"></i>
             </div>
-          </motion.div>
-
-          {/* Modules Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredModules.map((module, index) => {
-              const colors = getColorClasses(module.color);
+          </div>
+          <nav className="flex-1 overflow-y-auto py-1">
+            {filteredModules.map(mod => {
+              const colors = COLOR_MAP[mod.color] || COLOR_MAP.blue;
+              const isExpanded = expandedModules.has(mod.key);
               return (
-                <motion.div
-                  key={module.name}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + index * 0.05 }}
-                  onClick={() => setSelectedModule(module.name)}
-                  className={`bg-white rounded-xl shadow-md p-6 cursor-pointer transition-all ${colors.hover} hover:shadow-lg border-2 ${colors.border}`}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className={`flex-shrink-0 w-14 h-14 rounded-xl bg-gradient-to-r ${colors.gradient} flex items-center justify-center shadow-lg`}>
-                      <i className={`fas ${module.icon} text-white text-2xl`}></i>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-bold text-gray-900 mb-1">
-                        {module.displayName}
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-2">
-                        {module.description}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs px-2 py-1 rounded-full ${colors.bg} ${colors.text} font-medium`}>
-                          {module.tables.length} {module.tables.length === 1 ? 'tabella' : 'tabelle'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-center justify-end">
-                    <i className="fas fa-arrow-right text-gray-400"></i>
-                  </div>
-                </motion.div>
+                <div key={mod.key}>
+                  <button
+                    onClick={() => setExpandedModules(prev => {
+                      const next = new Set(prev);
+                      next.has(mod.key) ? next.delete(mod.key) : next.add(mod.key);
+                      return next;
+                    })}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                  >
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${colors.dot}`}></span>
+                    <i className={`fas ${mod.icon} text-[10px] text-gray-400 w-3`}></i>
+                    <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex-1 text-left truncate">{mod.label}</span>
+                    <i className={`fas fa-chevron-${isExpanded ? 'down' : 'right'} text-[9px] text-gray-300`}></i>
+                  </button>
+                  {isExpanded && mod.tables.map(tbl => {
+                    const isActive = activeModel === tbl.model;
+                    return (
+                      <button
+                        key={tbl.model}
+                        onClick={() => navigate({ table: tbl.model, tab: 'table' })}
+                        className={`w-full flex items-center gap-2 pl-6 pr-2 py-1 text-left transition-colors ${
+                          isActive
+                            ? colors.activeBg + ' dark:bg-cyan-900/20'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
+                        }`}
+                      >
+                        <i className={`fas ${tbl.icon} text-[10px] ${isActive ? 'text-cyan-600' : 'text-gray-400'} w-3`}></i>
+                        <div className="flex-1 min-w-0">
+                          <div className={`text-[11px] font-medium truncate ${isActive ? 'text-cyan-700 dark:text-cyan-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                            {tbl.label}
+                          </div>
+                          <div className="text-[9px] font-mono text-gray-400 truncate">{tbl.tableName}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               );
             })}
-          </div>
+          </nav>
+        </aside>
 
-          {filteredModules.length === 0 && (
-            <div className="bg-white rounded-xl shadow-md p-12 text-center">
-              <i className="fas fa-search text-gray-300 text-5xl mb-4"></i>
-              <p className="text-gray-500">Nessun modulo trovato</p>
-            </div>
-          )}
-        </>
-      ) : !selectedTable ? (
-        <>
-          {/* Tables Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {currentModule?.tables.map((table, index) => (
-              <motion.div
-                key={table.name}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 + index * 0.03 }}
-                onClick={() => setSelectedTable(table.name)}
-                className="bg-white rounded-xl shadow-md p-6 cursor-pointer transition-all hover:shadow-lg hover:scale-105"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-r from-cyan-500 to-cyan-600 flex items-center justify-center">
-                    <i className={`fas ${table.icon} text-white`}></i>
+        {/* ── Main area ── */}
+        <div className="flex-1 flex gap-3 min-w-0 overflow-hidden">
+
+          {/* ═══ TAB: BROWSER ═══ */}
+          {activeTab === 'table' && (
+            <>
+              {!activeModel ? (
+                <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                  <div className="text-center">
+                    <i className="fas fa-mouse-pointer text-4xl text-gray-300 mb-3"></i>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">Seleziona una tabella dalla sidebar</p>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-semibold text-gray-900 mb-1">
-                      {table.displayName}
-                    </h3>
-                    <p className="text-xs font-mono text-gray-500 mb-2">
-                      {table.tableName || table.model}
-                    </p>
-                    <p className="text-xs text-gray-600 mb-2">
-                      {table.description}
-                    </p>
-                    {table.relations && table.relations.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        <span className="text-xs text-gray-500">
-                          <i className="fas fa-link mr-1"></i>
-                          {table.relations.length} {table.relations.length === 1 ? 'relazione' : 'relazioni'}
-                        </span>
+                </div>
+              ) : (
+                <div className="flex flex-1 gap-3 min-w-0 overflow-hidden">
+                  {/* Tabella dati */}
+                  <div className="flex flex-col flex-1 min-w-0 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                    {/* Toolbar */}
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-700 shrink-0">
+                      <div className="flex items-center gap-1.5">
+                        <i className={`fas ${currentMeta?.icon} text-cyan-500 text-sm`}></i>
+                        <span className="text-sm font-semibold text-gray-800 dark:text-white">{currentMeta?.label}</span>
+                        <span className="text-[10px] font-mono text-gray-400 ml-1">{currentMeta?.tableName}</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[11px] font-medium">{total} righe</span>
+                      <div className="flex-1"></div>
+                      <div className="relative">
+                        <input
+                          value={search}
+                          onChange={e => { setSearch(e.target.value); setPage(1); }}
+                          placeholder="Cerca..."
+                          className="pl-7 pr-3 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-cyan-400 dark:text-white w-44"
+                        />
+                        <i className="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]"></i>
+                      </div>
+                      <button onClick={fetchTable} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
+                        <i className={`fas fa-sync-alt text-xs ${loading ? 'animate-spin' : ''}`}></i>
+                      </button>
+                    </div>
+
+                    {/* Tabella */}
+                    <div className="flex-1 overflow-auto">
+                      {loading ? (
+                        <div className="flex items-center justify-center h-full">
+                          <i className="fas fa-spinner fa-spin text-2xl text-cyan-500"></i>
+                        </div>
+                      ) : tableData.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-gray-400">
+                          <div className="text-center"><i className="fas fa-inbox text-3xl mb-2"></i><p className="text-sm">Nessun record</p></div>
+                        </div>
+                      ) : (
+                        <table className="w-full text-xs">
+                          <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0 z-10">
+                            <tr>
+                              {visibleCols.map(col => (
+                                <th
+                                  key={col}
+                                  onClick={() => toggleSort(col)}
+                                  className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 whitespace-nowrap"
+                                >
+                                  {col}
+                                  {sortBy === col && (
+                                    <i className={`fas fa-sort-${sortOrder === 'asc' ? 'up' : 'down'} ml-1 text-cyan-500`}></i>
+                                  )}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                            {tableData.map((rec, i) => {
+                              const pk = currentMeta?.primaryKey || 'id';
+                              const isSelected = selectedRecord && selectedRecord[pk] === rec[pk];
+                              return (
+                                <tr
+                                  key={i}
+                                  onClick={() => { setSelectedRecord(rec); setPendingEdits({}); }}
+                                  className={`cursor-pointer transition-colors ${
+                                    isSelected
+                                      ? 'bg-cyan-50 dark:bg-cyan-900/20'
+                                      : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
+                                  }`}
+                                >
+                                  {visibleCols.map(col => (
+                                    <td key={col} className="px-3 py-1.5 whitespace-nowrap max-w-[200px] overflow-hidden">
+                                      <CellBadge value={rec[col]} />
+                                    </td>
+                                  ))}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+
+                    {/* Paginazione */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 dark:border-gray-700 shrink-0">
+                        <span className="text-[11px] text-gray-400">Pag. {page} / {totalPages}</span>
+                        <div className="flex gap-1">
+                          <button onClick={() => setPage(1)} disabled={page === 1} className="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">«</button>
+                          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">‹</button>
+                          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">›</button>
+                          <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700">»</button>
+                        </div>
                       </div>
                     )}
                   </div>
+
+                  {/* niente pannello inline — il dettaglio è nell'offcanvas fuori */}
                 </div>
-              </motion.div>
-            ))}
-          </div>
-        </>
-      ) : (
-        /* Table Data View - same as before */
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="space-y-4"
-        >
-          {/* Table Header */}
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  <i className={`fas ${currentTable?.icon} mr-2 text-cyan-500`}></i>
-                  {currentTable?.displayName}
-                </h2>
-                <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">
-                  {total} record
-                </span>
-                {currentTable?.relations && currentTable.relations.length > 0 && (
-                  <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium">
-                    <i className="fas fa-link mr-1"></i>
-                    {currentTable.relations.join(', ')}
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={fetchTableData}
-                disabled={loading}
-                className="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors disabled:opacity-50"
-              >
-                <i className={`fas fa-sync-alt mr-2 ${loading ? 'animate-spin' : ''}`}></i>
-                Ricarica
-              </button>
-            </div>
+              )}
+            </>
+          )}
 
-            {/* Search */}
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Cerca nei dati..."
-                value={tableSearch}
-                onChange={(e) => setTableSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              />
-              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-            </div>
-          </div>
-
-          {/* Table Data */}
-          <div className="bg-white rounded-xl shadow-md overflow-hidden">
-            {loading ? (
-              <div className="p-12 text-center">
-                <i className="fas fa-spinner fa-spin text-4xl text-cyan-500 mb-4"></i>
-                <p className="text-gray-500">Caricamento dati...</p>
-              </div>
-            ) : tableData.length === 0 ? (
-              <div className="p-12 text-center">
-                <i className="fas fa-inbox text-gray-300 text-5xl mb-4"></i>
-                <p className="text-gray-500">Nessun record trovato</p>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        {getVisibleFields(tableData).map((field) => (
-                          <th
-                            key={field}
-                            onClick={() => handleSort(field)}
-                            className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          >
-                            <div className="flex items-center gap-2">
-                              {field}
-                              {sortBy === field && (
-                                <i className={`fas fa-sort-${sortOrder === 'asc' ? 'up' : 'down'} text-cyan-500`}></i>
-                              )}
-                            </div>
-                          </th>
-                        ))}
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.1)]">
-                          Azioni
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {tableData.map((record, rowIndex) => (
-                        <tr key={record.id} className="hover:bg-gray-50">
-                          {getVisibleFields(tableData).map((field) => (
-                            <td
-                              key={field}
-                              className="px-4 py-3 text-sm text-gray-900"
-                              onDoubleClick={() => !['id', 'createdAt', 'updatedAt'].includes(field) && handleCellEdit(rowIndex, field, record[field])}
-                            >
-                              {editingCell?.row === rowIndex && editingCell?.field === field ? (
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="text"
-                                    value={editValue}
-                                    onChange={(e) => setEditValue(e.target.value)}
-                                    className="flex-1 px-2 py-1 border border-cyan-500 rounded focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                    autoFocus
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') handleSaveCell(record, field);
-                                      if (e.key === 'Escape') setEditingCell(null);
-                                    }}
-                                  />
-                                  <button
-                                    onClick={() => handleSaveCell(record, field)}
-                                    className="text-green-600 hover:text-green-700"
-                                  >
-                                    <i className="fas fa-check"></i>
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingCell(null)}
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    <i className="fas fa-times"></i>
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className={!['id', 'createdAt', 'updatedAt'].includes(field) ? 'cursor-pointer hover:bg-yellow-50 px-2 py-1 rounded' : ''}>
-                                  {renderCellValue(record[field])}
-                                </span>
-                              )}
-                            </td>
-                          ))}
-                          <td className="px-4 py-3 text-right text-sm sticky right-0 bg-white shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.1)]">
-                            <button
-                              onClick={() => handleDeleteRecord(record.id)}
-                              className="px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
-                              title="Elimina"
-                            >
-                              <i className="fas fa-trash"></i>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+          {/* ═══ TAB: SQL CONSOLE ═══ */}
+          {activeTab === 'sql' && (
+            <div className="flex-1 flex flex-col gap-3 min-w-0 overflow-hidden">
+              {/* Editor */}
+              <div className="bg-gray-900 rounded-xl border border-gray-700 shadow-sm overflow-hidden shrink-0">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span className="ml-2 text-xs font-mono text-gray-400">SQL Console — accesso completo (admin)</span>
+                  </div>
+                  <button
+                    onClick={runSql}
+                    disabled={sqlLoading}
+                    className="flex items-center gap-2 px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <i className={`fas ${sqlLoading ? 'fa-spinner fa-spin' : 'fa-play'} text-[10px]`}></i>
+                    Esegui <kbd className="ml-1 text-[9px] opacity-60">Ctrl+Enter</kbd>
+                  </button>
                 </div>
+                <textarea
+                  ref={sqlRef}
+                  value={sql}
+                  onChange={e => setSql(e.target.value)}
+                  onKeyDown={handleSqlKey}
+                  spellCheck={false}
+                  rows={6}
+                  className="w-full bg-gray-900 text-green-400 font-mono text-xs p-4 focus:outline-none resize-none"
+                  placeholder="SELECT * FROM track_links LIMIT 50;&#10;-- oppure: UPDATE core_settings SET value='...' WHERE key='...'"
+                />
+              </div>
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                    <div className="text-sm text-gray-500">
-                      Pagina {page} di {totalPages}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setPage(Math.max(1, page - 1))}
-                        disabled={page === 1}
-                        className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <i className="fas fa-chevron-left"></i>
-                      </button>
-                      <button
-                        onClick={() => setPage(Math.min(totalPages, page + 1))}
-                        disabled={page === totalPages}
-                        className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <i className="fas fa-chevron-right"></i>
-                      </button>
+              {/* Risultati */}
+              <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col min-h-0">
+                {sqlError && (
+                  <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800">
+                    <div className="flex items-start gap-2">
+                      <i className="fas fa-exclamation-circle text-red-500 mt-0.5"></i>
+                      <pre className="text-xs text-red-700 dark:text-red-400 font-mono whitespace-pre-wrap">{sqlError}</pre>
                     </div>
                   </div>
                 )}
-              </>
-            )}
-          </div>
-
-          {/* Help */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <i className="fas fa-info-circle text-blue-500 mt-1"></i>
-              <div className="flex-1">
-                <p className="text-sm text-blue-800 font-medium">Suggerimenti:</p>
-                <ul className="mt-2 text-sm text-blue-700 space-y-1">
-                  <li>• Fai doppio click su una cella per modificarla</li>
-                  <li>• Premi Invio per salvare, Esc per annullare</li>
-                  <li>• Click sull'intestazione per ordinare</li>
-                  <li>• Tutte le modifiche vengono registrate nel log attività</li>
-                </ul>
+                {sqlResult && (
+                  <>
+                    <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-100 dark:border-gray-700 shrink-0">
+                      <span className="text-xs text-gray-500">{sqlResult.rowCount} righe</span>
+                      <span className="text-xs text-gray-400">·</span>
+                      <span className="text-xs text-gray-500">{sqlResult.duration}ms</span>
+                    </div>
+                    <div className="overflow-auto flex-1">
+                      {sqlResult.columns.length === 0 ? (
+                        <div className="p-8 text-center text-gray-400 text-sm">Nessun risultato</div>
+                      ) : (
+                        <table className="w-full text-xs">
+                          <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
+                            <tr>
+                              {sqlResult.columns.map(c => (
+                                <th key={c} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">{c}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                            {sqlResult.rows.map((row, i) => (
+                              <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                {row.map((cell, j) => (
+                                  <td key={j} className="px-3 py-1.5 whitespace-nowrap">
+                                    <CellBadge value={cell} />
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </>
+                )}
+                {!sqlResult && !sqlError && (
+                  <div className="flex-1 flex items-center justify-center text-gray-400">
+                    <div className="text-center">
+                      <i className="fas fa-terminal text-3xl mb-2"></i>
+                      <p className="text-sm">Scrivi una query e premi Ctrl+Enter</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        </motion.div>
-      )}
+          )}
 
-      {/* Delete Confirmation Modal */}
+          {/* ═══ TAB: SCHEMA ═══ */}
+          {activeTab === 'schema' && (
+            <div className="flex-1 flex gap-3 min-w-0 overflow-hidden">
+              {/* Lista tabelle DB */}
+              <div className="w-64 shrink-0 flex flex-col bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700 shrink-0">
+                  <div className="relative">
+                    <input
+                      value={schemaSearch}
+                      onChange={e => setSchemaSearch(e.target.value)}
+                      placeholder="Cerca tabella DB..."
+                      className="w-full pl-7 pr-2 py-1.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-400 dark:text-white"
+                    />
+                    <i className="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]"></i>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {dbTables.filter(t => !schemaSearch || t.table.includes(schemaSearch)).map(t => (
+                    <button
+                      key={t.table}
+                      onClick={() => loadColumns(t.table)}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30 ${
+                        schemaTable === t.table ? 'bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400' : 'text-gray-600 dark:text-gray-400'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-mono font-medium">{t.table}</div>
+                        <div className="text-[10px] text-gray-400">{t.rows.toLocaleString()} righe · {t.size}</div>
+                      </div>
+                      <i className="fas fa-chevron-right text-[9px] text-gray-300"></i>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Colonne tabella selezionata */}
+              <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col min-w-0">
+                {!schemaTable ? (
+                  <div className="flex-1 flex items-center justify-center text-gray-400">
+                    <div className="text-center"><i className="fas fa-project-diagram text-3xl mb-2"></i><p className="text-sm">Seleziona una tabella</p></div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700 shrink-0">
+                      <span className="text-sm font-semibold font-mono text-gray-800 dark:text-white">{schemaTable}</span>
+                      <span className="ml-2 text-xs text-gray-400">DESCRIBE</span>
+                    </div>
+                    <div className="flex-1 overflow-auto">
+                      {schemaLoading ? (
+                        <div className="flex items-center justify-center h-full"><i className="fas fa-spinner fa-spin text-cyan-500"></i></div>
+                      ) : (
+                        <table className="w-full text-xs">
+                          <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
+                            <tr>
+                              {['Field', 'Type', 'Null', 'Key', 'Default', 'Extra'].map(h => (
+                                <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                            {schemaColumns.map((col, i) => (
+                              <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                <td className="px-3 py-1.5 font-mono font-semibold text-gray-800 dark:text-white whitespace-nowrap">
+                                  {col.key === 'PRI' && <i className="fas fa-key text-amber-500 mr-1.5 text-[10px]"></i>}
+                                  {col.key === 'MUL' && <i className="fas fa-link text-blue-400 mr-1.5 text-[10px]"></i>}
+                                  {col.field}
+                                </td>
+                                <td className="px-3 py-1.5 font-mono text-purple-600 dark:text-purple-400 whitespace-nowrap">{col.type}</td>
+                                <td className="px-3 py-1.5">{col.null === 'YES'
+                                  ? <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-500">NULL</span>
+                                  : <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-50 text-red-600">NOT NULL</span>}
+                                </td>
+                                <td className="px-3 py-1.5">
+                                  {col.key === 'PRI' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-700 font-semibold">PRI</span>}
+                                  {col.key === 'MUL' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-700">IDX</span>}
+                                  {col.key === 'UNI' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-700">UNI</span>}
+                                </td>
+                                <td className="px-3 py-1.5 font-mono text-gray-400 text-[10px]">{col.default ?? '—'}</td>
+                                <td className="px-3 py-1.5 text-gray-400 text-[10px]">{col.extra || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Offcanvas Dettaglio Record ── */}
       <AnimatePresence>
-        {deleteConfirm.show && (
+        {selectedRecord && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              className="fixed inset-0 z-[9990] bg-black/20"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => { setSelectedRecord(null); setPendingEdits({}); }}
+            />
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed right-0 top-0 bottom-0 z-[9991] w-[420px] flex flex-col bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-2xl"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 shrink-0 bg-gray-50 dark:bg-gray-800">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <i className={`fas ${currentMeta?.icon || 'fa-circle'} text-cyan-500 text-sm`}></i>
+                    <span className="text-sm font-semibold text-gray-800 dark:text-white">{currentMeta?.label}</span>
+                  </div>
+                  <div className="text-[10px] font-mono text-gray-400 mt-0.5">
+                    {currentMeta?.primaryKey || 'id'}: <span className="text-cyan-600 dark:text-cyan-400">{selectedRecord[currentMeta?.primaryKey || 'id']}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {Object.keys(pendingEdits).length > 0 && (
+                    <button
+                      onClick={saveRecord}
+                      disabled={saving}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50 transition-colors"
+                    >
+                      {saving
+                        ? <i className="fas fa-spinner fa-spin"></i>
+                        : <><i className="fas fa-save"></i> Salva ({Object.keys(pendingEdits).length})</>
+                      }
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setDeleteConfirm(true)}
+                    className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
+                    title="Elimina record"
+                  >
+                    <i className="fas fa-trash text-xs"></i>
+                  </button>
+                  <button
+                    onClick={() => { setSelectedRecord(null); setPendingEdits({}); }}
+                    className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 transition-colors"
+                  >
+                    <i className="fas fa-times text-sm"></i>
+                  </button>
+                </div>
+              </div>
+
+              {/* Pending edits bar */}
+              {Object.keys(pendingEdits).length > 0 && (
+                <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/10 border-b border-amber-100 dark:border-amber-800 shrink-0">
+                  <p className="text-[11px] text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                    <i className="fas fa-pencil-alt text-[9px]"></i>
+                    {Object.keys(pendingEdits).length} campo/i modificato/i — clicca Salva per confermare
+                  </p>
+                </div>
+              )}
+
+              {/* Campi */}
+              <div className="flex-1 overflow-y-auto px-4 py-3">
+                {allCols.map(field => (
+                  <FieldRow
+                    key={field}
+                    label={field}
+                    value={selectedRecord[field]}
+                    editable={!NON_EDITABLE.includes(field)}
+                    onEdit={v => handleFieldEdit(field, v)}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Delete confirm modal ── */}
+      <AnimatePresence>
+        {deleteConfirm && (
           <motion.div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           >
             <motion.div
-              initial={{ y: 40, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 40, opacity: 0 }}
-              className="w-full max-w-md rounded-2xl bg-white shadow-2xl dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
+              initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 30, opacity: 0 }}
+              className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl p-6"
             >
-              <div className="p-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-                    <i className="fas fa-exclamation-triangle text-red-600 text-xl"></i>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      Conferma Eliminazione
-                    </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Questa azione non può essere annullata
-                    </p>
-                  </div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <i className="fas fa-trash text-red-600 dark:text-red-400"></i>
                 </div>
-                <p className="text-gray-700 dark:text-gray-300 mb-6">
-                  Sei sicuro di voler eliminare questo record? Tutti i dati associati verranno rimossi definitivamente.
-                </p>
-                <div className="flex gap-3 justify-end">
-                  <button
-                    onClick={() => setDeleteConfirm({ show: false, recordId: null })}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                  >
-                    Annulla
-                  </button>
-                  <button
-                    onClick={confirmDelete}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all"
-                  >
-                    <i className="fas fa-trash mr-2"></i>
-                    Elimina
-                  </button>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Conferma eliminazione</h3>
+                  <p className="text-xs text-gray-500">Operazione irreversibile</p>
                 </div>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-5">
+                Eliminare il record con {currentMeta?.primaryKey || 'id'} = <strong>{selectedRecord?.[currentMeta?.primaryKey || 'id']}</strong>?
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setDeleteConfirm(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">Annulla</button>
+                <button onClick={deleteRecord} className="px-4 py-2 text-sm font-semibold bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                  <i className="fas fa-trash mr-2"></i>Elimina
+                </button>
               </div>
             </motion.div>
           </motion.div>
