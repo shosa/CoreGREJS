@@ -16,6 +16,8 @@ import riparazioniCedolaPdf from './riparazioni.cedola-pdf';
 import qualityReportPdf from './quality.report-pdf';
 import analiticheReportPdf from './analitiche.report-pdf';
 import analiticheReportExcel from './analitiche.report-excel';
+import analiticheReportProduzionePdf from './analitiche.report-produzione-pdf';
+import analiticheReportProduzioneExcel from './analitiche.report-produzione-excel';
 import { JobHandler } from '../types';
 
 export const jobHandlers: Record<string, JobHandler> = {
@@ -37,4 +39,6 @@ export const jobHandlers: Record<string, JobHandler> = {
   'quality.report-pdf': qualityReportPdf,
   'analitiche.report-pdf': analiticheReportPdf,
   'analitiche.report-excel': analiticheReportExcel,
+  'analitiche.report-produzione-pdf': analiticheReportProduzionePdf,
+  'analitiche.report-produzione-excel': analiticheReportProduzioneExcel,
 };

@@ -321,4 +321,56 @@ export class AnaliticheController {
     );
     return { jobId: job.id, status: job.status };
   }
+
+  @Post('reports/produzione-pdf')
+  @LogActivity({ module: 'analitiche', action: 'report', entity: 'Report', description: 'Generate Produzione Mese PDF report' })
+  async generateProduzionePdfReport(
+    @Body()
+    data: {
+      anno: number;
+      mese: number;
+      tipoDocumento?: string;
+      linea?: string;
+    },
+    @Request() req: any
+  ) {
+    const userId = req.user?.userId;
+    const job = await this.jobsQueueService.enqueue(
+      'analitiche.report-produzione-pdf',
+      {
+        anno: data.anno,
+        mese: data.mese,
+        tipoDocumento: data.tipoDocumento,
+        linea: data.linea,
+      },
+      userId
+    );
+    return { jobId: job.id, status: job.status };
+  }
+
+  @Post('reports/produzione-excel')
+  @LogActivity({ module: 'analitiche', action: 'report', entity: 'Report', description: 'Generate Produzione Mese Excel report' })
+  async generateProduzioneExcelReport(
+    @Body()
+    data: {
+      anno: number;
+      mese: number;
+      tipoDocumento?: string;
+      linea?: string;
+    },
+    @Request() req: any
+  ) {
+    const userId = req.user?.userId;
+    const job = await this.jobsQueueService.enqueue(
+      'analitiche.report-produzione-excel',
+      {
+        anno: data.anno,
+        mese: data.mese,
+        tipoDocumento: data.tipoDocumento,
+        linea: data.linea,
+      },
+      userId
+    );
+    return { jobId: job.id, status: job.status };
+  }
 }

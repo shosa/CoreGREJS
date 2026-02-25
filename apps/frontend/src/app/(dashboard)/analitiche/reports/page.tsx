@@ -32,10 +32,11 @@ interface Filters {
 export default function AnaliticheReportsPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [generatingProduzione, setGeneratingProduzione] = useState(false);
   const [reparti, setReparti] = useState<Reparto[]>([]);
   const [filters, setFilters] = useState<Filters>({ linee: [], tipiDocumento: [] });
 
-  // Form state
+  // Form state — report analisi costi
   const [dataFrom, setDataFrom] = useState("");
   const [dataTo, setDataTo] = useState("");
   const [selectedReparto, setSelectedReparto] = useState<number | "">("");
@@ -46,6 +47,13 @@ export default function AnaliticheReportsPage() {
   const [includeArticoliPerReparto, setIncludeArticoliPerReparto] = useState(false);
   const [showUncorrelatedCosts, setShowUncorrelatedCosts] = useState(false);
   const [showCostoTomaia, setShowCostoTomaia] = useState(false);
+
+  // Form state — report produzione mese
+  const now = new Date();
+  const [prodAnno, setProdAnno] = useState<number>(now.getFullYear());
+  const [prodMese, setProdMese] = useState<number>(now.getMonth() + 1);
+  const [prodTipoDocumento, setProdTipoDocumento] = useState("");
+  const [prodLinea, setProdLinea] = useState("");
 
   useEffect(() => {
     fetchInitialData();
@@ -111,6 +119,40 @@ export default function AnaliticheReportsPage() {
       showError(error?.response?.data?.message || "Errore nella generazione del report Excel");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleGenerateProduzionePdf = async () => {
+    try {
+      setGeneratingProduzione(true);
+      const result = await analiticheApi.generateProduzionePdfReport({
+        anno: prodAnno,
+        mese: prodMese,
+        tipoDocumento: prodTipoDocumento || undefined,
+        linea: prodLinea || undefined,
+      });
+      showSuccess(`Report Produzione PDF in coda (Job ID: ${result.jobId}). Controlla lo spool per il download.`);
+    } catch (error: any) {
+      showError(error?.response?.data?.message || "Errore nella generazione del report Produzione PDF");
+    } finally {
+      setGeneratingProduzione(false);
+    }
+  };
+
+  const handleGenerateProduzioneExcel = async () => {
+    try {
+      setGeneratingProduzione(true);
+      const result = await analiticheApi.generateProduzioneExcelReport({
+        anno: prodAnno,
+        mese: prodMese,
+        tipoDocumento: prodTipoDocumento || undefined,
+        linea: prodLinea || undefined,
+      });
+      showSuccess(`Report Produzione Excel in coda (Job ID: ${result.jobId}). Controlla lo spool per il download.`);
+    } catch (error: any) {
+      showError(error?.response?.data?.message || "Errore nella generazione del report Produzione Excel");
+    } finally {
+      setGeneratingProduzione(false);
     }
   };
 
@@ -422,6 +464,147 @@ export default function AnaliticheReportsPage() {
           </motion.div>
         </motion.div>
       </div>
+
+      {/* ==================== REPORT PRODUZIONE MESE ==================== */}
+      <motion.div variants={itemVariants} className="mt-8">
+        <div className="rounded-2xl border border-indigo-200 bg-white p-6 shadow-lg dark:border-indigo-900/50 dark:bg-gray-800/40 backdrop-blur-sm">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow">
+              <i className="fas fa-calendar-alt text-white text-lg"></i>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Report Produzione Mese
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Griglia giornaliera paia prodotte per reparto
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Parametri selezione */}
+            <div className="lg:col-span-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Anno */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Anno
+                  </label>
+                  <input
+                    type="number"
+                    min={2020}
+                    max={2099}
+                    value={prodAnno}
+                    onChange={(e) => setProdAnno(Number(e.target.value))}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+
+                {/* Mese */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Mese
+                  </label>
+                  <select
+                    value={prodMese}
+                    onChange={(e) => setProdMese(Number(e.target.value))}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  >
+                    {["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno",
+                      "Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"].map((m, i) => (
+                      <option key={i + 1} value={i + 1}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Tipo Documento (opzionale) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Tipo Documento <span className="text-gray-400 font-normal">(opzionale)</span>
+                  </label>
+                  <select
+                    value={prodTipoDocumento}
+                    onChange={(e) => setProdTipoDocumento(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="">Tutti i tipi</option>
+                    {filters.tipiDocumento.map((tipo) => (
+                      <option key={tipo} value={tipo}>{tipo}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Linea (opzionale) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Linea <span className="text-gray-400 font-normal">(opzionale)</span>
+                  </label>
+                  <select
+                    value={prodLinea}
+                    onChange={(e) => setProdLinea(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="">Tutte le linee</option>
+                    {filters.linee.map((linea) => (
+                      <option key={linea} value={linea}>{linea}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Nota informativa */}
+              <div className="mt-4 p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
+                <div className="flex items-start gap-2">
+                  <i className="fas fa-info-circle text-indigo-500 mt-0.5 text-sm"></i>
+                  <p className="text-xs text-indigo-700 dark:text-indigo-300">
+                    Vengono inclusi solo i record con <strong>Reparto Finale</strong> assegnato.
+                    Le colonne corrispondono ai reparti attivi, le righe ai giorni del mese.
+                    I totali di settimana sono evidenziati in giallo.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottoni generazione */}
+            <div className="flex flex-col gap-3 justify-start">
+              <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20 border border-indigo-200 dark:border-indigo-800">
+                <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-3 uppercase tracking-wide">
+                  <i className="fas fa-table mr-1"></i>
+                  Genera griglia {["","Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno",
+                    "Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"][prodMese]} {prodAnno}
+                </p>
+
+                <button
+                  onClick={handleGenerateProduzionePdf}
+                  disabled={generatingProduzione}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold shadow hover:from-red-600 hover:to-red-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mb-2"
+                >
+                  {generatingProduzione ? (
+                    <i className="fas fa-spinner fa-spin"></i>
+                  ) : (
+                    <i className="fas fa-file-pdf"></i>
+                  )}
+                  <span>PDF Produzione</span>
+                </button>
+
+                <button
+                  onClick={handleGenerateProduzioneExcel}
+                  disabled={generatingProduzione}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold shadow hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {generatingProduzione ? (
+                    <i className="fas fa-spinner fa-spin"></i>
+                  ) : (
+                    <i className="fas fa-file-excel"></i>
+                  )}
+                  <span>Excel Produzione</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }

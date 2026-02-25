@@ -40,7 +40,13 @@ export type ReportPayload =
       includeDetails?: boolean;
       showUncorrelatedCosts?: boolean;
       showCostoTomaia?: boolean;
-    });
+    })
+  | {
+      anno: number;
+      mese: number;
+      tipoDocumento?: string;
+      linea?: string;
+    };
 
 /* ------------------------------------------------------------------ */
 

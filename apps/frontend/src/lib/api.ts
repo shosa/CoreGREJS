@@ -1772,6 +1772,28 @@ export const analiticheApi = {
     const response = await api.post('/analitiche/reports/excel', data);
     return response.data;
   },
+
+  // ==================== REPORT PRODUZIONE MESE ====================
+
+  generateProduzionePdfReport: async (data: {
+    anno: number;
+    mese: number;
+    tipoDocumento?: string;
+    linea?: string;
+  }) => {
+    const response = await api.post('/analitiche/reports/produzione-pdf', data);
+    return response.data;
+  },
+
+  generateProduzioneExcelReport: async (data: {
+    anno: number;
+    mese: number;
+    tipoDocumento?: string;
+    linea?: string;
+  }) => {
+    const response = await api.post('/analitiche/reports/produzione-excel', data);
+    return response.data;
+  },
 };
 
 export default api;
