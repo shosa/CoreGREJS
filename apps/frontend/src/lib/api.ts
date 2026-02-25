@@ -1780,6 +1780,7 @@ export const analiticheApi = {
     mese: number;
     tipoDocumento?: string;
     linea?: string;
+    includeProduzione?: boolean;
   }) => {
     const response = await api.post('/analitiche/reports/produzione-pdf', data);
     return response.data;
@@ -1790,8 +1791,26 @@ export const analiticheApi = {
     mese: number;
     tipoDocumento?: string;
     linea?: string;
+    includeProduzione?: boolean;
   }) => {
     const response = await api.post('/analitiche/reports/produzione-excel', data);
+    return response.data;
+  },
+
+  // ==================== MAPPATURE REPARTI ↔ PRODUZIONE ====================
+
+  getMappings: async () => {
+    const response = await api.get('/analitiche/mappings');
+    return response.data;
+  },
+
+  upsertMappings: async (analiticaRepartoId: number, prodDepartmentIds: number[]) => {
+    const response = await api.put(`/analitiche/mappings/${analiticaRepartoId}`, { prodDepartmentIds });
+    return response.data;
+  },
+
+  getProdDepartments: async () => {
+    const response = await api.get('/analitiche/prod-departments');
     return response.data;
   },
 };

@@ -54,6 +54,7 @@ export default function AnaliticheReportsPage() {
   const [prodMese, setProdMese] = useState<number>(now.getMonth() + 1);
   const [prodTipoDocumento, setProdTipoDocumento] = useState("");
   const [prodLinea, setProdLinea] = useState("");
+  const [includeProduzione, setIncludeProduzione] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -82,7 +83,7 @@ export default function AnaliticheReportsPage() {
   const handleGeneratePdf = async () => {
     try {
       setGenerating(true);
-      const result = await analiticheApi.generatePdfReport({
+      await analiticheApi.generatePdfReport({
         dataFrom: dataFrom || undefined,
         dataTo: dataTo || undefined,
         repartoId: selectedReparto !== "" ? Number(selectedReparto) : undefined,
@@ -93,7 +94,7 @@ export default function AnaliticheReportsPage() {
         showUncorrelatedCosts,
         showCostoTomaia,
       });
-      showSuccess(`Report PDF in coda (Job ID: ${result.jobId}). Controlla lo spool per il download.`);
+      showSuccess("Il lavoro è stato messo in coda.");
     } catch (error: any) {
       showError(error?.response?.data?.message || "Errore nella generazione del report PDF");
     } finally {
@@ -104,7 +105,7 @@ export default function AnaliticheReportsPage() {
   const handleGenerateExcel = async () => {
     try {
       setGenerating(true);
-      const result = await analiticheApi.generateExcelReport({
+      await analiticheApi.generateExcelReport({
         dataFrom: dataFrom || undefined,
         dataTo: dataTo || undefined,
         repartoId: selectedReparto !== "" ? Number(selectedReparto) : undefined,
@@ -114,7 +115,7 @@ export default function AnaliticheReportsPage() {
         showUncorrelatedCosts,
         showCostoTomaia,
       });
-      showSuccess(`Report Excel in coda (Job ID: ${result.jobId}). Controlla lo spool per il download.`);
+      showSuccess("Il lavoro è stato messo in coda.");
     } catch (error: any) {
       showError(error?.response?.data?.message || "Errore nella generazione del report Excel");
     } finally {
@@ -125,13 +126,14 @@ export default function AnaliticheReportsPage() {
   const handleGenerateProduzionePdf = async () => {
     try {
       setGeneratingProduzione(true);
-      const result = await analiticheApi.generateProduzionePdfReport({
+      await analiticheApi.generateProduzionePdfReport({
         anno: prodAnno,
         mese: prodMese,
         tipoDocumento: prodTipoDocumento || undefined,
         linea: prodLinea || undefined,
+        includeProduzione,
       });
-      showSuccess(`Report Produzione PDF in coda (Job ID: ${result.jobId}). Controlla lo spool per il download.`);
+      showSuccess("Il lavoro è stato messo in coda.");
     } catch (error: any) {
       showError(error?.response?.data?.message || "Errore nella generazione del report Produzione PDF");
     } finally {
@@ -142,13 +144,14 @@ export default function AnaliticheReportsPage() {
   const handleGenerateProduzioneExcel = async () => {
     try {
       setGeneratingProduzione(true);
-      const result = await analiticheApi.generateProduzioneExcelReport({
+      await analiticheApi.generateProduzioneExcelReport({
         anno: prodAnno,
         mese: prodMese,
         tipoDocumento: prodTipoDocumento || undefined,
         linea: prodLinea || undefined,
+        includeProduzione,
       });
-      showSuccess(`Report Produzione Excel in coda (Job ID: ${result.jobId}). Controlla lo spool per il download.`);
+      showSuccess("Il lavoro è stato messo in coda.");
     } catch (error: any) {
       showError(error?.response?.data?.message || "Errore nella generazione del report Produzione Excel");
     } finally {
@@ -551,6 +554,27 @@ export default function AnaliticheReportsPage() {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Checkbox includi produzione */}
+              <div className="mt-4 pt-4 border-t border-indigo-100 dark:border-indigo-900/30">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeProduzione}
+                    onChange={(e) => setIncludeProduzione(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    <i className="fas fa-industry text-indigo-500 mr-1"></i>
+                    Includi dati di produzione (griglia affiancata)
+                  </span>
+                </label>
+                {includeProduzione && (
+                  <p className="mt-1.5 text-xs text-indigo-500 dark:text-indigo-400 ml-6">
+                    Aggiunge una seconda griglia con le paia prodotte, basata sulla mappatura reparti configurata in Impostazioni.
+                  </p>
+                )}
               </div>
 
               {/* Nota informativa */}

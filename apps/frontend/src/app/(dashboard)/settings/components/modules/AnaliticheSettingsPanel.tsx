@@ -67,6 +67,19 @@ function DeleteModal({ label, onClose, onConfirm }: { label: string; onClose: ()
   );
 }
 
+// ── Tipi mappatura ────────────────────────────────────────────────────────────
+interface ProdDept {
+  id: number;
+  nome: string;
+  phase?: { nome: string; ordine: number } | null;
+}
+
+interface Mapping {
+  id: number;
+  analiticaRepartoId: number;
+  prodDepartmentId: number;
+}
+
 // ── ImpostazioniTab ──────────────────────────────────────────────────────────
 function ImpostazioniTab() {
   const spinner = <div className="py-6 flex justify-center"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="h-7 w-7 rounded-full border-2 border-emerald-500 border-t-transparent" /></div>;
@@ -74,6 +87,7 @@ function ImpostazioniTab() {
   const editBtn = (fn: () => void) => <button onClick={fn} className="px-2 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400"><i className="fas fa-edit text-xs"></i></button>;
   const delBtn  = (fn: () => void) => <button onClick={fn} className="px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400"><i className="fas fa-trash text-xs"></i></button>;
 
+  // ── State reparti ──────────────────────────────────────────────────────────
   const [reparti, setReparti] = useState<Reparto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -88,12 +102,42 @@ function ImpostazioniTab() {
   const [attivo, setAttivo] = useState(true);
   const [costiAssociati, setCostiAssociati] = useState<string[]>([]);
 
-  useEffect(() => { load(); }, []);
+  // ── State mappatura ────────────────────────────────────────────────────────
+  const [prodDepts, setProdDepts] = useState<ProdDept[]>([]);
+  const [mappings, setMappings] = useState<Mapping[]>([]);
+  const [loadingMap, setLoadingMap] = useState(true);
+  const [savingMapId, setSavingMapId] = useState<number | null>(null);
+  const [selections, setSelections] = useState<Map<number, Set<number>>>(new Map());
 
-  const load = async () => { setLoading(true); try { setReparti(await analiticheApi.getReparti(false)); } catch { showError('Errore caricamento reparti'); } finally { setLoading(false); } };
+  useEffect(() => { load(); loadMappings(); }, []);
+
+  const load = async () => {
+    setLoading(true);
+    try { setReparti(await analiticheApi.getReparti(false)); }
+    catch { showError('Errore caricamento reparti'); }
+    finally { setLoading(false); }
+  };
+
+  const loadMappings = async () => {
+    setLoadingMap(true);
+    try {
+      const [depts, maps] = await Promise.all([
+        analiticheApi.getProdDepartments(),
+        analiticheApi.getMappings(),
+      ]);
+      setProdDepts(depts || []);
+      setMappings(maps || []);
+      const sel = new Map<number, Set<number>>();
+      for (const m of (maps || [])) {
+        if (!sel.has(m.analiticaRepartoId)) sel.set(m.analiticaRepartoId, new Set());
+        sel.get(m.analiticaRepartoId)!.add(m.prodDepartmentId);
+      }
+      setSelections(sel);
+    } catch { showError('Errore caricamento mappature'); }
+    finally { setLoadingMap(false); }
+  };
 
   const reset = () => { setNome(''); setCodice(''); setDescrizione(''); setOrdine(0); setAttivo(true); setCostiAssociati([]); };
-
   const toggleCosto = (key: string) => setCostiAssociati(prev => prev.includes(key) ? prev.filter(c => c !== key) : [...prev, key]);
 
   const create = async () => {
@@ -115,6 +159,41 @@ function ImpostazioniTab() {
     try { await analiticheApi.deleteReparto(selected.id); showSuccess('Reparto eliminato'); setShowDelete(false); setSelected(null); await load(); }
     catch (e: any) { showError(e.response?.data?.message || 'Errore'); }
   };
+
+  const toggleDept = (anaId: number, deptId: number) => {
+    setSelections(prev => {
+      const next = new Map(prev);
+      if (!next.has(anaId)) next.set(anaId, new Set());
+      const s = new Set(next.get(anaId)!);
+      if (s.has(deptId)) s.delete(deptId); else s.add(deptId);
+      next.set(anaId, s);
+      return next;
+    });
+  };
+
+  const saveMapping = async (anaId: number) => {
+    setSavingMapId(anaId);
+    try {
+      const ids = [...(selections.get(anaId) || new Set())];
+      await analiticheApi.upsertMappings(anaId, ids);
+      showSuccess('Mappatura salvata');
+      await loadMappings();
+    } catch (e: any) { showError(e.response?.data?.message || 'Errore salvataggio'); }
+    finally { setSavingMapId(null); }
+  };
+
+  // Raggruppa prodDepts per fase
+  const deptsByPhase = prodDepts.reduce<Record<string, ProdDept[]>>((acc, d) => {
+    const k = d.phase?.nome || 'Senza fase';
+    if (!acc[k]) acc[k] = [];
+    acc[k].push(d);
+    return acc;
+  }, {});
+
+  // deptId → anaRepartoId
+  const usedBy = new Map<number, number>();
+  for (const m of mappings) usedBy.set(m.prodDepartmentId, m.analiticaRepartoId);
+  const anaNames = new Map(reparti.map(r => [r.id, r.nome]));
 
   const fields = (
     <div className="space-y-3">
@@ -143,6 +222,7 @@ function ImpostazioniTab() {
 
   return (
     <div className="space-y-6">
+      {/* ── Reparti analitici ──────────────────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Reparti analitici</h4>
@@ -177,6 +257,92 @@ function ImpostazioniTab() {
                 {reparti.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400"><i className="fas fa-sitemap text-2xl mb-2 opacity-40 block"></i>Nessun reparto</td></tr>}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── Mappatura reparti produzione ───────────────────────────────────── */}
+      <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+        <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">
+          <i className="fas fa-link mr-1.5"></i>Mappatura reparti produzione
+        </h4>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+          Associa i reparti di produzione ai reparti analitici. Un reparto produzione può essere assegnato a un solo reparto analitico.
+          Le mappature vengono usate nel report "Produzione Mese" con la spunta "Includi dati di produzione".
+        </p>
+
+        {loadingMap ? spinner : (
+          <div className="space-y-3">
+            {reparti.length === 0 && (
+              <p className="text-xs text-gray-400">Nessun reparto analitico configurato</p>
+            )}
+            {reparti.map(reparto => {
+              const sel = selections.get(reparto.id) || new Set<number>();
+              const isSaving = savingMapId === reparto.id;
+
+              return (
+                <div key={reparto.id} className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 dark:bg-gray-700/40 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">{reparto.nome}</span>
+                      {reparto.codice && <span className="text-xs text-gray-400 font-mono">{reparto.codice}</span>}
+                      <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                        {sel.size > 0 ? `${sel.size} reparti` : 'Nessuna mappatura'}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => saveMapping(reparto.id)}
+                      disabled={isSaving}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition disabled:opacity-50"
+                    >
+                      {isSaving ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-save"></i>}
+                      Salva
+                    </button>
+                  </div>
+                  <div className="p-3 space-y-3">
+                    {prodDepts.length === 0 && (
+                      <p className="text-xs text-gray-400">Nessun reparto di produzione attivo</p>
+                    )}
+                    {Object.entries(deptsByPhase).map(([phaseName, depts]) => (
+                      <div key={phaseName}>
+                        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">{phaseName}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {depts.map(dept => {
+                            const isChecked = sel.has(dept.id);
+                            const occupiedBy = usedBy.get(dept.id);
+                            const isDisabled = !isChecked && occupiedBy !== undefined && occupiedBy !== reparto.id;
+                            const occupiedName = isDisabled ? anaNames.get(occupiedBy!) : undefined;
+                            return (
+                              <label
+                                key={dept.id}
+                                title={isDisabled ? `Già assegnato a "${occupiedName}"` : undefined}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition cursor-pointer select-none
+                                  ${isDisabled
+                                    ? 'opacity-40 cursor-not-allowed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-400'
+                                    : isChecked
+                                      ? 'bg-indigo-600 border-indigo-600 text-white'
+                                      : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-indigo-400'
+                                  }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  disabled={isDisabled}
+                                  onChange={() => !isDisabled && toggleDept(reparto.id, dept.id)}
+                                  className="sr-only"
+                                />
+                                {isChecked && <i className="fas fa-check text-[9px]"></i>}
+                                {dept.nome}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

@@ -250,6 +250,28 @@ export class AnaliticheController {
     return this.analiticheService.getDistinctFilters();
   }
 
+  // ==================== MAPPATURE REPARTI ====================
+
+  @Get('prod-departments')
+  async getProdDepartments() {
+    return this.analiticheService.getProdDepartments();
+  }
+
+  @Get('mappings')
+  async getMappings() {
+    return this.analiticheService.getMappings();
+  }
+
+  @Put('mappings/:analiticaRepartoId')
+  @LogActivity({ module: 'analitiche', action: 'update', entity: 'AnaliticaRepartoMapping', description: 'Aggiorna mappatura reparti' })
+  async upsertMappings(
+    @Param('analiticaRepartoId', ParseIntPipe) analiticaRepartoId: number,
+    @Body() data: { prodDepartmentIds: number[] },
+  ) {
+    await this.analiticheService.upsertMappings(analiticaRepartoId, data.prodDepartmentIds || []);
+    return { success: true };
+  }
+
   // ==================== REPORTS ====================
 
   @Post('reports/pdf')
@@ -331,6 +353,7 @@ export class AnaliticheController {
       mese: number;
       tipoDocumento?: string;
       linea?: string;
+      includeProduzione?: boolean;
     },
     @Request() req: any
   ) {
@@ -342,6 +365,7 @@ export class AnaliticheController {
         mese: data.mese,
         tipoDocumento: data.tipoDocumento,
         linea: data.linea,
+        includeProduzione: data.includeProduzione,
       },
       userId
     );
@@ -357,6 +381,7 @@ export class AnaliticheController {
       mese: number;
       tipoDocumento?: string;
       linea?: string;
+      includeProduzione?: boolean;
     },
     @Request() req: any
   ) {
@@ -368,6 +393,7 @@ export class AnaliticheController {
         mese: data.mese,
         tipoDocumento: data.tipoDocumento,
         linea: data.linea,
+        includeProduzione: data.includeProduzione,
       },
       userId
     );

@@ -742,8 +742,9 @@ model ProductionDepartment {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  phase  ProductionPhase   @relation(fields: [phaseId], references: [id], onDelete: Cascade)
-  valori ProductionValue[]
+  phase            ProductionPhase          @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  valori           ProductionValue[]
+  analiticaMappings AnaliticaRepartoMapping[]
 
   @@map("prod_departments")
 }
@@ -956,10 +957,26 @@ model AnaliticaReparto {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  recordsReparto       AnaliticaRecord[] @relation("RepartoItalia")
-  recordsRepartoFinale AnaliticaRecord[] @relation("RepartoFinale")
+  recordsReparto       AnaliticaRecord[]        @relation("RepartoItalia")
+  recordsRepartoFinale AnaliticaRecord[]        @relation("RepartoFinale")
+  mappings             AnaliticaRepartoMapping[]
 
   @@map("ana_reparti")
+}
+
+// Mappatura reparti analitiche → reparti produzione
+model AnaliticaRepartoMapping {
+  id                 Int      @id @default(autoincrement())
+  analiticaRepartoId Int      @map("analitica_reparto_id")
+  prodDepartmentId   Int      @map("prod_department_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  analiticaReparto AnaliticaReparto     @relation(fields: [analiticaRepartoId], references: [id], onDelete: Cascade)
+  prodDepartment   ProductionDepartment @relation(fields: [prodDepartmentId], references: [id], onDelete: Cascade)
+
+  @@unique([prodDepartmentId])
+  @@index([analiticaRepartoId])
+  @@map("ana_reparto_mappings")
 }
 
 // Storico importazioni Excel

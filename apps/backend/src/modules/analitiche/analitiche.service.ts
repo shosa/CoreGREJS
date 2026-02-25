@@ -379,6 +379,59 @@ export class AnaliticheService {
       }));
   }
 
+  // ==================== MAPPATURE REPARTI ====================
+
+  async getMappings() {
+    return this.prisma.analiticaRepartoMapping.findMany({
+      include: {
+        analiticaReparto: true,
+        prodDepartment: {
+          include: { phase: true },
+        },
+      },
+      orderBy: [{ analiticaRepartoId: 'asc' }, { prodDepartmentId: 'asc' }],
+    });
+  }
+
+  async upsertMappings(analiticaRepartoId: number, prodDepartmentIds: number[]) {
+    // Verifica che il reparto analitica esista
+    const reparto = await this.prisma.analiticaReparto.findUnique({ where: { id: analiticaRepartoId } });
+    if (!reparto) throw new NotFoundException(`Reparto analitica ${analiticaRepartoId} non trovato`);
+
+    // Verifica conflitti: dept già usati da un altro reparto analitica
+    if (prodDepartmentIds.length > 0) {
+      const conflitti = await this.prisma.analiticaRepartoMapping.findMany({
+        where: {
+          prodDepartmentId: { in: prodDepartmentIds },
+          analiticaRepartoId: { not: analiticaRepartoId },
+        },
+        include: { analiticaReparto: true, prodDepartment: true },
+      });
+      if (conflitti.length > 0) {
+        const nomi = conflitti.map(c => `"${c.prodDepartment.nome}" → "${c.analiticaReparto.nome}"`).join(', ');
+        throw new BadRequestException(`Reparti produzione già assegnati ad altri reparti analitici: ${nomi}`);
+      }
+    }
+
+    // Sostituisce in transaction
+    await this.prisma.$transaction([
+      this.prisma.analiticaRepartoMapping.deleteMany({ where: { analiticaRepartoId } }),
+      ...(prodDepartmentIds.length > 0
+        ? [this.prisma.analiticaRepartoMapping.createMany({
+            data: prodDepartmentIds.map(prodDepartmentId => ({ analiticaRepartoId, prodDepartmentId })),
+          })]
+        : []),
+    ]);
+  }
+
+  async getProdDepartments() {
+    return this.prisma.productionDepartment.findMany({
+      where: { attivo: true },
+      include: { phase: true },
+      orderBy: [{ phase: { ordine: 'asc' } }, { ordine: 'asc' }],
+    });
+  }
+
   // ==================== FILTRI DISTINTI ====================
 
   async getDistinctFilters() {

@@ -46,6 +46,7 @@ export type ReportPayload =
       mese: number;
       tipoDocumento?: string;
       linea?: string;
+      includeProduzione?: boolean;
     };
 
 /* ------------------------------------------------------------------ */
