@@ -6,19 +6,21 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { usersApi } from '@/lib/api';
 import { showSuccess, showError } from '@/store/notifications';
+import PageHeader from '@/components/layout/PageHeader';
+import Breadcrumb from '@/components/layout/Breadcrumb';
 
 const containerVariants = {
   hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 },
-  },
+  visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 10 },
   visible: { opacity: 1, y: 0 },
 };
+
+const inputClass =
+  'w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
 
 export default function CreateUserPage() {
   const router = useRouter();
@@ -34,7 +36,7 @@ export default function CreateUserPage() {
     confirmPassword: '',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -45,7 +47,6 @@ export default function CreateUserPage() {
       showError('Le password non coincidono');
       return;
     }
-
     if (formData.password.length < 6) {
       showError('La password deve essere di almeno 6 caratteri');
       return;
@@ -68,231 +69,258 @@ export default function CreateUserPage() {
     }
   };
 
+  const passwordMatch =
+    formData.confirmPassword && formData.password === formData.confirmPassword;
+  const passwordMismatch =
+    formData.confirmPassword && formData.password !== formData.confirmPassword;
+
   return (
-    <motion.div initial="hidden" animate="visible" variants={containerVariants}>
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="flex flex-col h-full overflow-hidden"
+    >
       {/* Header */}
-      <motion.div variants={itemVariants} className="mb-8">
-        <div className="sm:flex sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Nuovo Utente
-            </h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Aggiungi un nuovo utente al sistema
-            </p>
-
-            {/* Breadcrumb */}
-            <nav className="flex mt-4">
-              <ol className="inline-flex items-center space-x-1 md:space-x-3 text-sm text-gray-500 dark:text-gray-400">
-                <li>
-                  <Link href="/" className="hover:text-gray-700 dark:hover:text-gray-300">
-                    <i className="fas fa-home mr-2"></i>
-                    Dashboard
-                  </Link>
-                </li>
-                <li>
-                  <div className="flex items-center">
-                    <i className="fas fa-chevron-right text-gray-400 mx-2"></i>
-                    <Link href="/users" className="hover:text-gray-700 dark:hover:text-gray-300">
-                      Utenti
-                    </Link>
-                  </div>
-                </li>
-                <li>
-                  <div className="flex items-center">
-                    <i className="fas fa-chevron-right text-gray-400 mx-2"></i>
-                    <span className="text-gray-700 dark:text-gray-300">Nuovo Utente</span>
-                  </div>
-                </li>
-              </ol>
-            </nav>
-          </div>
-
-          <div className="mt-4 sm:mt-0">
-            <Link href="/users">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-              >
-                <i className="fas fa-arrow-left mr-2"></i>
-                Torna alla Lista
-              </motion.button>
-            </Link>
-          </div>
-        </div>
+      <motion.div variants={itemVariants} className="shrink-0">
+        <PageHeader
+          title="Nuovo Utente"
+          subtitle="Aggiungi un nuovo utente al sistema"
+        />
+        <Breadcrumb
+          items={[
+            { label: 'Dashboard', href: '/', icon: 'fa-home' },
+            { label: 'Gestione Utenti', href: '/users' },
+            { label: 'Nuovo Utente' },
+          ]}
+        />
       </motion.div>
 
-      {/* Form */}
+      {/* Body: sidebar + form */}
       <motion.div
         variants={itemVariants}
-        className="rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+        className="flex flex-1 gap-4 overflow-hidden min-h-0 mt-4"
       >
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-            <i className="fas fa-user-plus mr-3 text-green-500"></i>
-            Informazioni Utente
-          </h3>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Username */}
-            <motion.div variants={itemVariants}>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Username <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="userName"
-                value={formData.userName}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="inserisci username"
-              />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Username univoco per l'accesso al sistema
-              </p>
-            </motion.div>
-
-            {/* Nome Completo */}
-            <motion.div variants={itemVariants}>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Nome Completo <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="nome"
-                value={formData.nome}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Nome e Cognome"
-              />
-            </motion.div>
-
-            {/* Email */}
-            <motion.div variants={itemVariants}>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Email <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="email"
-                name="mail"
-                value={formData.mail}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="email@example.com"
-              />
-            </motion.div>
+        {/* Sidebar */}
+        <aside className="w-60 shrink-0 flex flex-col gap-3 overflow-y-auto">
+          {/* Info card */}
+          <div className="rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow p-4 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Informazioni
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+              Crea un nuovo account utente. Dopo la creazione potrai assegnare i permessi di accesso ai moduli.
+            </p>
+            <Link
+              href="/users"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+            >
+              <i className="fas fa-arrow-left text-xs w-4 text-center"></i>
+              Torna alla Lista
+            </Link>
           </div>
 
-          {/* Password Section */}
-          <motion.div variants={itemVariants} className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-              <i className="fas fa-key mr-2 text-blue-500"></i>
-              Credenziali di Accesso
-            </h4>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Password */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    minLength={6}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
-                    placeholder="Inserisci password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-gray-400 hover:text-gray-600`}></i>
-                  </button>
+          {/* Requirements */}
+          <div className="rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow p-4 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Requisiti
+            </p>
+            <div className="space-y-1.5">
+              {[
+                { label: 'Username univoco', ok: formData.userName.length > 0 },
+                { label: 'Nome completo', ok: formData.nome.length > 0 },
+                { label: 'Email valida', ok: formData.mail.includes('@') },
+                { label: 'Password min. 6 caratteri', ok: formData.password.length >= 6 },
+                { label: 'Password coincidenti', ok: !!passwordMatch },
+              ].map((req) => (
+                <div key={req.label} className="flex items-center gap-2">
+                  <i
+                    className={`fas ${req.ok ? 'fa-check-circle text-green-500' : 'fa-circle text-gray-300 dark:text-gray-600'} text-xs`}
+                  ></i>
+                  <span className={`text-xs ${req.ok ? 'text-green-700 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                    {req.label}
+                  </span>
                 </div>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Minimo 6 caratteri</p>
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        {/* Form area */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow">
+          {/* Toolbar */}
+          <div className="shrink-0 px-5 py-3.5 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+            <i className="fas fa-user-plus text-green-500 text-sm"></i>
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+              Dati Utente
+            </span>
+          </div>
+
+          {/* Scrollable form content */}
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+            <div className="p-6 space-y-6">
+              {/* Dati principali */}
+              <div>
+                <h4 className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                  <i className="fas fa-id-card text-blue-500"></i>
+                  Informazioni Personali
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      Username <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="userName"
+                      value={formData.userName}
+                      onChange={handleChange}
+                      required
+                      placeholder="es: mario.rossi"
+                      className={inputClass}
+                    />
+                    <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Username univoco per l'accesso</p>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      Nome Completo <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="nome"
+                      value={formData.nome}
+                      onChange={handleChange}
+                      required
+                      placeholder="Mario Rossi"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      name="mail"
+                      value={formData.mail}
+                      onChange={handleChange}
+                      required
+                      placeholder="mario@example.com"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Confirm Password */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Conferma Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required
-                    minLength={6}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
-                    placeholder="Ripeti password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    <i className={`fas ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'} text-gray-400 hover:text-gray-600`}></i>
-                  </button>
+              {/* Credenziali */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                <h4 className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                  <i className="fas fa-key text-orange-500"></i>
+                  Credenziali di Accesso
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      Password <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        required
+                        minLength={6}
+                        placeholder="Minimo 6 caratteri"
+                        className={inputClass + ' pr-10'}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                      >
+                        <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-xs`}></i>
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      Conferma Password <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        required
+                        minLength={6}
+                        placeholder="Ripeti la password"
+                        className={
+                          inputClass +
+                          ' pr-10 ' +
+                          (passwordMismatch
+                            ? 'border-red-400 focus:ring-red-500'
+                            : passwordMatch
+                            ? 'border-green-400 focus:ring-green-500'
+                            : '')
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                      >
+                        <i className={`fas ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'} text-xs`}></i>
+                      </button>
+                    </div>
+                    {passwordMismatch && (
+                      <p className="mt-1 text-xs text-red-500">Le password non coincidono</p>
+                    )}
+                    {passwordMatch && (
+                      <p className="mt-1 text-xs text-green-600 dark:text-green-400">
+                        <i className="fas fa-check mr-1"></i>Password coincidenti
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </motion.div>
 
-          {/* Actions */}
-          <motion.div
-            variants={itemVariants}
-            className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end space-x-3"
-          >
-            <Link href="/users">
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
+            {/* Footer actions */}
+            <div className="shrink-0 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-3">
+              <Link href="/users">
+                <button
+                  type="button"
+                  className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <i className="fas fa-times mr-2"></i>Annulla
+                </button>
+              </Link>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 px-5 py-2 text-sm font-medium text-white shadow hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <i className="fas fa-times mr-2"></i>
-                Annulla
-              </motion.button>
-            </Link>
-            <motion.button
-              type="submit"
-              disabled={loading}
-              whileHover={{ scale: loading ? 1 : 1.02, y: loading ? 0 : -2 }}
-              whileTap={{ scale: 0.98 }}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <motion.i
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                    className="fas fa-spinner mr-2"
-                  />
-                  Creazione...
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-save mr-2"></i>
-                  Crea Utente
-                </>
-              )}
-            </motion.button>
-          </motion.div>
-        </form>
+                {loading ? (
+                  <>
+                    <motion.i
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      className="fas fa-spinner"
+                    />
+                    Creazione…
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-user-plus text-xs"></i>
+                    Crea Utente
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
       </motion.div>
     </motion.div>
   );

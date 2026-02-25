@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { usersApi } from '@/lib/api';
 import { showSuccess, showError } from '@/store/notifications';
-import Footer from '@/components/layout/Footer';
+import PageHeader from '@/components/layout/PageHeader';
+import Breadcrumb from '@/components/layout/Breadcrumb';
 
 interface PermissionItem {
   key: string;
@@ -23,7 +24,7 @@ interface PermissionCategory {
 }
 
 const permissionsCategories: PermissionCategory[] = [
- {
+  {
     name: 'FUNZIONI',
     description: 'Moduli per la gestione operativa e processi aziendali',
     permissions: [
@@ -34,7 +35,7 @@ const permissionsCategories: PermissionCategory[] = [
       { key: 'scm_admin', name: 'SCM', description: 'Supply Chain Management e lanci produzione', icon: 'fa-network-wired', color: 'orange' },
       { key: 'tracking', name: 'Tracking', description: 'Tracciabilità materiali e movimentazioni', icon: 'fa-map-marker-alt', color: 'red' },
       { key: 'analitiche', name: 'Analitiche', description: 'Analisi dati, import Excel e statistiche', icon: 'fa-chart-bar', color: 'purple' },
-    ]
+    ],
   },
   {
     name: 'FRAMEWORK',
@@ -44,7 +45,7 @@ const permissionsCategories: PermissionCategory[] = [
       { key: 'log', name: 'Log Attività', description: 'Visualizzazione audit log e attività sistema', icon: 'fa-history', color: 'cyan' },
       { key: 'inwork', name: 'InWork', description: 'Sistema gestione operatori e permessi mobile', icon: 'fa-mobile', color: 'cyan' },
       { key: 'file-manager', name: 'File Manager', description: 'Gestione file MinIO e storage sistema', icon: 'fa-folder-open', color: 'cyan' },
-    ]
+    ],
   },
   {
     name: 'STRUMENTI',
@@ -53,7 +54,7 @@ const permissionsCategories: PermissionCategory[] = [
       { key: 'users', name: 'Gestione Utenti', description: 'Creazione, modifica e gestione utenti sistema', icon: 'fa-users', color: 'gray' },
       { key: 'settings', name: 'Impostazioni Moduli', description: 'Accesso alla sezione impostazioni dei singoli moduli', icon: 'fa-cog', color: 'gray' },
       { key: 'system-admin', name: 'Amministrazione Sistema', description: 'Configurazione avanzata: SMTP, import dati, moduli attivi, cron, webhook, sicurezza', icon: 'fa-server', color: 'slate' },
-    ]
+    ],
   },
 ];
 
@@ -66,6 +67,23 @@ const itemVariants = {
   hidden: { opacity: 0, y: 10 },
   visible: { opacity: 1, y: 0 },
 };
+
+const colorClasses: Record<string, { icon: string }> = {
+  blue:   { icon: 'text-blue-600 dark:text-blue-400' },
+  yellow: { icon: 'text-yellow-600 dark:text-yellow-400' },
+  green:  { icon: 'text-green-600 dark:text-green-400' },
+  purple: { icon: 'text-purple-600 dark:text-purple-400' },
+  orange: { icon: 'text-orange-600 dark:text-orange-400' },
+  red:    { icon: 'text-red-600 dark:text-red-400' },
+  cyan:   { icon: 'text-cyan-600 dark:text-cyan-400' },
+  gray:   { icon: 'text-gray-600 dark:text-gray-400' },
+  slate:  { icon: 'text-slate-600 dark:text-slate-400' },
+};
+
+const totalPermissions = permissionsCategories.reduce(
+  (acc, cat) => acc + cat.permissions.length,
+  0
+);
 
 export default function UserPermissionsPage() {
   const router = useRouter();
@@ -93,39 +111,27 @@ export default function UserPermissionsPage() {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [userId, router]);
 
   const togglePermission = (key: string) => {
-    setPermissions((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+    setPermissions((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const selectAll = () => {
-    const allSelected: Record<string, boolean> = {};
-    permissionsCategories.forEach((category) => {
-      category.permissions.forEach((p) => {
-        allSelected[p.key] = true;
-      });
-    });
-    setPermissions(allSelected);
+    const all: Record<string, boolean> = {};
+    permissionsCategories.forEach((cat) => cat.permissions.forEach((p) => (all[p.key] = true)));
+    setPermissions(all);
   };
 
   const clearAll = () => {
-    const allCleared: Record<string, boolean> = {};
-    permissionsCategories.forEach((category) => {
-      category.permissions.forEach((p) => {
-        allCleared[p.key] = false;
-      });
-    });
-    setPermissions(allCleared);
+    const all: Record<string, boolean> = {};
+    permissionsCategories.forEach((cat) => cat.permissions.forEach((p) => (all[p.key] = false)));
+    setPermissions(all);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setSaving(true);
     try {
       await usersApi.updatePermissions(userId, permissions);
@@ -137,289 +143,264 @@ export default function UserPermissionsPage() {
     }
   };
 
-  const getColorClasses = (color: string) => {
-    const colors: Record<string, { border: string; bg: string; hover: string; icon: string; toggle: string }> = {
-      blue: { border: 'border-blue-200 dark:border-blue-800/50', bg: 'bg-blue-50 dark:bg-blue-900/10', hover: 'hover:border-blue-300 dark:hover:border-blue-700', icon: 'text-blue-600 dark:text-blue-400', toggle: 'peer-checked:bg-blue-600' },
-      yellow: { border: 'border-yellow-200 dark:border-yellow-800/50', bg: 'bg-yellow-50 dark:bg-yellow-900/10', hover: 'hover:border-yellow-300 dark:hover:border-yellow-700', icon: 'text-yellow-600 dark:text-yellow-400', toggle: 'peer-checked:bg-yellow-600' },
-      green: { border: 'border-green-200 dark:border-green-800/50', bg: 'bg-green-50 dark:bg-green-900/10', hover: 'hover:border-green-300 dark:hover:border-green-700', icon: 'text-green-600 dark:text-green-400', toggle: 'peer-checked:bg-green-600' },
-      purple: { border: 'border-purple-200 dark:border-purple-800/50', bg: 'bg-purple-50 dark:bg-purple-900/10', hover: 'hover:border-purple-300 dark:hover:border-purple-700', icon: 'text-purple-600 dark:text-purple-400', toggle: 'peer-checked:bg-purple-600' },
-      orange: { border: 'border-orange-200 dark:border-orange-800/50', bg: 'bg-orange-50 dark:bg-orange-900/10', hover: 'hover:border-orange-300 dark:hover:border-orange-700', icon: 'text-orange-600 dark:text-orange-400', toggle: 'peer-checked:bg-orange-600' },
-      red: { border: 'border-red-200 dark:border-red-800/50', bg: 'bg-red-50 dark:bg-red-900/10', hover: 'hover:border-red-300 dark:hover:border-red-700', icon: 'text-red-600 dark:text-red-400', toggle: 'peer-checked:bg-red-600' },
-      teal: { border: 'border-teal-200 dark:border-teal-800/50', bg: 'bg-teal-50 dark:bg-teal-900/10', hover: 'hover:border-teal-300 dark:hover:border-teal-700', icon: 'text-teal-600 dark:text-teal-400', toggle: 'peer-checked:bg-teal-600' },
-      cyan: { border: 'border-cyan-200 dark:border-cyan-800/50', bg: 'bg-cyan-50 dark:bg-cyan-900/10', hover: 'hover:border-cyan-300 dark:hover:border-cyan-700', icon: 'text-cyan-600 dark:text-cyan-400', toggle: 'peer-checked:bg-cyan-600' },
-      indigo: { border: 'border-indigo-200 dark:border-indigo-800/50', bg: 'bg-indigo-50 dark:bg-indigo-900/10', hover: 'hover:border-indigo-300 dark:hover:border-indigo-700', icon: 'text-indigo-600 dark:text-indigo-400', toggle: 'peer-checked:bg-indigo-600' },
-      gray: { border: 'border-gray-200 dark:border-gray-700/50', bg: 'bg-gray-50 dark:bg-gray-900/10', hover: 'hover:border-gray-300 dark:hover:border-gray-600', icon: 'text-gray-600 dark:text-gray-400', toggle: 'peer-checked:bg-gray-600' },
-      slate: { border: 'border-slate-200 dark:border-slate-700/50', bg: 'bg-slate-50 dark:bg-slate-900/10', hover: 'hover:border-slate-300 dark:hover:border-slate-600', icon: 'text-slate-600 dark:text-slate-400', toggle: 'peer-checked:bg-slate-600' },
-    };
-    return colors[color] || colors.blue;
-  };
-
-  const getCategoryGradient = (index: number) => {
-    const gradients = [
-      'from-blue-500/10 to-indigo-500/10',
-      'from-orange-500/10 to-red-500/10',
-      'from-slate-500/10 to-gray-500/10',
-      'from-purple-500/10 to-pink-500/10',
-    ];
-    return gradients[index % gradients.length];
-  };
-
-  const getActivePermissionsCount = () => {
-    return Object.values(permissions).filter(Boolean).length;
-  };
-
-  const getTotalPermissionsCount = () => {
-    return permissionsCategories.reduce((acc, cat) => acc + cat.permissions.length, 0);
-  };
+  const activeCount = Object.values(permissions).filter(Boolean).length;
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-full items-center justify-center py-16">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="h-12 w-12 rounded-full border-4 border-solid border-blue-500 border-t-transparent"
+          className="h-8 w-8 rounded-full border-4 border-blue-500 border-t-transparent"
         />
       </div>
     );
   }
 
   return (
-    <motion.div initial="hidden" animate="visible" variants={containerVariants} className="pb-24">
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="flex flex-col h-full overflow-hidden"
+    >
       {/* Header */}
-      <motion.div variants={itemVariants} className="mb-8">
-        <div className="sm:flex sm:items-start sm:justify-between">
-          <div className="mb-4 sm:mb-0">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg">
-                <i className="fas fa-shield-alt text-white text-xl"></i>
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                  Gestione Permessi
-                </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Framework di controllo accessi modulare
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href={`/users/${userId}/edit`}>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-flex items-center rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
-              >
-                <i className="fas fa-user-edit mr-2"></i>Modifica Utente
-              </motion.button>
-            </Link>
-            <Link href="/users">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-              >
-                <i className="fas fa-arrow-left mr-2"></i>Indietro
-              </motion.button>
-            </Link>
-          </div>
-        </div>
+      <motion.div variants={itemVariants} className="shrink-0">
+        <PageHeader
+          title="Gestione Permessi"
+          subtitle={`Permessi di accesso ai moduli per ${user?.nome}`}
+        />
+        <Breadcrumb
+          items={[
+            { label: 'Dashboard', href: '/', icon: 'fa-home' },
+            { label: 'Gestione Utenti', href: '/users' },
+            { label: user?.nome, href: `/users/${userId}/edit` },
+            { label: 'Permessi' },
+          ]}
+        />
       </motion.div>
 
-      {/* Breadcrumb */}
-      <motion.nav variants={itemVariants} className="flex mb-8">
-        <ol className="inline-flex items-center space-x-1 md:space-x-3">
-          <li><Link href="/" className="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"><i className="fas fa-home mr-2"></i>Dashboard</Link></li>
-          <li><div className="flex items-center"><i className="fas fa-chevron-right text-gray-400 text-xs mx-2"></i><Link href="/users" className="text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400">Utenti</Link></div></li>
-          <li><div className="flex items-center"><i className="fas fa-chevron-right text-gray-400 text-xs mx-2"></i><span className="text-sm font-medium text-gray-500 dark:text-gray-500">Permessi</span></div></li>
-        </ol>
-      </motion.nav>
-
-      {/* User Info Card */}
-      <motion.div variants={itemVariants} className="mb-8 rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-6 shadow-xl dark:border-gray-700 dark:from-gray-800 dark:to-gray-800/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 shadow-lg"
-            >
-              <span className="text-white text-2xl font-bold">{user?.nome?.charAt(0)}</span>
-            </motion.div>
-            <div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">{user?.nome}</h3>
-              <p className="text-gray-600 dark:text-gray-400">@{user?.userName}</p>
-              {user?.mail && (
-                <p className="text-sm text-gray-500 dark:text-gray-500 mt-1 flex items-center gap-2">
-                  <i className="fas fa-envelope text-xs"></i>
-                  {user.mail}
-                </p>
-              )}
+      {/* Body */}
+      <motion.div
+        variants={itemVariants}
+        className="flex flex-1 gap-4 overflow-hidden min-h-0 mt-4"
+      >
+        {/* Sidebar */}
+        <aside className="w-60 shrink-0 flex flex-col gap-3 overflow-y-auto">
+          {/* User card */}
+          <div className="rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 shadow">
+                <span className="text-base font-bold text-white">
+                  {user?.nome?.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{user?.nome}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">@{user?.userName}</p>
+              </div>
             </div>
+            {user?.mail && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                <i className="fas fa-envelope text-xs"></i>
+                <span className="truncate">{user.mail}</span>
+              </p>
+            )}
           </div>
-          <div className="text-right">
-            <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-              {getActivePermissionsCount()}<span className="text-lg text-gray-400">/{getTotalPermissionsCount()}</span>
+
+          {/* Permessi attivi */}
+          <div className="rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow p-4 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Stato Permessi
+            </p>
+            <div className="flex items-end gap-1">
+              <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">{activeCount}</span>
+              <span className="text-sm text-gray-400 mb-0.5">/ {totalPermissions}</span>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Permessi Attivi</p>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+              <div
+                className="bg-blue-600 h-1.5 rounded-full transition-all"
+                style={{ width: `${(activeCount / totalPermissions) * 100}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">permessi attivi</p>
           </div>
-        </div>
-      </motion.div>
 
-      {/* Permissions Table */}
-      <form onSubmit={handleSubmit}>
-        <motion.div variants={itemVariants} className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden dark:border-gray-700 dark:bg-gray-800">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-900/50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Modulo
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Descrizione
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Categoria
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Stato
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Accesso
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
-                {permissionsCategories.map((category) => (
-                  category.permissions.map((perm, index) => {
-                    const isActive = permissions[perm.key] || false;
-                    return (
-                      <motion.tr
-                        key={perm.key}
-                        variants={itemVariants}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
-                              <i className={`fas ${perm.icon} text-gray-600 dark:text-gray-400`}></i>
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                {perm.name}
-                              </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400">
-                                {perm.key}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            {perm.description}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                            {category.name}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          {isActive ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                              <i className="fas fa-check-circle mr-1"></i>
-                              Attivo
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                              <i className="fas fa-times-circle mr-1"></i>
-                              Inattivo
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={isActive}
-                              onChange={() => togglePermission(perm.key)}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                          </label>
-                        </td>
-                      </motion.tr>
-                    );
-                  })
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </motion.div>
-      </form>
-
-      {/* Sticky Footer */}
-      <Footer>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <motion.button
+          {/* Azioni rapide */}
+          <div className="rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow p-4 space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+              Azioni Rapide
+            </p>
+            <button
               type="button"
               onClick={selectAll}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="inline-flex items-center px-4 py-2.5 border-2 border-green-400 rounded-xl text-sm font-semibold text-green-700 bg-green-50 hover:bg-green-100 transition-colors dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/30 dark:border-green-700"
+              className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
             >
-              <i className="fas fa-check-double mr-2"></i>Attiva Tutti
-            </motion.button>
-            <motion.button
+              <i className="fas fa-check-double text-xs w-4 text-center"></i>
+              Attiva Tutti
+            </button>
+            <button
               type="button"
               onClick={clearAll}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="inline-flex items-center px-4 py-2.5 border-2 border-red-400 rounded-xl text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 transition-colors dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30 dark:border-red-700"
+              className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             >
-              <i className="fas fa-times mr-2"></i>Disattiva Tutti
-            </motion.button>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link href="/users">
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-flex items-center px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:border-gray-600"
-              >
-                <i className="fas fa-times mr-2"></i>Annulla
-              </motion.button>
+              <i className="fas fa-times text-xs w-4 text-center"></i>
+              Disattiva Tutti
+            </button>
+            <hr className="border-gray-200 dark:border-gray-700 my-1" />
+            <Link
+              href={`/users/${userId}/edit`}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+            >
+              <i className="fas fa-user-edit text-xs w-4 text-center"></i>
+              Modifica Utente
             </Link>
-            <motion.button
+            <Link
+              href="/users"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+            >
+              <i className="fas fa-arrow-left text-xs w-4 text-center"></i>
+              Torna alla Lista
+            </Link>
+          </div>
+        </aside>
+
+        {/* Main content */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow">
+          {/* Toolbar */}
+          <div className="shrink-0 px-5 py-3.5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <i className="fas fa-shield-alt text-blue-500 text-sm"></i>
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                Controllo Accessi
+              </span>
+            </div>
+            <button
               type="button"
-              onClick={handleSubmit}
+              onClick={handleSave}
               disabled={saving}
-              whileHover={{ scale: saving ? 1 : 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="inline-flex items-center px-6 py-2.5 border border-transparent rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-green-500 via-green-500 to-green-500 hover:from-green-600 hover:via-green-600 hover:to-green-600 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-2 text-sm font-medium text-white shadow hover:shadow-md transition-all disabled:opacity-50"
             >
               {saving ? (
                 <>
                   <motion.i
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                    className="fas fa-spinner mr-2"
+                    className="fas fa-spinner text-xs"
                   />
-                  Salvataggio...
+                  Salvataggio…
                 </>
               ) : (
                 <>
-                  <i className="fas fa-save mr-2"></i>Salva Modifiche
+                  <i className="fas fa-save text-xs"></i>
+                  Salva Modifiche
                 </>
               )}
-            </motion.button>
+            </button>
+          </div>
+
+          {/* Table */}
+          <div className="flex-1 overflow-auto">
+            <form onSubmit={handleSave}>
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-700 z-10">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Modulo
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Descrizione
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Categoria
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Stato
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Accesso
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                  {permissionsCategories.map((category, catIdx) => (
+                    <>
+                      {/* Category separator row */}
+                      <tr key={`cat-${catIdx}`} className="bg-gray-50/70 dark:bg-gray-700/20">
+                        <td colSpan={5} className="px-4 py-2">
+                          <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            {category.name}
+                            <span className="ml-2 font-normal normal-case text-gray-400 dark:text-gray-500">
+                              — {category.description}
+                            </span>
+                          </span>
+                        </td>
+                      </tr>
+                      {category.permissions.map((perm) => {
+                        const isActive = permissions[perm.key] || false;
+                        const cc = colorClasses[perm.color] || colorClasses.blue;
+                        return (
+                          <motion.tr
+                            key={perm.key}
+                            variants={itemVariants}
+                            className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                          >
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700/50">
+                                  <i className={`fas ${perm.icon} text-xs ${cc.icon}`}></i>
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {perm.name}
+                                  </div>
+                                  <div className="text-xs font-mono text-gray-400 dark:text-gray-500">
+                                    {perm.key}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 max-w-[260px]">
+                              {perm.description}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center rounded-md bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                {category.name}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              {isActive ? (
+                                <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+                                  <i className="fas fa-check-circle mr-1"></i>Attivo
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                  <i className="fas fa-times-circle mr-1"></i>Inattivo
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={isActive}
+                                  onChange={() => togglePermission(perm.key)}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-500 peer-checked:bg-blue-600"></div>
+                              </label>
+                            </td>
+                          </motion.tr>
+                        );
+                      })}
+                    </>
+                  ))}
+                </tbody>
+              </table>
+            </form>
           </div>
         </div>
-      </Footer>
+      </motion.div>
     </motion.div>
   );
 }

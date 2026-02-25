@@ -518,17 +518,17 @@ export default function FileManagerPage() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => handleDownload(file.id, file.fileName)}
-                              className="p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 transition"
+                              className="rounded-lg bg-green-50 dark:bg-green-900/20 p-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors"
                               title="Download"
                             >
-                              <i className="fas fa-download text-sm"></i>
+                              <i className="fas fa-download text-xs"></i>
                             </button>
                             <button
                               onClick={() => confirmDelete(file.id)}
-                              className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 transition"
+                              className="rounded-lg bg-red-50 dark:bg-red-900/20 p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
                               title="Elimina"
                             >
-                              <i className="fas fa-trash text-sm"></i>
+                              <i className="fas fa-trash text-xs"></i>
                             </button>
                           </div>
                         </td>

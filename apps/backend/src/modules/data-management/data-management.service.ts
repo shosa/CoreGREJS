@@ -348,7 +348,7 @@ export class DataManagementService {
     const where: any = {};
     if (search && tableConfig.searchFields.length > 0) {
       where.OR = tableConfig.searchFields.map(field => ({
-        [field]: { contains: search, mode: 'insensitive' },
+        [field]: { contains: search },
       }));
     }
 
