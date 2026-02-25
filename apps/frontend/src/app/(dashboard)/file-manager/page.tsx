@@ -238,34 +238,6 @@ export default function FileManagerPage() {
         <PageHeader
           title="File Manager"
           subtitle="Jobs · bucket MinIO"
-          actions={
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleSync}
-                disabled={syncing}
-                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50"
-              >
-                <i className={`fas fa-sync text-[10px] ${syncing ? 'animate-spin' : ''}`}></i>
-                Sync MinIO
-              </button>
-              <button
-                onClick={() => setCleanupOpen(true)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition"
-              >
-                <i className="fas fa-broom text-[10px]"></i>
-                Pulizia
-              </button>
-              {selectedIds.length > 0 && (
-                <button
-                  onClick={() => setBulkDeleteConfirm(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition"
-                >
-                  <i className="fas fa-trash text-[10px]"></i>
-                  Elimina ({selectedIds.length})
-                </button>
-              )}
-            </div>
-          }
         />
         <Breadcrumb
           items={[
@@ -275,10 +247,10 @@ export default function FileManagerPage() {
         />
       </motion.div>
 
-      <motion.div variants={itemVariants} className="flex flex-1 gap-4 overflow-hidden min-h-0">
+      <motion.div variants={itemVariants} className="flex flex-col md:flex-row flex-1 gap-4 overflow-hidden min-h-0">
 
         {/* ── Sidebar Stats + Filtri ── */}
-        <aside className="w-64 shrink-0 flex flex-col gap-3 overflow-y-auto">
+        <aside className="hidden md:flex md:w-64 shrink-0 flex-col gap-3 overflow-y-auto">
 
           {/* Stats */}
           <div className="rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow p-4">
@@ -402,9 +374,35 @@ export default function FileManagerPage() {
               <span className="text-sm text-cyan-600 dark:text-cyan-400">{selectedIds.length} selezionati</span>
             )}
             <div className="flex-1"></div>
+            {selectedIds.length > 0 && (
+              <button
+                onClick={() => setBulkDeleteConfirm(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition"
+              >
+                <i className="fas fa-trash text-xs"></i>
+                Elimina ({selectedIds.length})
+              </button>
+            )}
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition disabled:opacity-50"
+              title="Sincronizza con MinIO"
+            >
+              <i className={`fas fa-sync text-xs ${syncing ? 'animate-spin' : ''}`}></i>
+              Sync
+            </button>
+            <button
+              onClick={() => setCleanupOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/40 transition"
+              title="Pulizia file"
+            >
+              <i className="fas fa-broom text-xs"></i>
+              Pulizia
+            </button>
             <button
               onClick={loadFiles}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
               title="Ricarica"
             >
               <i className={`fas fa-sync-alt text-sm ${loading ? 'animate-spin' : ''}`}></i>
@@ -518,14 +516,14 @@ export default function FileManagerPage() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => handleDownload(file.id, file.fileName)}
-                              className="rounded-lg bg-green-50 dark:bg-green-900/20 p-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors"
                               title="Download"
                             >
                               <i className="fas fa-download text-xs"></i>
                             </button>
                             <button
                               onClick={() => confirmDelete(file.id)}
-                              className="rounded-lg bg-red-50 dark:bg-red-900/20 p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
                               title="Elimina"
                             >
                               <i className="fas fa-trash text-xs"></i>

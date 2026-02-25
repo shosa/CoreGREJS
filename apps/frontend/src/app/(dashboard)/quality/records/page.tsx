@@ -10,6 +10,19 @@ import { qualityApi } from "@/lib/api";
 import { showError } from "@/store/notifications";
 import Image from "next/image";
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 },
+};
+
+const inputClass =
+  "w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500";
+
 type QualityException = {
   id: number;
   taglia: string;
@@ -34,6 +47,29 @@ type QualityRecord = {
   exceptions?: QualityException[];
 };
 
+/**
+ * Helper function to get photo URL from fotoPath
+ * Handles both legacy local paths and new MinIO object names
+ */
+const getPhotoUrl = (fotoPath: string, cartellinoId?: string): string => {
+  if (fotoPath.startsWith("http")) return fotoPath;
+  if (fotoPath.startsWith("/api/quality/photo/")) return fotoPath;
+  if (fotoPath.startsWith("/storage/")) return fotoPath;
+  if (fotoPath.startsWith("quality/"))
+    return `/api/quality/photo-stream/${encodeURIComponent(fotoPath)}`;
+  if (fotoPath.match(/^eccezione_\d+_\d+\./)) {
+    const parts = fotoPath.split("_");
+    const extractedCartellinoId = parts[1];
+    const objectName = `quality/cq_uploads/${extractedCartellinoId}/${fotoPath}`;
+    return `/api/quality/photo-stream/${encodeURIComponent(objectName)}`;
+  }
+  if (cartellinoId) {
+    const objectName = `quality/cq_uploads/${cartellinoId}/${fotoPath}`;
+    return `/api/quality/photo-stream/${encodeURIComponent(objectName)}`;
+  }
+  return `/api/quality/photo-stream/${encodeURIComponent(fotoPath)}`;
+};
+
 export default function RecordsPage() {
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<QualityRecord[]>([]);
@@ -51,50 +87,6 @@ export default function RecordsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
 
-  /**
-   * Helper function to get photo URL from fotoPath
-   * Handles both legacy local paths and new MinIO object names
-   */
-  const getPhotoUrl = (fotoPath: string, cartellinoId?: string): string => {
-    // If it's already a full URL, return as-is
-    if (fotoPath.startsWith('http')) {
-      return fotoPath;
-    }
-
-    // If it starts with /api/quality/photo/, it's already a proxy URL
-    if (fotoPath.startsWith('/api/quality/photo/')) {
-      return fotoPath;
-    }
-
-    // If it starts with /storage/, it's a legacy local path - serve via static assets
-    if (fotoPath.startsWith('/storage/')) {
-      return fotoPath;
-    }
-
-    // If it starts with "quality/", it's already a MinIO object name
-    if (fotoPath.startsWith('quality/')) {
-      return `/api/quality/photo-stream/${encodeURIComponent(fotoPath)}`;
-    }
-
-    // If it's just a filename (e.g., "eccezione_92064_xxx.png"), reconstruct the object name
-    // Extract cartellino ID from filename pattern: eccezione_{cartellinoId}_{timestamp}.{ext}
-    if (fotoPath.match(/^eccezione_\d+_\d+\./)) {
-      const parts = fotoPath.split('_');
-      const extractedCartellinoId = parts[1]; // eccezione_{THIS}_timestamp.ext
-      const objectName = `quality/cq_uploads/${extractedCartellinoId}/${fotoPath}`;
-      return `/api/quality/photo-stream/${encodeURIComponent(objectName)}`;
-    }
-
-    // Fallback: if we have cartellinoId parameter, use it to reconstruct
-    if (cartellinoId) {
-      const objectName = `quality/cq_uploads/${cartellinoId}/${fotoPath}`;
-      return `/api/quality/photo-stream/${encodeURIComponent(objectName)}`;
-    }
-
-    // Last resort: assume it's a MinIO object name and try as-is
-    return `/api/quality/photo-stream/${encodeURIComponent(fotoPath)}`;
-  };
-
   useEffect(() => {
     fetchRecords();
     fetchFilterOptions();
@@ -108,7 +100,7 @@ export default function RecordsPage() {
       );
       const data = await qualityApi.getRecords(cleanFilters);
       setRecords(data);
-    } catch (error) {
+    } catch {
       showError("Errore nel caricamento dei record");
     } finally {
       setLoading(false);
@@ -132,18 +124,10 @@ export default function RecordsPage() {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSearch = () => {
-    fetchRecords();
-  };
+  const handleSearch = () => fetchRecords();
 
   const handleReset = () => {
-    setFilters({
-      dataInizio: "",
-      dataFine: "",
-      reparto: "",
-      operatore: "",
-      tipoCq: "",
-    });
+    setFilters({ dataInizio: "", dataFine: "", reparto: "", operatore: "", tipoCq: "" });
     setTimeout(() => fetchRecords(), 100);
   };
 
@@ -151,21 +135,16 @@ export default function RecordsPage() {
     try {
       setDetailsLoading(true);
       setSelectedRecord(record);
-
-      // Carica i dettagli completi del record se necessario
       const fullDetails = await qualityApi.getRecordById(record.id);
       setSelectedRecord(fullDetails);
-    } catch (error) {
+    } catch {
       showError("Errore nel caricamento dei dettagli");
-      console.error(error);
     } finally {
       setDetailsLoading(false);
     }
   };
 
-  const handleCloseDetails = () => {
-    setSelectedRecord(null);
-  };
+  const handleCloseDetails = () => setSelectedRecord(null);
 
   // Pagination
   const totalPages = Math.ceil(records.length / itemsPerPage);
@@ -174,270 +153,284 @@ export default function RecordsPage() {
     currentPage * itemsPerPage
   );
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  useEffect(() => { setCurrentPage(1); }, [filters]);
 
-  const handleItemsPerPageChange = (newItemsPerPage: number) => {
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1);
-  };
+  const hasActiveFilters = Object.values(filters).some((v) => v !== "");
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filters]);
-
-  if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="h-12 w-12 rounded-full border-4 border-solid border-primary border-t-transparent"
-        />
-      </div>
-    );
-  }
+  const recordsConEccezioni = records.filter((r) => r.haEccezioni).length;
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Consulto Record CQ"
-        description="Visualizza e filtra i controlli qualità effettuati"
-      />
+    <>
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+        className="flex flex-col h-full overflow-hidden"
+      >
+        {/* Header */}
+        <motion.div variants={itemVariants} className="shrink-0">
+          <PageHeader
+            title="Consulto Record CQ"
+            description="Visualizza e filtra i controlli qualità effettuati"
+          />
+          <Breadcrumb
+            items={[
+              { label: "Dashboard", href: "/", icon: "fa-home" },
+              { label: "Controllo Qualità", href: "/quality" },
+              { label: "Consulto Record" },
+            ]}
+          />
+        </motion.div>
 
-      <Breadcrumb
-        items={[
-          { label: "Dashboard", href: "/", icon: "fa-home" },
-          { label: "Controllo Qualità", href: "/quality" },
-          { label: "Consulto Record" },
-        ]}
-      />
+        {/* Body */}
+        <motion.div
+          variants={itemVariants}
+          className="flex flex-col md:flex-row flex-1 gap-4 overflow-hidden min-h-0 mt-4"
+        >
+          {/* Sidebar */}
+          <aside className="hidden md:flex md:w-60 shrink-0 flex-col gap-3 overflow-y-auto">
+            {/* Stats */}
+            <div className="rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow p-4 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Statistiche
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 p-3 text-center">
+                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{records.length}</p>
+                  <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">Record</p>
+                </div>
+                <div className="rounded-xl bg-red-50 dark:bg-red-900/20 p-3 text-center">
+                  <p className="text-lg font-bold text-red-600 dark:text-red-400">{recordsConEccezioni}</p>
+                  <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">Eccezioni</p>
+                </div>
+                <div className="rounded-xl bg-green-50 dark:bg-green-900/20 p-3 text-center col-span-2">
+                  <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                    {records.length > 0 ? (((records.length - recordsConEccezioni) / records.length) * 100).toFixed(1) : '0'}%
+                  </p>
+                  <p className="text-xs text-green-500 dark:text-green-400 mt-0.5">Tasso OK</p>
+                </div>
+              </div>
+            </div>
 
-      {/* Filters */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-          Filtri di Ricerca
-        </h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Data Inizio
-            </label>
-            <input
-              type="date"
-              value={filters.dataInizio}
-              onChange={(e) => handleFilterChange("dataInizio", e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Data Fine
-            </label>
-            <input
-              type="date"
-              value={filters.dataFine}
-              onChange={(e) => handleFilterChange("dataFine", e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Reparto
-            </label>
-            <select
-              value={filters.reparto}
-              onChange={(e) => handleFilterChange("reparto", e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="">Tutti</option>
-              {departments.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Operatore
-            </label>
-            <select
-              value={filters.operatore}
-              onChange={(e) => handleFilterChange("operatore", e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="">Tutti</option>
-              {operators.map((op) => (
-                <option key={op} value={op}>
-                  {op}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Tipo CQ
-            </label>
-            <select
-              value={filters.tipoCq}
-              onChange={(e) => handleFilterChange("tipoCq", e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="">Tutti</option>
-              <option value="INTERNO">INTERNO</option>
-              <option value="GRIFFE">GRIFFE</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="mt-4 flex gap-3">
-          <button
-            onClick={handleSearch}
-            className="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
-          >
-            Cerca
-          </button>
-          <button
-            onClick={handleReset}
-            className="rounded-lg border border-gray-300 px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-          >
-            Reset
-          </button>
-        </div>
-      </div>
-
-      {/* Results */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <div className="border-b border-gray-200 p-6 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Record Trovati: {records.length}
-          </h2>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-900">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Cartellino
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Data
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Articolo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Reparto
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Operatore
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Tipo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Paia
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Eccezioni
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Azioni
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {paginatedRecords.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={9}
-                    className="px-6 py-12 text-center text-gray-500 dark:text-gray-400"
+            {/* Filters */}
+            <div className="rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Filtri
+                </p>
+                {hasActiveFilters && (
+                  <button
+                    onClick={handleReset}
+                    className="text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-300"
                   >
-                    Nessun record trovato
-                  </td>
-                </tr>
-              ) : (
-                paginatedRecords.map((record) => (
-                  <tr
-                    key={record.id}
-                    className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                  >
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
-                      {record.numeroCartellino}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {new Date(record.dataControllo).toLocaleDateString("it-IT")}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                      <div className="max-w-xs truncate">{record.articolo}</div>
-                      <div className="text-xs text-gray-500">{record.codArticolo}</div>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {record.reparto || "-"}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {record.operatore}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                          record.tipoCq === "GRIFFE"
-                            ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
-                            : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-                        }`}
-                      >
-                        {record.tipoCq}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {record.paiaTotali}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                          record.haEccezioni
-                            ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                            : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                        }`}
-                      >
-                        {record.haEccezioni ? "Sì" : "OK"}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleViewDetails(record)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 transition-colors"
-                        title="Visualizza dettagli"
-                      >
-                        <i className="fas fa-eye text-sm"></i>
-                      </button>
-                    </td>
+                    <i className="fas fa-times mr-1"></i>Reset
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Data Inizio</label>
+                <input
+                  type="date"
+                  value={filters.dataInizio}
+                  onChange={(e) => handleFilterChange("dataInizio", e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Data Fine</label>
+                <input
+                  type="date"
+                  value={filters.dataFine}
+                  onChange={(e) => handleFilterChange("dataFine", e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Reparto</label>
+                <select
+                  value={filters.reparto}
+                  onChange={(e) => handleFilterChange("reparto", e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">Tutti</option>
+                  {departments.map((dept) => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Operatore</label>
+                <select
+                  value={filters.operatore}
+                  onChange={(e) => handleFilterChange("operatore", e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">Tutti</option>
+                  {operators.map((op) => (
+                    <option key={op} value={op}>{op}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Tipo CQ</label>
+                <select
+                  value={filters.tipoCq}
+                  onChange={(e) => handleFilterChange("tipoCq", e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">Tutti</option>
+                  <option value="INTERNO">INTERNO</option>
+                  <option value="GRIFFE">GRIFFE</option>
+                </select>
+              </div>
+
+              <button
+                onClick={handleSearch}
+                className="w-full rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 py-2 text-xs font-medium text-white hover:shadow-md transition-all"
+              >
+                <i className="fas fa-search mr-1.5"></i>Cerca
+              </button>
+            </div>
+          </aside>
+
+          {/* Main content */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow">
+            {/* Toolbar */}
+            <div className="shrink-0 px-5 py-3.5 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
+              <i className="fas fa-clipboard-check text-blue-500 text-sm"></i>
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                Record Trovati
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {loading ? (
+                  <span className="flex items-center gap-1.5">
+                    <motion.i
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      className="fas fa-spinner"
+                    />
+                    Caricamento…
+                  </span>
+                ) : (
+                  <><span className="font-semibold text-gray-700 dark:text-gray-200">{records.length}</span> record</>
+                )}
+              </span>
+              <div className="ml-auto">
+                <button
+                  onClick={fetchRecords}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  title="Aggiorna"
+                >
+                  <i className="fas fa-sync-alt text-xs"></i>
+                </button>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="flex-1 overflow-auto">
+              <table className="w-full">
+                <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Cartellino</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Data</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Articolo</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Reparto</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Operatore</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tipo</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Paia</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Eccezioni</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Azioni</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {paginatedRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-16 text-center">
+                        <div className="flex flex-col items-center text-gray-400 dark:text-gray-500">
+                          <i className="fas fa-inbox text-4xl mb-3 opacity-40"></i>
+                          <p className="font-medium text-sm">Nessun record trovato</p>
+                          <p className="text-xs mt-1">Prova a modificare i filtri</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedRecords.map((record) => (
+                      <tr
+                        key={record.id}
+                        className="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
+                      >
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {record.numeroCartellino}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {new Date(record.dataControllo).toLocaleDateString("it-IT")}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                          <div className="max-w-[160px] truncate">{record.articolo}</div>
+                          <div className="text-xs text-gray-400">{record.codArticolo}</div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {record.reparto || "-"}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {record.operatore}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                            record.tipoCq === "GRIFFE"
+                              ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
+                              : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                          }`}>
+                            {record.tipoCq}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-400">
+                          {record.paiaTotali}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center">
+                          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                            record.haEccezioni
+                              ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                              : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                          }`}>
+                            {record.haEccezioni ? "Sì" : "OK"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right">
+                          <button
+                            onClick={() => handleViewDetails(record)}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors ml-auto"
+                            title="Visualizza dettagli"
+                          >
+                            <i className="fas fa-eye text-xs"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-        {/* Pagination */}
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-          itemsPerPage={itemsPerPage}
-          totalItems={records.length}
-          onItemsPerPageChange={handleItemsPerPageChange}
-        />
-      </div>
+            {/* Pagination */}
+            <div className="shrink-0 border-t border-gray-200 dark:border-gray-700">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                itemsPerPage={itemsPerPage}
+                totalItems={records.length}
+                onItemsPerPageChange={(v) => { setItemsPerPage(v); setCurrentPage(1); }}
+              />
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
 
       {/* Offcanvas Dettagli */}
       <Offcanvas
@@ -459,87 +452,53 @@ export default function RecordsPage() {
               </h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                    Cartellino:
-                  </span>
-                  <p className="mt-1 text-gray-900 dark:text-white">
-                    {selectedRecord.numeroCartellino}
-                  </p>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Cartellino:</span>
+                  <p className="mt-1 text-gray-900 dark:text-white">{selectedRecord.numeroCartellino}</p>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                    Data Controllo:
-                  </span>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Data Controllo:</span>
                   <p className="mt-1 text-gray-900 dark:text-white">
                     {new Date(selectedRecord.dataControllo).toLocaleString("it-IT")}
                   </p>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                    Operatore:
-                  </span>
-                  <p className="mt-1 text-gray-900 dark:text-white">
-                    {selectedRecord.operatore}
-                  </p>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Operatore:</span>
+                  <p className="mt-1 text-gray-900 dark:text-white">{selectedRecord.operatore}</p>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                    Reparto:
-                  </span>
-                  <p className="mt-1 text-gray-900 dark:text-white">
-                    {selectedRecord.reparto || "-"}
-                  </p>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Reparto:</span>
+                  <p className="mt-1 text-gray-900 dark:text-white">{selectedRecord.reparto || "-"}</p>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                    Tipo CQ:
-                  </span>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Tipo CQ:</span>
                   <p className="mt-1">
-                    <span
-                      className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                        selectedRecord.tipoCq === "GRIFFE"
-                          ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
-                          : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-                      }`}
-                    >
+                    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                      selectedRecord.tipoCq === "GRIFFE"
+                        ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
+                        : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                    }`}>
                       {selectedRecord.tipoCq}
                     </span>
                   </p>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                    Paia Totali:
-                  </span>
-                  <p className="mt-1 text-gray-900 dark:text-white">
-                    {selectedRecord.paiaTotali}
-                  </p>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Paia Totali:</span>
+                  <p className="mt-1 text-gray-900 dark:text-white">{selectedRecord.paiaTotali}</p>
                 </div>
                 <div className="col-span-2">
-                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                    Articolo:
-                  </span>
-                  <p className="mt-1 text-gray-900 dark:text-white">
-                    {selectedRecord.articolo}
-                  </p>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Articolo:</span>
+                  <p className="mt-1 text-gray-900 dark:text-white">{selectedRecord.articolo}</p>
                   <p className="text-xs text-gray-500">{selectedRecord.codArticolo}</p>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                    Linea:
-                  </span>
-                  <p className="mt-1 text-gray-900 dark:text-white">
-                    {selectedRecord.linea}
-                  </p>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Linea:</span>
+                  <p className="mt-1 text-gray-900 dark:text-white">{selectedRecord.linea}</p>
                 </div>
               </div>
               {selectedRecord.note && (
                 <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-700">
-                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                    Note:
-                  </span>
-                  <p className="mt-1 text-gray-900 dark:text-white">
-                    {selectedRecord.note}
-                  </p>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Note:</span>
+                  <p className="mt-1 text-gray-900 dark:text-white">{selectedRecord.note}</p>
                 </div>
               )}
             </div>
@@ -568,8 +527,7 @@ export default function RecordsPage() {
                             </span>
                           </div>
                           <div className="text-sm text-gray-700 dark:text-gray-300">
-                            <span className="font-medium">Tipo Difetto:</span>{" "}
-                            {exc.tipoDifetto}
+                            <span className="font-medium">Tipo Difetto:</span> {exc.tipoDifetto}
                           </div>
                           {exc.noteOperatore && (
                             <div className="mt-2 rounded bg-gray-50 p-2 text-sm text-gray-600 dark:bg-gray-700 dark:text-gray-400">
@@ -580,12 +538,10 @@ export default function RecordsPage() {
                         </div>
                       </div>
 
-                      {/* Foto Eccezione */}
                       {exc.fotoPath && (
                         <div className="mt-3 border-t border-gray-200 pt-3 dark:border-gray-700">
                           <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                            <i className="fas fa-image mr-1.5"></i>
-                            Foto Difetto:
+                            <i className="fas fa-image mr-1.5"></i>Foto Difetto:
                           </div>
                           <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-900">
                             <Image
@@ -620,6 +576,6 @@ export default function RecordsPage() {
           </div>
         )}
       </Offcanvas>
-    </div>
+    </>
   );
 }

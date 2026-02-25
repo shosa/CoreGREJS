@@ -431,10 +431,10 @@ export default function DataManagementPage() {
         />
       </motion.div>
 
-      <motion.div variants={itemVariants} className="flex flex-1 gap-4 overflow-hidden min-h-0">
+      <motion.div variants={itemVariants} className="flex flex-col md:flex-row flex-1 gap-4 overflow-hidden min-h-0">
 
         {/* ── Sidebar ── */}
-        <aside className="w-64 shrink-0 flex flex-col rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
+        <aside className="hidden md:flex md:w-64 shrink-0 flex-col rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
             <div className="relative">
               <input
@@ -528,7 +528,7 @@ export default function DataManagementPage() {
                         />
                         <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
                       </div>
-                      <button onClick={fetchTable} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
+                      <button onClick={fetchTable} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
                         <i className={`fas fa-sync-alt text-sm ${loading ? 'animate-spin' : ''}`}></i>
                       </button>
                     </div>

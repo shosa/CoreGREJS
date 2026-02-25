@@ -44,7 +44,17 @@ export class FileManagerService {
 
     if (filter.userId) where.userId = filter.userId;
     if (filter.jobId) where.jobId = filter.jobId;
-    if (filter.mimeType) where.mimeType = { contains: filter.mimeType };
+    if (filter.mimeType) {
+      // "excel" matches both xlsx (spreadsheetml) and xls (ms-excel)
+      if (filter.mimeType === 'excel') {
+        where.OR = [
+          { mimeType: { contains: 'spreadsheet' } },
+          { mimeType: { contains: 'ms-excel' } },
+        ];
+      } else {
+        where.mimeType = { contains: filter.mimeType };
+      }
+    }
     if (filter.dateFrom || filter.dateTo) {
       where.uploadedAt = {};
       if (filter.dateFrom) where.uploadedAt.gte = filter.dateFrom;
@@ -175,7 +185,16 @@ export class FileManagerService {
 
     if (filter.userId) where.userId = filter.userId;
     if (filter.jobId) where.jobId = filter.jobId;
-    if (filter.mimeType) where.mimeType = { contains: filter.mimeType };
+    if (filter.mimeType) {
+      if (filter.mimeType === 'excel') {
+        where.OR = [
+          { mimeType: { contains: 'spreadsheet' } },
+          { mimeType: { contains: 'ms-excel' } },
+        ];
+      } else {
+        where.mimeType = { contains: filter.mimeType };
+      }
+    }
     if (filter.dateFrom || filter.dateTo) {
       where.uploadedAt = {};
       if (filter.dateFrom) where.uploadedAt.gte = filter.dateFrom;

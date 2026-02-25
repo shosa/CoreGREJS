@@ -196,10 +196,10 @@ export default function LogAttivitaPage() {
         {/* Body: sidebar + main */}
         <motion.div
           variants={itemVariants}
-          className="flex flex-1 gap-4 overflow-hidden min-h-0 mt-4"
+          className="flex flex-col md:flex-row flex-1 gap-4 overflow-hidden min-h-0 mt-4"
         >
           {/* Sidebar */}
-          <aside className="w-64 shrink-0 flex flex-col gap-3 overflow-y-auto">
+          <aside className="hidden md:flex md:w-64 shrink-0 flex-col gap-3 overflow-y-auto">
             {/* Stats mini-cards */}
             <div className="rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow p-4 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -461,7 +461,7 @@ export default function LogAttivitaPage() {
                               setSelectedLog(log);
                               setOffcanvasOpen(true);
                             }}
-                            className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
                             title="Dettagli"
                           >
                             <i className="fas fa-info-circle text-xs"></i>

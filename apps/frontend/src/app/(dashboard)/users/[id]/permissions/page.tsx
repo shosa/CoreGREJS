@@ -183,10 +183,10 @@ export default function UserPermissionsPage() {
       {/* Body */}
       <motion.div
         variants={itemVariants}
-        className="flex flex-1 gap-4 overflow-hidden min-h-0 mt-4"
+        className="flex flex-col md:flex-row flex-1 gap-4 overflow-hidden min-h-0 mt-4"
       >
         {/* Sidebar */}
-        <aside className="w-60 shrink-0 flex flex-col gap-3 overflow-y-auto">
+        <aside className="hidden md:flex md:w-60 shrink-0 flex-col gap-3 overflow-y-auto">
           {/* User card */}
           <div className="rounded-2xl bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 shadow p-4 space-y-3">
             <div className="flex items-center gap-3">
