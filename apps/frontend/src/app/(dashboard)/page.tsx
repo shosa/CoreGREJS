@@ -19,7 +19,6 @@ import {
   ActivitiesWidget,
   ProduzioneTrendWidget,
   ProduzioneRepartiWidget,
-  ProduzioneTaglieWidget,
   SystemHealthWidget,
   SystemJobsWidget,
   SystemLogWidget,
@@ -78,8 +77,6 @@ export default function DashboardPage() {
   const [trendPeriod, setTrendPeriod] = useState<7 | 14 | 30>(7);
   const [repartiData, setRepartiData] = useState<any>(null);
   const [repartiPeriod, setRepartiPeriod] = useState<7 | 30 | 90>(7);
-  const [taglieData, setTaglieData] = useState<any>(null);
-  const [taglieDays, setTaglieDays] = useState<7 | 30 | 90>(30);
 
   // Widget system-admin
   const [healthData, setHealthData] = useState<any>(null);
@@ -123,15 +120,6 @@ export default function DashboardPage() {
         headers: { 'Authorization': `Bearer ${JSON.parse(localStorage.getItem('coregre-auth') || '{}').state?.token ?? ''}` },
       });
       if (r.ok) setRepartiData(await r.json());
-    } catch {}
-  };
-
-  const fetchTaglieData = async (days: number) => {
-    try {
-      const r = await fetch(`/api/widgets/produzione-taglie?days=${days}`, {
-        headers: { 'Authorization': `Bearer ${JSON.parse(localStorage.getItem('coregre-auth') || '{}').state?.token ?? ''}` },
-      });
-      if (r.ok) setTaglieData(await r.json());
     } catch {}
   };
 
@@ -186,7 +174,6 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchTrendData(trendPeriod); }, [trendPeriod]);
   useEffect(() => { fetchRepartiData(repartiPeriod); }, [repartiPeriod]);
-  useEffect(() => { fetchTaglieData(taglieDays); }, [taglieDays]);
 
   useEffect(() => {
     fetchWidgets();
@@ -195,7 +182,6 @@ export default function DashboardPage() {
     fetchActivities();
     fetchTrendData(trendPeriod);
     fetchRepartiData(repartiPeriod);
-    fetchTaglieData(taglieDays);
     fetchHealthData();
     fetchJobsData();
     fetchLogStats();
@@ -505,20 +491,6 @@ export default function DashboardPage() {
               className={isEditMode ? 'pointer-events-none' : ''}
             >
               <ProduzioneRepartiWidget chartData={repartiData} period={repartiPeriod} setPeriod={setRepartiPeriod} />
-            </motion.div>
-          </div>
-        )}
-
-        {/* Distribuzione Taglie */}
-        {isWidgetVisible('produzione-taglie', 'riparazioni', 'riparazioni') && (
-          <div key="produzione-taglie" className={isEditMode ? 'drag-handle cursor-move' : ''}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 1.0 }}
-              className={isEditMode ? 'pointer-events-none' : ''}
-            >
-              <ProduzioneTaglieWidget taglieData={taglieData} days={taglieDays} setDays={setTaglieDays} />
             </motion.div>
           </div>
         )}
