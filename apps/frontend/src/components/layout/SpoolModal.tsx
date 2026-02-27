@@ -45,6 +45,12 @@ export default function SpoolModal({ open, onClose }: Props) {
   const [selectedPrinter, setSelectedPrinter] = useState<string>('');
   const [printingId, setPrintingId] = useState<string | null>(null);
 
+  // true solo se almeno un file selezionato è PDF
+  const hasSelectedPdf = useMemo(() => {
+    if (selectedIds.size === 0) return false;
+    return files.some(j => selectedIds.has(j.id) && j.outputMime === 'application/pdf');
+  }, [selectedIds, files]);
+
   // Reset selezione quando cambio tab
   useEffect(() => {
     setSelectedIds(new Set());
@@ -394,10 +400,9 @@ export default function SpoolModal({ open, onClose }: Props) {
                           onClick={() => {
                             const list = getCurrentList();
                             const sel = list.filter(j => selectedIds.has(j.id) && j.outputMime === 'application/pdf');
-                            if (sel.length === 0) { showError('Seleziona almeno un PDF da stampare'); return; }
                             sel.forEach(j => handlePrint(j.id));
                           }}
-                          disabled={selectedIds.size === 0 || printingId !== null}
+                          disabled={!hasSelectedPdf || printingId !== null}
                           className="h-9 w-9 rounded-full border border-blue-200 dark:border-blue-700 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-40"
                           title="Stampa selezionati (solo PDF)"
                         >
@@ -408,7 +413,7 @@ export default function SpoolModal({ open, onClose }: Props) {
                     )}
                     <button
                       onClick={() => handleOpenSelected()}
-                      disabled={selectedIds.size === 0}
+                      disabled={!hasSelectedPdf}
                       className="h-9 w-9 rounded-full border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40"
                       title="Apri (solo PDF; merge se multipli)"
                     >
