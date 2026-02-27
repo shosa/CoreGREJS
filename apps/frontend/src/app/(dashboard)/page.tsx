@@ -412,7 +412,7 @@ export default function DashboardPage() {
         )}
 
         {/* Tracking */}
-        {isWidgetVisible('tracking') && (
+        {isWidgetVisible('tracking', 'tracking', 'tracking') && (
           <div key="tracking" className={isEditMode ? 'drag-handle cursor-move' : ''}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -496,7 +496,7 @@ export default function DashboardPage() {
         )}
 
         {/* Stato Sistema */}
-        {isWidgetVisible('system-health', 'system-admin') && (
+        {isWidgetVisible('system-health', 'system-admin', 'settings') && (
           <div key="system-health" className={isEditMode ? 'drag-handle cursor-move' : ''}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -510,7 +510,7 @@ export default function DashboardPage() {
         )}
 
         {/* Coda Lavori */}
-        {isWidgetVisible('system-jobs', 'system-admin') && (
+        {isWidgetVisible('system-jobs', 'system-admin', 'settings') && (
           <div key="system-jobs" className={isEditMode ? 'drag-handle cursor-move' : ''}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -524,7 +524,7 @@ export default function DashboardPage() {
         )}
 
         {/* Log Attività */}
-        {isWidgetVisible('system-log', 'system-admin') && (
+        {isWidgetVisible('system-log', 'system-admin', 'settings') && (
           <div key="system-log" className={isEditMode ? 'drag-handle cursor-move' : ''}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}

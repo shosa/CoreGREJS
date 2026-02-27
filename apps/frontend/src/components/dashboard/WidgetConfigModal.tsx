@@ -25,7 +25,7 @@ const availableWidgets: WidgetInfo[] = [
   { id: 'produzione', name: 'Produzione', desc: 'Paia prodotte oggi per fase', icon: 'industry', gradient: 'from-yellow-500 to-orange-500', permission: 'produzione', module: 'produzione', category: 'Operativi', size: '1×1' },
   { id: 'quality', name: 'Quality Control', desc: 'Controlli qualità del giorno', icon: 'check-circle', gradient: 'from-emerald-500 to-green-600', permission: 'quality', module: 'qualita', category: 'Operativi', size: '1×1' },
   { id: 'export-stats', name: 'Statistiche Export', desc: 'DDT e spedizioni oggi/settimana/mese', icon: 'file-export', gradient: 'from-purple-500 to-violet-600', permission: 'export', module: 'export', category: 'Operativi', size: '1×1' },
-  { id: 'tracking', name: 'Tracking', desc: 'Accesso rapido al modulo tracking', icon: 'route', gradient: 'from-pink-500 to-rose-500', category: 'Operativi', size: '1×1' },
+  { id: 'tracking', name: 'Tracking', desc: 'Accesso rapido al modulo tracking', icon: 'route', gradient: 'from-pink-500 to-rose-500', permission: 'tracking', module: 'tracking', category: 'Operativi', size: '1×1' },
   { id: 'scm', name: 'SCM', desc: 'Lanci attivi e ordini in corso', icon: 'rocket', gradient: 'from-orange-500 to-amber-500', permission: 'scm_admin', module: 'scm', category: 'Operativi', size: '1×1' },
   // Utilità
   { id: 'quick-actions', name: 'Azioni Rapide', desc: 'Scorciatoie ai moduli più usati', icon: 'bolt', gradient: 'from-indigo-500 to-blue-600', category: 'Utilità', size: '2×2' },
@@ -34,9 +34,9 @@ const availableWidgets: WidgetInfo[] = [
   { id: 'produzione-trend', name: 'Trend Produzione', desc: 'Grafico lineare paia per fase negli ultimi 7/14/30 giorni', icon: 'chart-line', gradient: 'from-yellow-400 to-yellow-600', permission: 'produzione', module: 'produzione', category: 'Grafici', size: '2×2' },
   { id: 'produzione-reparti', name: 'Reparti Produzione', desc: 'Istogramma top reparti con tabella', icon: 'chart-bar', gradient: 'from-orange-400 to-red-500', permission: 'produzione', module: 'produzione', category: 'Grafici', size: '2×2' },
   // Sistema
-  { id: 'system-health', name: 'Stato Sistema', desc: 'DB · Redis · MinIO — stato e latenza servizi', icon: 'heartbeat', gradient: 'from-emerald-500 to-teal-600', permission: 'system-admin', category: 'Sistema', size: '2×1' },
-  { id: 'system-jobs', name: 'Coda Lavori', desc: 'Contatori job in coda / attivi / completati / falliti', icon: 'tasks', gradient: 'from-blue-500 to-cyan-500', permission: 'system-admin', category: 'Sistema', size: '2×2' },
-  { id: 'system-log', name: 'Log Attività', desc: 'Statistiche azioni per modulo e tipo', icon: 'shield-alt', gradient: 'from-indigo-500 to-purple-600', permission: 'system-admin', category: 'Sistema', size: '2×2' },
+  { id: 'system-health', name: 'Stato Sistema', desc: 'DB · Redis · MinIO — stato e latenza servizi', icon: 'heartbeat', gradient: 'from-emerald-500 to-teal-600', permission: 'system-admin', module: 'settings', category: 'Sistema', size: '2×1' },
+  { id: 'system-jobs', name: 'Coda Lavori', desc: 'Contatori job in coda / attivi / completati / falliti', icon: 'tasks', gradient: 'from-blue-500 to-cyan-500', permission: 'system-admin', module: 'settings', category: 'Sistema', size: '2×2' },
+  { id: 'system-log', name: 'Log Attività', desc: 'Statistiche azioni per modulo e tipo', icon: 'shield-alt', gradient: 'from-indigo-500 to-purple-600', permission: 'system-admin', module: 'settings', category: 'Sistema', size: '2×2' },
 ];
 
 const categoryOrder = ['Operativi', 'Utilità', 'Grafici', 'Sistema'];
