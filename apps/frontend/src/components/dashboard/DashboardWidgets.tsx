@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import {
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer, Cell,
+} from "recharts";
 
 interface DashboardStats {
   riparazioniAperte: number;
@@ -671,6 +675,372 @@ export function ActivitiesWidget({ activities, activitiesLoading, hasPermission 
           </Link>
         </div>
       )}
+    </motion.div>
+  );
+}
+
+// ─── PALETTE colori per fasi produzione ──────────────────────────────────────
+const PHASE_COLORS = [
+  '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6',
+  '#ef4444', '#06b6d4', '#f97316', '#84cc16',
+];
+
+// ─── Widget: Trend Produzione (Line Chart) ────────────────────────────────────
+export function ProduzioneTrendWidget({
+  trendData,
+  period,
+  setPeriod,
+}: {
+  trendData: { phases: string[]; data: Record<string, any>[] } | null;
+  period: 7 | 14 | 30;
+  setPeriod: (p: 7 | 14 | 30) => void;
+}) {
+  const hasData = trendData && trendData.data && trendData.data.some((d: any) => d.totale > 0);
+
+  const formatDay = (day: string) => {
+    const d = new Date(day + 'T00:00:00');
+    return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+  };
+
+  return (
+    <motion.div className="h-full w-full rounded-2xl border border-gray-200 bg-white dark:bg-gray-800/40 dark:border-gray-700 p-3 sm:p-4 shadow-lg flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between mb-3 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg">
+            <i className="fas fa-chart-line text-white text-sm"></i>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Trend Produzione</h3>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">Paia per fase · ultimi {period}g</p>
+          </div>
+        </div>
+        <div className="flex gap-1">
+          {([7, 14, 30] as const).map(p => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-2 py-0.5 text-[10px] font-medium rounded-md transition-colors ${
+                period === p
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              {p}g
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1 min-h-0">
+        {!hasData ? (
+          <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-600 flex-col gap-2">
+            <i className="fas fa-chart-line text-3xl opacity-30"></i>
+            <p className="text-xs">Nessun dato nel periodo</p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={trendData!.data} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis
+                dataKey="day"
+                tickFormatter={formatDay}
+                tick={{ fontSize: 9, fill: '#9ca3af' }}
+                tickLine={false}
+                interval={Math.ceil((trendData!.data.length - 1) / 6)}
+              />
+              <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+              <Tooltip
+                contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e5e7eb' }}
+                labelFormatter={formatDay}
+              />
+              {trendData!.phases.length > 1 && (
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+              )}
+              {trendData!.phases.length > 0 ? (
+                trendData!.phases.map((phase, i) => (
+                  <Line
+                    key={phase}
+                    type="monotone"
+                    dataKey={phase}
+                    stroke={PHASE_COLORS[i % PHASE_COLORS.length]}
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                ))
+              ) : (
+                <Line type="monotone" dataKey="totale" stroke="#f59e0b" strokeWidth={2} dot={false} name="Totale" />
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex-shrink-0">
+        <button
+          onClick={() => (window.location.href = '/produzione')}
+          className="w-full text-[10px] font-medium text-amber-600 dark:text-amber-400 flex items-center justify-center"
+        >
+          Apri Produzione <i className="fas fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Widget: Produzione per Reparto — Bar Chart + Tabella Top ─────────────────
+export function ProduzioneRepartiWidget({
+  chartData,
+  period,
+  setPeriod,
+}: {
+  chartData: { departments: { name: string; value: number }[] } | null;
+  period: 7 | 30 | 90;
+  setPeriod: (p: 7 | 30 | 90) => void;
+}) {
+  const depts = chartData?.departments ?? [];
+  const top5 = depts.slice(0, 5);
+  const max = top5.length > 0 ? top5[0].value : 1;
+
+  return (
+    <motion.div className="h-full w-full rounded-2xl border border-gray-200 bg-white dark:bg-gray-800/40 dark:border-gray-700 p-3 sm:p-4 shadow-lg flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between mb-3 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 shadow-lg">
+            <i className="fas fa-chart-bar text-white text-sm"></i>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Reparti Produzione</h3>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">Top reparti · ultimi {period}g</p>
+          </div>
+        </div>
+        <div className="flex gap-1">
+          {([7, 30, 90] as const).map(p => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-2 py-0.5 text-[10px] font-medium rounded-md transition-colors ${
+                period === p
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              {p}g
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="h-32 flex-shrink-0 mb-2">
+        {top5.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-600 flex-col gap-1">
+            <i className="fas fa-chart-bar text-2xl opacity-30"></i>
+            <p className="text-xs">Nessun dato</p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={top5} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 8, fill: '#9ca3af' }}
+                tickLine={false}
+                interval={0}
+                tickFormatter={(v: string) => v.length > 8 ? v.slice(0, 8) + '…' : v}
+              />
+              <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+              <Tooltip
+                contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e5e7eb' }}
+                formatter={(v: any) => [v + ' paia', 'Produzione']}
+              />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                {top5.map((_, i) => (
+                  <Cell key={i} fill={PHASE_COLORS[i % PHASE_COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-1">
+        {top5.map((dept, i) => (
+          <div key={dept.name} className="flex items-center gap-2 text-xs">
+            <span
+              className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
+              style={{ backgroundColor: PHASE_COLORS[i % PHASE_COLORS.length] }}
+            >
+              {i + 1}
+            </span>
+            <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{dept.name}</span>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${(dept.value / max) * 100}%`, backgroundColor: PHASE_COLORS[i % PHASE_COLORS.length] }}
+                />
+              </div>
+              <span className="font-semibold text-gray-800 dark:text-gray-200 w-10 text-right">{dept.value}</span>
+            </div>
+          </div>
+        ))}
+        {top5.length === 0 && (
+          <p className="text-xs text-gray-400 dark:text-gray-600 text-center italic">Nessun dato nel periodo</p>
+        )}
+      </div>
+
+      <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex-shrink-0">
+        <button
+          onClick={() => (window.location.href = '/produzione')}
+          className="w-full text-[10px] font-medium text-yellow-600 dark:text-yellow-400 flex items-center justify-center"
+        >
+          Apri Produzione <i className="fas fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Widget: Distribuzione Taglie (Istogramma / Gaussiana) ───────────────────
+export function ProduzioneTaglieWidget({
+  taglieData,
+  days,
+  setDays,
+}: {
+  taglieData: { taglie: { slot: number; qty: number; taglia: string }[]; totaleDays: number } | null;
+  days: 7 | 30 | 90;
+  setDays: (d: 7 | 30 | 90) => void;
+}) {
+  const taglie = taglieData?.taglie ?? [];
+  const total = taglie.reduce((s, t) => s + t.qty, 0);
+  const max = taglie.length > 0 ? Math.max(...taglie.map(t => t.qty)) : 1;
+
+  let mean = 0;
+  let stdev = 0;
+  if (total > 0 && taglie.length > 0) {
+    mean = taglie.reduce((s, t) => s + t.slot * t.qty, 0) / total;
+    stdev = Math.sqrt(taglie.reduce((s, t) => s + t.qty * Math.pow(t.slot - mean, 2), 0) / total);
+  }
+
+  const chartData = taglie.map(t => ({
+    name: t.taglia,
+    qty: t.qty,
+    pct: total > 0 ? Math.round((t.qty / total) * 1000) / 10 : 0,
+  }));
+
+  return (
+    <motion.div className="h-full w-full rounded-2xl border border-gray-200 bg-white dark:bg-gray-800/40 dark:border-gray-700 p-3 sm:p-4 shadow-lg flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between mb-3 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg">
+            <i className="fas fa-chart-area text-white text-sm"></i>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Distribuzione Taglie</h3>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">Riparazioni · ultimi {days}g · {total} paia</p>
+          </div>
+        </div>
+        <div className="flex gap-1">
+          {([7, 30, 90] as const).map(d => (
+            <button
+              key={d}
+              onClick={() => setDays(d)}
+              className={`px-2 py-0.5 text-[10px] font-medium rounded-md transition-colors ${
+                days === d
+                  ? 'bg-violet-500 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              {d}g
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="h-36 flex-shrink-0 mb-2">
+        {chartData.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-600 flex-col gap-1">
+            <i className="fas fa-chart-area text-2xl opacity-30"></i>
+            <p className="text-xs">Nessun dato nel periodo</p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 8, fill: '#9ca3af' }}
+                tickLine={false}
+                interval={chartData.length > 12 ? Math.ceil(chartData.length / 8) : 0}
+              />
+              <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+              <Tooltip
+                contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e5e7eb' }}
+                formatter={(v: any, name: string) => [
+                  name === 'qty' ? `${v} paia` : `${v}%`,
+                  name === 'qty' ? 'Quantità' : '% totale',
+                ]}
+              />
+              <Bar dataKey="qty" radius={[3, 3, 0, 0]}>
+                {chartData.map((_, i) => {
+                  const centrality = 1 - Math.abs((i / (chartData.length - 1 || 1)) - 0.5) * 2;
+                  const opacity = 0.4 + centrality * 0.6;
+                  return <Cell key={i} fill={`rgba(139, 92, 246, ${opacity})`} />;
+                })}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {total > 0 && (
+        <div className="grid grid-cols-3 gap-2 flex-shrink-0 mb-2">
+          <div className="rounded-lg bg-violet-50 dark:bg-violet-900/20 p-2 text-center">
+            <p className="text-[9px] text-violet-600 dark:text-violet-400 font-semibold uppercase">Totale</p>
+            <p className="text-sm font-bold text-gray-900 dark:text-white">{total}</p>
+          </div>
+          <div className="rounded-lg bg-violet-50 dark:bg-violet-900/20 p-2 text-center">
+            <p className="text-[9px] text-violet-600 dark:text-violet-400 font-semibold uppercase">Media</p>
+            <p className="text-sm font-bold text-gray-900 dark:text-white">{taglie[Math.round(mean) - 1]?.taglia ?? '–'}</p>
+          </div>
+          <div className="rounded-lg bg-violet-50 dark:bg-violet-900/20 p-2 text-center">
+            <p className="text-[9px] text-violet-600 dark:text-violet-400 font-semibold uppercase">Dev.Std</p>
+            <p className="text-sm font-bold text-gray-900 dark:text-white">±{stdev.toFixed(1)}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-1">
+        {[...taglie].sort((a, b) => b.qty - a.qty).slice(0, 3).map((t, i) => (
+          <div key={t.slot} className="flex items-center gap-2 text-xs">
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 ${
+              i === 0 ? 'bg-yellow-500' : i === 1 ? 'bg-gray-400' : 'bg-orange-400'
+            }`}>
+              {i + 1}
+            </span>
+            <span className="flex-1 font-medium text-gray-700 dark:text-gray-300">Taglia {t.taglia}</span>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <div className="w-14 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                <div className="h-full rounded-full bg-violet-500" style={{ width: `${(t.qty / max) * 100}%` }} />
+              </div>
+              <span className="font-semibold text-gray-800 dark:text-gray-200 w-8 text-right">{t.qty}</span>
+              <span className="text-gray-400 w-8 text-right">{total > 0 ? Math.round(t.qty / total * 100) : 0}%</span>
+            </div>
+          </div>
+        ))}
+        {taglie.length === 0 && (
+          <p className="text-xs text-gray-400 dark:text-gray-600 text-center italic">Nessun dato nel periodo</p>
+        )}
+      </div>
+
+      <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex-shrink-0">
+        <button
+          onClick={() => (window.location.href = '/riparazioni')}
+          className="w-full text-[10px] font-medium text-violet-600 dark:text-violet-400 flex items-center justify-center"
+        >
+          Apri Riparazioni <i className="fas fa-arrow-right ml-1"></i>
+        </button>
+      </div>
     </motion.div>
   );
 }

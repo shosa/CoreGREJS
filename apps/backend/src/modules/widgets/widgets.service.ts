@@ -180,6 +180,108 @@ export class WidgetsService {
     return { departments };
   }
 
+  async getProduzioneTrend(period: number = 7) {
+    return this.cache.getOrSet(`widgets:produzione-trend:${period}`, 120, async () => {
+      const now = new Date();
+      const startDate = new Date(now);
+      startDate.setDate(now.getDate() - period + 1);
+      startDate.setHours(0, 0, 0, 0);
+
+      const records = await this.prisma.productionRecord.findMany({
+        where: { productionDate: { gte: startDate } },
+        include: {
+          values: {
+            include: {
+              department: {
+                include: { phase: { select: { nome: true } } },
+              },
+            },
+          },
+        },
+        orderBy: { productionDate: 'asc' },
+      });
+
+      // Build day x phase matrix
+      const phaseMap: Record<string, Record<string, number>> = {};
+      const phaseSet = new Set<string>();
+
+      for (const record of records) {
+        const day = record.productionDate.toISOString().slice(0, 10);
+        if (!phaseMap[day]) phaseMap[day] = {};
+        for (const v of record.values) {
+          const phase = v.department.phase?.nome ?? v.department.nome;
+          phaseSet.add(phase);
+          phaseMap[day][phase] = (phaseMap[day][phase] || 0) + (v.valore || 0);
+        }
+      }
+
+      // Fill all days in range
+      const days: string[] = [];
+      for (let i = 0; i < period; i++) {
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + i);
+        days.push(d.toISOString().slice(0, 10));
+      }
+
+      const phases = Array.from(phaseSet).sort();
+      const data = days.map(day => {
+        const entry: Record<string, any> = { day };
+        let total = 0;
+        for (const phase of phases) {
+          const v = phaseMap[day]?.[phase] || 0;
+          entry[phase] = v;
+          total += v;
+        }
+        entry.totale = total;
+        return entry;
+      });
+
+      return { phases, data };
+    });
+  }
+
+  async getProduzioneTaglie(days: number = 30) {
+    return this.cache.getOrSet(`widgets:produzione-taglie:${days}`, 120, async () => {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      startDate.setHours(0, 0, 0, 0);
+
+      // Sum p01..p20 from riparazioni as proxy for size distribution
+      const raw = await this.prisma.riparazione.findMany({
+        where: { data: { gte: startDate } },
+        select: {
+          p01: true, p02: true, p03: true, p04: true, p05: true,
+          p06: true, p07: true, p08: true, p09: true, p10: true,
+          p11: true, p12: true, p13: true, p14: true, p15: true,
+          p16: true, p17: true, p18: true, p19: true, p20: true,
+          numerata: { select: { n01: true, n02: true, n03: true, n04: true, n05: true, n06: true, n07: true, n08: true, n09: true, n10: true, n11: true, n12: true, n13: true, n14: true, n15: true, n16: true, n17: true, n18: true, n19: true, n20: true } },
+        },
+      });
+
+      // Aggregate by position (taglia slot)
+      const totals: { slot: number; qty: number; taglia: string }[] = [];
+      const slotQty = new Array(20).fill(0);
+      for (const r of raw) {
+        for (let i = 1; i <= 20; i++) {
+          const key = `p${String(i).padStart(2, '0')}` as keyof typeof r;
+          slotQty[i - 1] += (r[key] as number) || 0;
+        }
+      }
+
+      // Map slot → taglia label using first available numerata
+      const sampleNumerata = raw.find(r => r.numerata)?.numerata;
+      for (let i = 0; i < 20; i++) {
+        if (slotQty[i] > 0) {
+          const nKey = `n${String(i + 1).padStart(2, '0')}` as any;
+          const taglia = sampleNumerata?.[nKey] ?? `P${i + 1}`;
+          totals.push({ slot: i + 1, qty: slotQty[i], taglia: String(taglia) });
+        }
+      }
+
+      return { taglie: totals, totaleDays: days };
+    });
+  }
+
   async getRecentActivities(userId: number, permissions: string[] | undefined, limit = 10) {
     // Check if user has 'log' permission to see all activities
     // If permissions is undefined or empty, check in database

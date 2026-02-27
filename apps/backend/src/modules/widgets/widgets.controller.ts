@@ -34,4 +34,14 @@ export class WidgetsController {
   getProduzioneChart(@Query('period') period: string = '7') {
     return this.widgetsService.getProduzioneChartData(parseInt(period, 10));
   }
+
+  @Get('produzione-trend')
+  getProduzioneTrend(@Query('period') period: string = '7') {
+    return this.widgetsService.getProduzioneTrend(parseInt(period, 10));
+  }
+
+  @Get('produzione-taglie')
+  getProduzioneTaglie(@Query('days') days: string = '30') {
+    return this.widgetsService.getProduzioneTaglie(parseInt(days, 10));
+  }
 }

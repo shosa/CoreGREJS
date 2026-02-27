@@ -34,6 +34,9 @@ export const defaultWidgets: Record<string, WidgetConfig> = {
   'scm': { id: 'scm', enabled: true, x: 1, y: 1, w: 1, h: 1 },
   'quick-actions': { id: 'quick-actions', enabled: true, x: 0, y: 2, w: 2, h: 2 },
   'activities': { id: 'activities', enabled: true, x: 2, y: 1, w: 2, h: 2 },
+  'produzione-trend': { id: 'produzione-trend', enabled: false, x: 0, y: 4, w: 2, h: 2 },
+  'produzione-reparti': { id: 'produzione-reparti', enabled: false, x: 2, y: 4, w: 2, h: 2 },
+  'produzione-taglie': { id: 'produzione-taglie', enabled: false, x: 0, y: 6, w: 2, h: 2 },
 };
 
 export const useDashboardStore = create<DashboardState>()((set, get) => ({

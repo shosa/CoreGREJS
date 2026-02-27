@@ -23,6 +23,9 @@ const availableWidgets: WidgetInfo[] = [
   { id: 'scm', name: 'SCM', icon: 'rocket', color: 'orange', permission: 'scm_admin', module: 'scm' },
   { id: 'quick-actions', name: 'Azioni Rapide', icon: 'bolt', color: 'indigo' },
   { id: 'activities', name: 'Attività Recenti', icon: 'history', color: 'gray' },
+  { id: 'produzione-trend', name: 'Trend Produzione', icon: 'chart-line', color: 'yellow', permission: 'produzione', module: 'produzione' },
+  { id: 'produzione-reparti', name: 'Reparti Produzione', icon: 'chart-bar', color: 'orange', permission: 'produzione', module: 'produzione' },
+  { id: 'produzione-taglie', name: 'Distribuzione Taglie', icon: 'chart-area', color: 'purple', permission: 'riparazioni', module: 'riparazioni' },
 ];
 
 export default function WidgetConfigModal() {
