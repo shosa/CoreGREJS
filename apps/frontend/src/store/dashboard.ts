@@ -37,6 +37,9 @@ export const defaultWidgets: Record<string, WidgetConfig> = {
   'produzione-trend': { id: 'produzione-trend', enabled: false, x: 0, y: 4, w: 2, h: 2 },
   'produzione-reparti': { id: 'produzione-reparti', enabled: false, x: 2, y: 4, w: 2, h: 2 },
   'produzione-taglie': { id: 'produzione-taglie', enabled: false, x: 0, y: 6, w: 2, h: 2 },
+  'system-health': { id: 'system-health', enabled: false, x: 2, y: 6, w: 2, h: 1 },
+  'system-jobs': { id: 'system-jobs', enabled: false, x: 0, y: 8, w: 2, h: 2 },
+  'system-log': { id: 'system-log', enabled: false, x: 2, y: 8, w: 2, h: 2 },
 };
 
 export const useDashboardStore = create<DashboardState>()((set, get) => ({

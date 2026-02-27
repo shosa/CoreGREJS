@@ -1044,3 +1044,223 @@ export function ProduzioneTaglieWidget({
     </motion.div>
   );
 }
+
+// ─── Widget: System Health ────────────────────────────────────────────────────
+export function SystemHealthWidget({ healthData }: {
+  healthData: {
+    status: string; uptime: number;
+    checks: {
+      database: { status: string; latency: number };
+      redis: { status: string; latency: number };
+      minio: { status: string; latency: number };
+    };
+  } | null;
+}) {
+  const overall = healthData?.status === 'healthy';
+  const checks = healthData?.checks;
+  const formatUptime = (s: number) => {
+    const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    return d > 0 ? `${d}g ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+  const services = checks ? [
+    { name: 'Database', ...checks.database, icon: 'database' },
+    { name: 'Redis', ...checks.redis, icon: 'memory' },
+    { name: 'MinIO', ...checks.minio, icon: 'hdd' },
+  ] : [];
+  return (
+    <motion.div className="h-full w-full rounded-2xl border border-gray-200 bg-white dark:bg-gray-800/40 dark:border-gray-700 p-3 sm:p-4 shadow-lg flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between mb-3 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className={`flex h-9 w-9 items-center justify-center rounded-xl shadow-lg bg-gradient-to-br ${overall ? 'from-emerald-500 to-green-600' : 'from-red-500 to-rose-600'}`}>
+            <i className={`fas fa-${overall ? 'heartbeat' : 'exclamation-triangle'} text-white text-sm`}></i>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Stato Sistema</h3>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">
+              {healthData ? `Uptime: ${formatUptime(healthData.uptime)}` : 'Caricamento…'}
+            </p>
+          </div>
+        </div>
+        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${overall ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
+          {healthData ? (overall ? 'HEALTHY' : 'DEGRADED') : '–'}
+        </span>
+      </div>
+      <div className="flex-1 space-y-2 min-h-0 overflow-y-auto">
+        {services.length === 0
+          ? <div className="h-full flex items-center justify-center text-gray-400 text-xs">Nessun dato</div>
+          : services.map(svc => (
+            <div key={svc.name} className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-900/30">
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${svc.status === 'ok' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+              <span className="flex-1 text-xs font-medium text-gray-700 dark:text-gray-300">{svc.name}</span>
+              <span className="text-[10px] text-gray-500 dark:text-gray-400">{svc.latency}ms</span>
+              <span className={`text-[10px] font-semibold ${svc.status === 'ok' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                {svc.status === 'ok' ? 'OK' : 'ERR'}
+              </span>
+            </div>
+          ))
+        }
+      </div>
+      <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex-shrink-0">
+        <button onClick={() => (window.location.href = '/settings?section=system')}
+          className="w-full text-[10px] font-medium text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
+          Pannello Sistema <i className="fas fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Widget: Jobs Queue ───────────────────────────────────────────────────────
+export function SystemJobsWidget({ jobsData }: {
+  jobsData: {
+    stats: { total: number; queued: number; running: number; done: number; failed: number };
+    recentFailed: { id: string; type: string; createdAt: string }[];
+  } | null;
+}) {
+  const stats = jobsData?.stats;
+  const failed = jobsData?.recentFailed ?? [];
+  const getJobName = (type: string) => {
+    const map: Record<string, string> = {
+      'riparazioni.cedola-pdf': 'Cedola Rip.', 'export.ddt-pdf': 'DDT Export',
+      'produzione.report-pdf': 'Rep. Prod.', 'quality.report-pdf': 'Rep. QC',
+    };
+    return map[type] || type.split('.').pop() || type;
+  };
+  const counters = stats ? [
+    { label: 'In coda', value: stats.queued, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+    { label: 'Attivi', value: stats.running, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+    { label: 'Completati', value: stats.done, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+    { label: 'Falliti', value: stats.failed, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20' },
+  ] : [];
+  return (
+    <motion.div className="h-full w-full rounded-2xl border border-gray-200 bg-white dark:bg-gray-800/40 dark:border-gray-700 p-3 sm:p-4 shadow-lg flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between mb-3 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-slate-500 to-gray-700 shadow-lg">
+            <i className="fas fa-tasks text-white text-sm"></i>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Coda Lavori</h3>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">{stats?.total ?? '–'} job totali</p>
+          </div>
+        </div>
+        {stats && stats.failed > 0 && (
+          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
+            {stats.failed} falliti
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-4 gap-1.5 mb-3 flex-shrink-0">
+        {counters.map(c => (
+          <div key={c.label} className={`rounded-lg p-2 text-center ${c.bg}`}>
+            <p className={`text-base font-bold ${c.color}`}>{c.value}</p>
+            <p className="text-[9px] text-gray-500 dark:text-gray-400">{c.label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {failed.length > 0 ? (
+          <div>
+            <p className="text-[10px] font-semibold text-red-600 dark:text-red-400 mb-1.5 uppercase tracking-wide">
+              <i className="fas fa-exclamation-circle mr-1"></i>Ultimi falliti
+            </p>
+            <div className="space-y-1">
+              {failed.slice(0, 4).map(job => (
+                <div key={job.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-red-50 dark:bg-red-900/10 text-xs">
+                  <i className="fas fa-times-circle text-red-500 flex-shrink-0"></i>
+                  <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{getJobName(job.type)}</span>
+                  <span className="text-gray-400 flex-shrink-0">
+                    {new Date(job.createdAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : stats ? (
+          <div className="flex items-center justify-center h-full flex-col gap-1 text-emerald-500">
+            <i className="fas fa-check-circle text-2xl opacity-60"></i>
+            <p className="text-xs font-medium">Nessun job fallito</p>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-400 text-xs">Caricamento…</div>
+        )}
+      </div>
+      <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex-shrink-0">
+        <button onClick={() => (window.location.href = '/settings?section=system')}
+          className="w-full text-[10px] font-medium text-slate-600 dark:text-slate-400 flex items-center justify-center">
+          Gestione Job <i className="fas fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Widget: Activity Log Stats ───────────────────────────────────────────────
+export function SystemLogWidget({ logStats }: {
+  logStats: {
+    total: number;
+    byModule: { module: string; count: number }[];
+    byAction: { action: string; count: number }[];
+  } | null;
+}) {
+  const topModules = logStats?.byModule?.slice(0, 6) ?? [];
+  const topActions = logStats?.byAction?.slice(0, 4) ?? [];
+  const total = logStats?.total ?? 0;
+  const maxCount = topModules.length > 0 ? topModules[0].count : 1;
+  const actionColors: Record<string, string> = {
+    create: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
+    update: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+    delete: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+    login: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
+    export: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
+  };
+  return (
+    <motion.div className="h-full w-full rounded-2xl border border-gray-200 bg-white dark:bg-gray-800/40 dark:border-gray-700 p-3 sm:p-4 shadow-lg flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between mb-3 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 shadow-lg">
+            <i className="fas fa-clipboard-list text-white text-sm"></i>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Log Attività</h3>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">{total.toLocaleString('it-IT')} azioni registrate</p>
+          </div>
+        </div>
+      </div>
+      {topActions.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-3 flex-shrink-0">
+          {topActions.map(a => (
+            <span key={a.action} className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${actionColors[a.action] ?? 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
+              {a.action} <span className="font-normal opacity-70">({a.count})</span>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-1.5">
+        {topModules.length === 0
+          ? <div className="h-full flex items-center justify-center text-gray-400 text-xs">Nessun dato</div>
+          : topModules.map((m, i) => (
+            <div key={m.module} className="flex items-center gap-2 text-xs">
+              <span className="w-20 truncate text-gray-600 dark:text-gray-400 flex-shrink-0 capitalize">{m.module}</span>
+              <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(m.count / maxCount) * 100}%` }}
+                  transition={{ duration: 0.5, delay: i * 0.05 }}
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-blue-500"
+                />
+              </div>
+              <span className="font-semibold text-gray-700 dark:text-gray-300 w-8 text-right flex-shrink-0">{m.count}</span>
+            </div>
+          ))
+        }
+      </div>
+      <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex-shrink-0">
+        <button onClick={() => (window.location.href = '/log-attivita')}
+          className="w-full text-[10px] font-medium text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+          Apri Log Attività <i className="fas fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+    </motion.div>
+  );
+}

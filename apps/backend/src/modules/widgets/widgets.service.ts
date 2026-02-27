@@ -190,7 +190,7 @@ export class WidgetsService {
       const records = await this.prisma.productionRecord.findMany({
         where: { productionDate: { gte: startDate } },
         include: {
-          values: {
+          valori: {
             include: {
               department: {
                 include: { phase: { select: { nome: true } } },
@@ -208,7 +208,7 @@ export class WidgetsService {
       for (const record of records) {
         const day = record.productionDate.toISOString().slice(0, 10);
         if (!phaseMap[day]) phaseMap[day] = {};
-        for (const v of record.values) {
+        for (const v of record.valori) {
           const phase = v.department.phase?.nome ?? v.department.nome;
           phaseSet.add(phase);
           phaseMap[day][phase] = (phaseMap[day][phase] || 0) + (v.valore || 0);

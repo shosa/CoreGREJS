@@ -20,6 +20,9 @@ import {
   ProduzioneTrendWidget,
   ProduzioneRepartiWidget,
   ProduzioneTaglieWidget,
+  SystemHealthWidget,
+  SystemJobsWidget,
+  SystemLogWidget,
 } from "@/components/dashboard/DashboardWidgets";
 
 import "react-grid-layout/css/styles.css";
@@ -70,13 +73,18 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
 
-  // Nuovi widget produzione
+  // Widget produzione
   const [trendData, setTrendData] = useState<any>(null);
   const [trendPeriod, setTrendPeriod] = useState<7 | 14 | 30>(7);
   const [repartiData, setRepartiData] = useState<any>(null);
   const [repartiPeriod, setRepartiPeriod] = useState<7 | 30 | 90>(7);
   const [taglieData, setTaglieData] = useState<any>(null);
   const [taglieDays, setTaglieDays] = useState<7 | 30 | 90>(30);
+
+  // Widget system-admin
+  const [healthData, setHealthData] = useState<any>(null);
+  const [jobsData, setJobsData] = useState<any>(null);
+  const [logStats, setLogStats] = useState<any>(null);
 
   const fetchData = async () => {
     try {
@@ -127,6 +135,35 @@ export default function DashboardPage() {
     } catch {}
   };
 
+  const getToken = () => JSON.parse(localStorage.getItem('coregre-auth') || '{}').state?.token ?? '';
+
+  const fetchHealthData = async () => {
+    try {
+      const r = await fetch('/api/settings/health-check', {
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+      });
+      if (r.ok) setHealthData(await r.json());
+    } catch {}
+  };
+
+  const fetchJobsData = async () => {
+    try {
+      const r = await fetch('/api/settings/jobs', {
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+      });
+      if (r.ok) setJobsData(await r.json());
+    } catch {}
+  };
+
+  const fetchLogStats = async () => {
+    try {
+      const r = await fetch('/api/activity-log/stats', {
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+      });
+      if (r.ok) setLogStats(await r.json());
+    } catch {}
+  };
+
   const fetchWidgets = async () => {
     try {
       const authStorage = localStorage.getItem('coregre-auth');
@@ -159,12 +196,18 @@ export default function DashboardPage() {
     fetchTrendData(trendPeriod);
     fetchRepartiData(repartiPeriod);
     fetchTaglieData(taglieDays);
+    fetchHealthData();
+    fetchJobsData();
+    fetchLogStats();
 
     const interval = setInterval(
       () => {
         fetchModules();
         fetchData();
         fetchActivities();
+        fetchHealthData();
+        fetchJobsData();
+        fetchLogStats();
       },
       5 * 60 * 1000
     );
@@ -476,6 +519,48 @@ export default function DashboardPage() {
               className={isEditMode ? 'pointer-events-none' : ''}
             >
               <ProduzioneTaglieWidget taglieData={taglieData} days={taglieDays} setDays={setTaglieDays} />
+            </motion.div>
+          </div>
+        )}
+
+        {/* Stato Sistema */}
+        {isWidgetVisible('system-health', 'settings') && (
+          <div key="system-health" className={isEditMode ? 'drag-handle cursor-move' : ''}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 1.1 }}
+              className={isEditMode ? 'pointer-events-none' : ''}
+            >
+              <SystemHealthWidget healthData={healthData} />
+            </motion.div>
+          </div>
+        )}
+
+        {/* Coda Lavori */}
+        {isWidgetVisible('system-jobs', 'settings') && (
+          <div key="system-jobs" className={isEditMode ? 'drag-handle cursor-move' : ''}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 1.2 }}
+              className={isEditMode ? 'pointer-events-none' : ''}
+            >
+              <SystemJobsWidget jobsData={jobsData} />
+            </motion.div>
+          </div>
+        )}
+
+        {/* Log Attività */}
+        {isWidgetVisible('system-log', 'settings') && (
+          <div key="system-log" className={isEditMode ? 'drag-handle cursor-move' : ''}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 1.3 }}
+              className={isEditMode ? 'pointer-events-none' : ''}
+            >
+              <SystemLogWidget logStats={logStats} />
             </motion.div>
           </div>
         )}

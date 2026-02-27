@@ -26,6 +26,9 @@ const availableWidgets: WidgetInfo[] = [
   { id: 'produzione-trend', name: 'Trend Produzione', icon: 'chart-line', color: 'yellow', permission: 'produzione', module: 'produzione' },
   { id: 'produzione-reparti', name: 'Reparti Produzione', icon: 'chart-bar', color: 'orange', permission: 'produzione', module: 'produzione' },
   { id: 'produzione-taglie', name: 'Distribuzione Taglie', icon: 'chart-area', color: 'purple', permission: 'riparazioni', module: 'riparazioni' },
+  { id: 'system-health', name: 'Stato Sistema', icon: 'heartbeat', color: 'green', permission: 'settings' },
+  { id: 'system-jobs', name: 'Coda Lavori', icon: 'tasks', color: 'blue', permission: 'settings' },
+  { id: 'system-log', name: 'Log Attività', icon: 'shield-alt', color: 'indigo', permission: 'settings' },
 ];
 
 export default function WidgetConfigModal() {
