@@ -49,6 +49,9 @@ services:
       # Timezone
       TZ: Europe/Rome
 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Accesso a servizi sull'host (es. CUPS)
+
     networks:
       - core-network  # Network condivisa con tutti i servizi Core
 

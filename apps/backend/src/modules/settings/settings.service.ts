@@ -1280,7 +1280,7 @@ export class SettingsService implements OnModuleInit {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 3000);
-      const res = await fetch('http://127.0.0.1:631/printers/', {
+      const res = await fetch('http://host.docker.internal:631/printers/', {
         headers: { Accept: 'text/html' },
         signal: controller.signal,
       }).finally(() => clearTimeout(timeout));
@@ -1359,7 +1359,7 @@ export class SettingsService implements OnModuleInit {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(`http://127.0.0.1:631/printers/${encodeURIComponent(cupsName)}`, {
+      const res = await fetch(`http://host.docker.internal:631/printers/${encodeURIComponent(cupsName)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'OP=print-test-page',
