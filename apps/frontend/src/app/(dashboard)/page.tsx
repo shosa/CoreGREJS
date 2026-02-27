@@ -496,7 +496,7 @@ export default function DashboardPage() {
         )}
 
         {/* Stato Sistema */}
-        {isWidgetVisible('system-health', 'settings') && (
+        {isWidgetVisible('system-health', 'system-admin') && (
           <div key="system-health" className={isEditMode ? 'drag-handle cursor-move' : ''}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -510,7 +510,7 @@ export default function DashboardPage() {
         )}
 
         {/* Coda Lavori */}
-        {isWidgetVisible('system-jobs', 'settings') && (
+        {isWidgetVisible('system-jobs', 'system-admin') && (
           <div key="system-jobs" className={isEditMode ? 'drag-handle cursor-move' : ''}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -524,7 +524,7 @@ export default function DashboardPage() {
         )}
 
         {/* Log Attività */}
-        {isWidgetVisible('system-log', 'settings') && (
+        {isWidgetVisible('system-log', 'system-admin') && (
           <div key="system-log" className={isEditMode ? 'drag-handle cursor-move' : ''}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
