@@ -1340,34 +1340,73 @@ export class SettingsService implements OnModuleInit {
   }
 
   async testPrint(cupsName: string): Promise<void> {
-    // Invia una pagina di test a CUPS via IPP usando il protocollo HTTP di CUPS
-    // POST http://localhost:631/printers/<name> con operazione Print-Test-Page (IPP op 0x0021)
-    // Se CUPS non disponibile, prova il comando lp via shell come fallback
-    const { exec } = await import('child_process');
-    const { promisify } = await import('util');
-    const execAsync = promisify(exec);
+    // Invia un job IPP Print-Job alla stampante via CUPS HTTP proxy (core-nginx:631)
+    // Il payload IPP è costruito manualmente in binario (RFC 8011)
+    const safeName = cupsName.replace(/[^a-zA-Z0-9_.\-]/g, '');
+    const printerUri = `ipp://localhost/printers/${safeName}`;
+    const jobName = 'CoreGRE Test Page';
+    const userName = 'root';
 
-    // Prova prima lp (disponibile se CUPS è installato nel container)
-    try {
-      await execAsync(`lp -d "${cupsName.replace(/[^a-zA-Z0-9_.-]/g, '')}" -o page-size=A4 /etc/cups/ppd/${cupsName.replace(/[^a-zA-Z0-9_.-]/g, '')}.ppd 2>/dev/null || lpstat -p "${cupsName.replace(/[^a-zA-Z0-9_.-]/g, '')}" && echo "CoreGRE Test Page" | lp -d "${cupsName.replace(/[^a-zA-Z0-9_.-]/g, '')}"`, { timeout: 5000 });
-      return;
-    } catch {
-      // fallback via CUPS HTTP API
-    }
+    // Documento di test: testo PostScript minimale
+    const psDoc = Buffer.from(
+      '%!PS\n/Helvetica findfont 24 scalefont setfont\n72 700 moveto\n(CoreGRE - Pagina di prova) show\n72 660 moveto\n(' + new Date().toLocaleString('it-IT') + ') show\nshowpage\n'
+    );
 
-    // Fallback: POST a CUPS HTTP per stampa pagina di test
+    // Costruzione header IPP binario (Print-Job request, op 0x0002)
+    const encodeString = (tag: number, name: string, value: string): Buffer => {
+      const nameBuf = Buffer.from(name, 'utf8');
+      const valueBuf = Buffer.from(value, 'utf8');
+      const buf = Buffer.alloc(1 + 2 + nameBuf.length + 2 + valueBuf.length);
+      let offset = 0;
+      buf.writeUInt8(tag, offset++);
+      buf.writeUInt16BE(nameBuf.length, offset); offset += 2;
+      nameBuf.copy(buf, offset); offset += nameBuf.length;
+      buf.writeUInt16BE(valueBuf.length, offset); offset += 2;
+      valueBuf.copy(buf, offset);
+      return buf;
+    };
+
+    const TAG_OPERATION = 0x01;
+    const TAG_URI = 0x45;
+    const TAG_CHARSET = 0x47;
+    const TAG_LANGUAGE = 0x48;
+    const TAG_NAME = 0x42;
+    const TAG_END = 0x03;
+
+    const header = Buffer.alloc(8);
+    header.writeUInt8(2, 0);   // major version
+    header.writeUInt8(0, 1);   // minor version
+    header.writeUInt16BE(0x0002, 2); // Print-Job
+    header.writeInt32BE(1, 4); // request-id
+
+    const opAttrs = Buffer.concat([
+      Buffer.from([TAG_OPERATION]),
+      encodeString(TAG_CHARSET, 'attributes-charset', 'utf-8'),
+      encodeString(TAG_LANGUAGE, 'attributes-natural-language', 'it'),
+      encodeString(TAG_URI, 'printer-uri', printerUri),
+      encodeString(TAG_NAME, 'requesting-user-name', userName),
+      encodeString(TAG_NAME, 'job-name', jobName),
+    ]);
+
+    const endTag = Buffer.from([TAG_END]);
+    const ippPayload = Buffer.concat([header, opAttrs, endTag, psDoc]);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(`http://core-nginx:631/printers/${encodeURIComponent(cupsName)}`, {
+      const res = await fetch(`http://core-nginx:631/printers/${safeName}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'OP=print-test-page',
+        headers: {
+          'Content-Type': 'application/ipp',
+          'Content-Length': String(ippPayload.length),
+        },
+        body: ippPayload,
         signal: controller.signal,
       }).finally(() => clearTimeout(timeout));
 
-      if (!res.ok) {
-        throw new Error(`CUPS risponde con stato ${res.status}`);
+      if (!res.ok && res.status !== 200) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`CUPS risponde con stato ${res.status}: ${text.slice(0, 100)}`);
       }
     } catch (err: any) {
       throw new Error(`Impossibile inviare la stampa di prova: ${err.message}`);
