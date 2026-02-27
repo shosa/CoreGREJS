@@ -693,6 +693,25 @@ export const settingsApi = {
     const response = await api.put('/settings/riparazioni', data);
     return response.data;
   },
+
+  // ==================== STAMPANTI ====================
+
+  getCupsPrinters: async (): Promise<{ name: string; location: string; state: string }[]> => {
+    const response = await api.get('/settings/printers/cups-list');
+    return response.data;
+  },
+  getPrinterConfigs: async (): Promise<{ id: number; cupsName: string; alias: string; isDefault: boolean }[]> => {
+    const response = await api.get('/settings/printers');
+    return response.data;
+  },
+  savePrinterConfigs: async (configs: { cupsName: string; alias: string; isDefault: boolean }[]) => {
+    const response = await api.put('/settings/printers', { configs });
+    return response.data;
+  },
+  testPrint: async (cupsName: string) => {
+    const response = await api.post('/settings/printers/test', { cupsName });
+    return response.data;
+  },
 };
 
 // Jobs / Spool API

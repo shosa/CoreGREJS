@@ -1020,3 +1020,16 @@ model MinioFile {
   @@index([jobId])
   @@map("minio_files")
 }
+
+// ==================== SISTEMA ====================
+
+model PrinterConfig {
+  id        Int      @id @default(autoincrement())
+  cupsName  String   @unique @map("cups_name") @db.VarChar(255)
+  alias     String   @db.VarChar(255)
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("printer_configs")
+}

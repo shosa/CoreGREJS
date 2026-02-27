@@ -9,6 +9,7 @@ import ProduzioneSettingsPanel from './components/modules/ProduzioneSettingsPane
 import ExportSettingsPanel from './components/modules/ExportSettingsPanel';
 import ScmSettingsPanel from './components/modules/ScmSettingsPanel';
 import AnaliticheSettingsPanel from './components/modules/AnaliticheSettingsPanel';
+import PrintersPanel from './components/modules/PrintersPanel';
 import { showSuccess, showError } from '@/store/notifications';
 import { useModulesStore } from '@/store/modules';
 import { useAuthStore } from '@/store/auth';
@@ -17,7 +18,7 @@ import Breadcrumb from '@/components/layout/Breadcrumb';
 
 type Section =
   | 'import' | 'modules' | 'smtp' | 'produzione' | 'general' | 'security'
-  | 'system' | 'changelog' | 'jobs' | 'webhooks' | 'cron'
+  | 'system' | 'changelog' | 'jobs' | 'webhooks' | 'cron' | 'printers'
   | 'riparazioni' | 'qualita' | 'produzione-mod' | 'export-mod' | 'scm'
   | 'analitiche' | 'tracking' | 'dbsql' | 'log' | 'inwork' | 'file-manager'
   | 'users-mod';
@@ -1130,6 +1131,7 @@ export default function SettingsPage() {
         { id: 'security' as Section,  label: 'Sicurezza',   icon: 'fa-shield-alt', permission: 'system-admin' as string | null },
         { id: 'system' as Section,    label: 'Sistema',     icon: 'fa-heartbeat',  permission: 'system-admin' as string | null },
         { id: 'changelog' as Section, label: 'Cronologia',  icon: 'fa-history',    permission: 'system-admin' as string | null },
+        { id: 'printers' as Section,  label: 'Stampanti',   icon: 'fa-print',      permission: 'system-admin' as string | null },
       ],
     },
   ];
@@ -3224,6 +3226,9 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+          {/* ── SEZIONE STAMPANTI ── */}
+          {activeSection === 'printers' && <PrintersPanel />}
+
           {/* ── SEZIONE RIPARAZIONI ── componente dedicato */}
           {activeSection === 'riparazioni' && <RiparazioniSettingsPanel />}
 

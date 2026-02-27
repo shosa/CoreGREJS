@@ -431,4 +431,39 @@ export class SettingsController {
       parseInt(limit || '20'),
     );
   }
+
+  // ==================== STAMPANTI ====================
+
+  @Get('printers/cups-list')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('system-admin')
+  async getCupsPrinters() {
+    return this.settingsService.getCupsPrinters();
+  }
+
+  @Get('printers')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('system-admin')
+  async getPrinterConfigs() {
+    return this.settingsService.getPrinterConfigs();
+  }
+
+  @Put('printers')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('system-admin')
+  async savePrinterConfigs(
+    @Body() body: { configs: { cupsName: string; alias: string; isDefault: boolean }[] },
+  ) {
+    await this.settingsService.upsertPrinterConfigs(body.configs || []);
+    return { ok: true };
+  }
+
+  @Post('printers/test')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('system-admin')
+  async testPrint(@Body() body: { cupsName: string }) {
+    if (!body.cupsName) throw new BadRequestException('cupsName obbligatorio');
+    await this.settingsService.testPrint(body.cupsName);
+    return { ok: true };
+  }
 }

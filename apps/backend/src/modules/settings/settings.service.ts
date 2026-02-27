@@ -1273,4 +1273,104 @@ export class SettingsService implements OnModuleInit {
       totalPages: Math.ceil(total / limit),
     };
   }
+
+  // ==================== STAMPANTI CUPS ====================
+
+  async getCupsPrinters(): Promise<{ name: string; location: string; state: string }[]> {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch('http://127.0.0.1:631/printers/', {
+        headers: { Accept: 'text/html' },
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeout));
+
+      if (!res.ok) return [];
+      const html = await res.text();
+
+      // CUPS restituisce HTML con righe <TR> per ogni stampante.
+      // Cerca <TD><A HREF="/printers/nomestampante">nomestampante</A></TD>
+      const printers: { name: string; location: string; state: string }[] = [];
+      const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+      let rowMatch: RegExpExecArray | null;
+      while ((rowMatch = rowRegex.exec(html)) !== null) {
+        const row = rowMatch[1];
+        // Nome stampante: link /printers/<name>
+        const nameMatch = row.match(/href="\/printers\/([^"]+)"/i);
+        if (!nameMatch) continue;
+        const name = nameMatch[1];
+        // Location: contenuto del secondo <TD>
+        const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)];
+        const location = tds[1] ? tds[1][1].replace(/<[^>]+>/g, '').trim() : '';
+        // State: cerca "Idle" / "Processing" / "Stopped"
+        const stateMatch = row.match(/\b(Idle|Processing|Stopped|Paused)\b/i);
+        const state = stateMatch ? stateMatch[1] : 'Unknown';
+        printers.push({ name, location, state });
+      }
+      return printers;
+    } catch {
+      // CUPS non raggiungibile o timeout
+      return [];
+    }
+  }
+
+  async getPrinterConfigs() {
+    return this.prisma.printerConfig.findMany({
+      orderBy: { alias: 'asc' },
+    });
+  }
+
+  async upsertPrinterConfigs(configs: { cupsName: string; alias: string; isDefault: boolean }[]) {
+    await this.prisma.$transaction(async (tx) => {
+      // Prima azzera tutti i default
+      await tx.printerConfig.updateMany({ data: { isDefault: false } });
+
+      // Determina quale sarà il default (il primo con isDefault=true)
+      let defaultSet = false;
+      for (const cfg of configs) {
+        const isDefault = cfg.isDefault && !defaultSet;
+        if (cfg.isDefault) defaultSet = true;
+        await tx.printerConfig.upsert({
+          where: { cupsName: cfg.cupsName },
+          create: { cupsName: cfg.cupsName, alias: cfg.alias || cfg.cupsName, isDefault },
+          update: { alias: cfg.alias || cfg.cupsName, isDefault },
+        });
+      }
+    });
+  }
+
+  async testPrint(cupsName: string): Promise<void> {
+    // Invia una pagina di test a CUPS via IPP usando il protocollo HTTP di CUPS
+    // POST http://localhost:631/printers/<name> con operazione Print-Test-Page (IPP op 0x0021)
+    // Se CUPS non disponibile, prova il comando lp via shell come fallback
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+
+    // Prova prima lp (disponibile se CUPS è installato nel container)
+    try {
+      await execAsync(`lp -d "${cupsName.replace(/[^a-zA-Z0-9_.-]/g, '')}" -o page-size=A4 /etc/cups/ppd/${cupsName.replace(/[^a-zA-Z0-9_.-]/g, '')}.ppd 2>/dev/null || lpstat -p "${cupsName.replace(/[^a-zA-Z0-9_.-]/g, '')}" && echo "CoreGRE Test Page" | lp -d "${cupsName.replace(/[^a-zA-Z0-9_.-]/g, '')}"`, { timeout: 5000 });
+      return;
+    } catch {
+      // fallback via CUPS HTTP API
+    }
+
+    // Fallback: POST a CUPS HTTP per stampa pagina di test
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(`http://127.0.0.1:631/printers/${encodeURIComponent(cupsName)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'OP=print-test-page',
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeout));
+
+      if (!res.ok) {
+        throw new Error(`CUPS risponde con stato ${res.status}`);
+      }
+    } catch (err: any) {
+      throw new Error(`Impossibile inviare la stampa di prova: ${err.message}`);
+    }
+  }
 }
