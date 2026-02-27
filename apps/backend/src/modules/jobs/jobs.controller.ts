@@ -18,6 +18,7 @@ import { LogActivity } from '../../common/decorators/log-activity.decorator';
 import { JobsService, JobStatus } from './jobs.service';
 import { JobsQueueService } from './jobs.queue';
 import { StorageService } from '../storage/storage.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import * as archiver from 'archiver';
 import { PDFDocument } from 'pdf-lib';
 
@@ -30,6 +31,7 @@ export class JobsController {
     private readonly jobsService: JobsService,
     private readonly jobsQueueService: JobsQueueService,
     private readonly storageService: StorageService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Post()
@@ -86,6 +88,94 @@ export class JobsController {
       }
       throw error;
     }
+  }
+
+  @Post(':id/print')
+  async printJob(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Body() body: { cupsName?: string },
+  ) {
+    const userId = (req as any).user?.userId;
+    const job = await this.jobsService.getJob(id, userId);
+
+    if (!job.outputPath || job.outputMime !== 'application/pdf') {
+      throw new BadRequestException('Il job non ha un file PDF disponibile');
+    }
+
+    // Risolvi stampante: usa quella specificata oppure il default
+    let printerName = body?.cupsName?.trim();
+    if (!printerName) {
+      const defaultPrinter = await this.prisma.printerConfig.findFirst({
+        where: { isDefault: true },
+      });
+      if (!defaultPrinter) {
+        throw new BadRequestException('Nessuna stampante default configurata');
+      }
+      printerName = defaultPrinter.cupsName;
+    }
+
+    // Scarica il PDF da MinIO
+    const pdfBytes = await this.storageService.getFileBuffer(job.outputPath);
+
+    // Costruisce payload IPP Print-Job
+    const safePrinterName = printerName.replace(/[^a-zA-Z0-9_.\-]/g, '');
+    const printerUri = `ipp://localhost/printers/${safePrinterName}`;
+    const jobName = job.outputName || `job-${id}`;
+    const userName = 'coregrejs';
+
+    const encodeStr = (s: string) => {
+      const buf = Buffer.alloc(2 + s.length);
+      buf.writeUInt16BE(s.length, 0);
+      buf.write(s, 2, 'utf8');
+      return buf;
+    };
+
+    const attr = (tag: number, name: string, valueBuf: Buffer) =>
+      Buffer.concat([
+        Buffer.from([tag]),
+        encodeStr(name),
+        valueBuf,
+      ]);
+
+    const charsetValue = encodeStr('utf-8');
+    const langValue = encodeStr('it-IT');
+    const uriValue = encodeStr(printerUri);
+    const userValue = encodeStr(userName);
+    const jobNameValue = encodeStr(jobName);
+
+    const header = Buffer.from([
+      0x02, 0x00,       // IPP version 2.0
+      0x00, 0x02,       // Print-Job operation
+      0x00, 0x00, 0x00, 0x01, // request-id = 1
+      0x01,             // operation-attributes-tag
+    ]);
+
+    const operationAttrs = Buffer.concat([
+      attr(0x47, 'attributes-charset', charsetValue),
+      attr(0x48, 'attributes-natural-language', langValue),
+      attr(0x45, 'printer-uri', uriValue),
+      attr(0x42, 'requesting-user-name', userValue),
+      attr(0x42, 'job-name', jobNameValue),
+    ]);
+
+    const endTag = Buffer.from([0x03]);
+
+    const ippPayload = Buffer.concat([header, operationAttrs, endTag, pdfBytes]);
+
+    const cupsUrl = `http://core-nginx:631/printers/${safePrinterName}`;
+    const response = await fetch(cupsUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/ipp' },
+      body: ippPayload,
+    });
+
+    if (!response.ok && response.status !== 200) {
+      const text = await response.text().catch(() => '');
+      throw new BadRequestException(`Errore stampa CUPS: HTTP ${response.status} — ${text.substring(0, 200)}`);
+    }
+
+    return { printed: true, printer: safePrinterName, jobName };
   }
 
   @Delete(':id')

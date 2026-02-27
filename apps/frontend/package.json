@@ -4,9 +4,9 @@
   "description": "CoreGRE Frontend - Next.js",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3010",
+    "dev": "tsx server.ts",
     "build": "next build",
-    "start": "next start -p 3010",
+    "start": "tsx server.ts",
     "lint": "next lint"
   },
   "dependencies": {
@@ -34,6 +34,7 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "tsx": "^4.7.0",
     "@tailwindcss/postcss": "^4.1.17",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",

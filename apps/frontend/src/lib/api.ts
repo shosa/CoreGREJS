@@ -744,6 +744,10 @@ export const jobsApi = {
     const response = await api.post('/jobs/zip', { ids }, { responseType: 'blob' });
     return response;
   },
+  print: async (id: string, cupsName?: string) => {
+    const response = await api.post(`/jobs/${id}/print`, { cupsName });
+    return response.data;
+  },
 };
 
 // Export / DDT API

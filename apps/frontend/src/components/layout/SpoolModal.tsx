@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { jobsApi } from '@/lib/api';
+import { jobsApi, settingsApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
-import { showError } from '@/store/notifications';
+import { showError, showSuccess } from '@/store/notifications';
 import api from '@/lib/api';
 
 type JobStatus = 'queued' | 'running' | 'done' | 'failed';
@@ -41,6 +41,9 @@ export default function SpoolModal({ open, onClose }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
   const [adminStatusFilter, setAdminStatusFilter] = useState<string>('');
+  const [printerConfigs, setPrinterConfigs] = useState<{ id: number; cupsName: string; alias: string; isDefault: boolean }[]>([]);
+  const [selectedPrinter, setSelectedPrinter] = useState<string>('');
+  const [printingId, setPrintingId] = useState<string | null>(null);
 
   // Reset selezione quando cambio tab
   useEffect(() => {
@@ -90,6 +93,11 @@ export default function SpoolModal({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
     fetchJobs();
+    settingsApi.getPrinterConfigs().then(configs => {
+      setPrinterConfigs(configs);
+      const def = configs.find(c => c.isDefault);
+      if (def) setSelectedPrinter(def.cupsName);
+    }).catch(() => {});
     const interval = setInterval(() => fetchJobs(true), 5000);
     return () => clearInterval(interval);
   }, [open]);
@@ -160,6 +168,18 @@ export default function SpoolModal({ open, onClose }: Props) {
       fetchJobs(true);
     } catch (err: any) {
       showError(err?.response?.data?.message || 'Errore nella cancellazione');
+    }
+  };
+
+  const handlePrint = async (jobId: string) => {
+    setPrintingId(jobId);
+    try {
+      await jobsApi.print(jobId, selectedPrinter || undefined);
+      showSuccess('Documento inviato in stampa');
+    } catch (err: any) {
+      showError(err?.response?.data?.message || 'Errore invio in stampa');
+    } finally {
+      setPrintingId(null);
     }
   };
 
@@ -356,7 +376,36 @@ export default function SpoolModal({ open, onClose }: Props) {
 
                 {/* Toolbar azioni (solo tab utente) */}
                 {activeTab === 'files' && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Selezione stampante + pulsante stampa */}
+                    {printerConfigs.length > 0 && (
+                      <>
+                        <select
+                          value={selectedPrinter}
+                          onChange={e => setSelectedPrinter(e.target.value)}
+                          className="h-9 px-3 text-sm bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full focus:outline-none dark:text-white max-w-[180px]"
+                          title="Stampante"
+                        >
+                          {printerConfigs.map(p => (
+                            <option key={p.cupsName} value={p.cupsName}>{p.alias || p.cupsName}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => {
+                            const list = getCurrentList();
+                            const sel = list.filter(j => selectedIds.has(j.id) && j.outputMime === 'application/pdf');
+                            if (sel.length === 0) { showError('Seleziona almeno un PDF da stampare'); return; }
+                            sel.forEach(j => handlePrint(j.id));
+                          }}
+                          disabled={selectedIds.size === 0 || printingId !== null}
+                          className="h-9 w-9 rounded-full border border-blue-200 dark:border-blue-700 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-40"
+                          title="Stampa selezionati (solo PDF)"
+                        >
+                          <i className={`fas ${printingId ? 'fa-spinner fa-spin' : 'fa-print'} text-blue-600 dark:text-blue-400`}></i>
+                        </button>
+                        <div className="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>
+                      </>
+                    )}
                     <button
                       onClick={() => handleOpenSelected()}
                       disabled={selectedIds.size === 0}
@@ -432,12 +481,13 @@ export default function SpoolModal({ open, onClose }: Props) {
                             <th className="px-4 py-3 text-left">FORMATO</th>
                             <th className="px-4 py-3 text-left">DIMENSIONE</th>
                             <th className="px-4 py-3 text-left">CREATO</th>
+                            {printerConfigs.length > 0 && <th className="px-4 py-3 text-left"></th>}
                           </tr>
                         </thead>
                         <tbody>
                           {files.length === 0 ? (
                             <tr>
-                              <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                              <td colSpan={printerConfigs.length > 0 ? 5 : 4} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                                 Nessun file disponibile
                               </td>
                             </tr>
@@ -467,6 +517,20 @@ export default function SpoolModal({ open, onClose }: Props) {
                                 <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
                                   {new Date(job.createdAt).toLocaleString('it-IT')}
                                 </td>
+                                {printerConfigs.length > 0 && (
+                                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                                    {job.outputMime === 'application/pdf' && (
+                                      <button
+                                        onClick={() => handlePrint(job.id)}
+                                        disabled={printingId === job.id}
+                                        className="h-7 w-7 rounded-full border border-blue-200 dark:border-blue-700 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-40"
+                                        title={`Stampa su ${printerConfigs.find(p => p.cupsName === selectedPrinter)?.alias || selectedPrinter || 'default'}`}
+                                      >
+                                        <i className={`fas ${printingId === job.id ? 'fa-spinner fa-spin' : 'fa-print'} text-blue-600 dark:text-blue-400 text-xs`}></i>
+                                      </button>
+                                    )}
+                                  </td>
+                                )}
                               </tr>
                             ))
                           )}
