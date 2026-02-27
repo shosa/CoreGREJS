@@ -436,21 +436,21 @@ export class SettingsController {
 
   @Get('printers/cups-list')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('system-admin')
+  @RequirePermissions('settings')
   async getCupsPrinters() {
     return this.settingsService.getCupsPrinters();
   }
 
   @Get('printers')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('system-admin')
+  @RequirePermissions('settings')
   async getPrinterConfigs() {
     return this.settingsService.getPrinterConfigs();
   }
 
   @Put('printers')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('system-admin')
+  @RequirePermissions('settings')
   async savePrinterConfigs(
     @Body() body: { configs: { cupsName: string; alias: string; isDefault: boolean }[] },
   ) {
@@ -460,7 +460,7 @@ export class SettingsController {
 
   @Post('printers/test')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('system-admin')
+  @RequirePermissions('settings')
   async testPrint(@Body() body: { cupsName: string }) {
     if (!body.cupsName) throw new BadRequestException('cupsName obbligatorio');
     await this.settingsService.testPrint(body.cupsName);
