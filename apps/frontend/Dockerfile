@@ -40,6 +40,13 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 # Build Next.js app
 RUN npm run build
 
+# Compile custom server.ts → server.custom.js
+RUN npx tsc --target ES2020 --module commonjs --moduleResolution node \
+    --esModuleInterop true --skipLibCheck true \
+    --outDir /tmp/server-build \
+    server.ts && \
+    cp /tmp/server-build/server.js .next/standalone/apps/frontend/server.js
+
 # Stage 3: Runner
 FROM node:18-alpine AS runner
 RUN apk add --no-cache libc6-compat
