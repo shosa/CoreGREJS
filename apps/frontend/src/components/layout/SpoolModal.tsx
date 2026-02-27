@@ -45,12 +45,6 @@ export default function SpoolModal({ open, onClose }: Props) {
   const [selectedPrinter, setSelectedPrinter] = useState<string>('');
   const [printingId, setPrintingId] = useState<string | null>(null);
 
-  // true solo se almeno un file selezionato è PDF
-  const hasSelectedPdf = useMemo(() => {
-    if (selectedIds.size === 0) return false;
-    return files.some(j => selectedIds.has(j.id) && j.outputMime === 'application/pdf');
-  }, [selectedIds, files]);
-
   // Reset selezione quando cambio tab
   useEffect(() => {
     setSelectedIds(new Set());
@@ -61,6 +55,12 @@ export default function SpoolModal({ open, onClose }: Props) {
     () => jobs.filter(j => j.status === 'done' && j.outputName),
     [jobs]
   );
+
+  // true solo se almeno un file selezionato è PDF
+  const hasSelectedPdf = useMemo(() => {
+    if (selectedIds.size === 0) return false;
+    return files.some(j => selectedIds.has(j.id) && j.outputMime === 'application/pdf');
+  }, [selectedIds, files]);
   const inQueue = useMemo(
     () => jobs.filter(j => j.status === 'queued' || j.status === 'running'),
     [jobs]
